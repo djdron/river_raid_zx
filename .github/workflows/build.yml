@@ -21,7 +21,7 @@ jobs:
           git -C deps/sjasmplus submodule -q update --init --depth 1 --recursive
           make -C deps/sjasmplus -j4 > /dev/null
       - run: make
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: river_view
           path: build/river_view.nex
+          archive: false   # the .nex as it is, not zipped (the file's name is the artifact's)
