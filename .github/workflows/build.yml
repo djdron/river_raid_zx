@@ -1,0 +1,27 @@
+# Builds river_view.nex on every push and keeps it as an artifact. The checks need a ROM,
+# which is not in the repository, so they are run locally (make check).
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  nex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: sjasmplus
+        run: |
+          git init -q deps/sjasmplus
+          git -C deps/sjasmplus remote add origin https://github.com/z00m128/sjasmplus
+          git -C deps/sjasmplus fetch -q --depth 1 origin 5c44beafc76d541091e59ced98048c2367d32935
+          git -C deps/sjasmplus checkout -q FETCH_HEAD
+          git -C deps/sjasmplus submodule -q update --init --depth 1 --recursive
+          make -C deps/sjasmplus -j4 > /dev/null
+      - run: make
+      - uses: actions/upload-artifact@v4
+        with:
+          name: river_view
+          path: build/river_view.nex
