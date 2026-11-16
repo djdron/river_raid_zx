@@ -558,14 +558,17 @@ build_copper:
 	ex de,hl
 	ret
 
-; The tilemap's rows: the panel's at 202, 211 and 219 (map rows 20, 22, 23; buffer rows
+; The tilemap's rows (NTSC): the panel's at 202, 211 and 219 (map rows 20, 22, 23; buffer rows
 ; 182, 191, 199 of the C++ port, 20 lines higher), the scrolling line's at 231 (map row 26):
 ; the Copper sets the tilemap's Y scroll for each, and its X scroll for the scrolling line.
 ; The panel's grey is the fallback colour (nothing else is there: the needle goes over it,
 ; the characters over the needle, as PRIOR 4 has it), lines 201-229.
-copper_panel:
-	db $80 | COPPER_WAIT_H * 2, PANEL_FIRST_LINE + 1 - 32 - 1
-	db $4A, 0			; (grey: panel_init)
+copper_panel:				; (one of the two below: tv_setup)
+	ds copper_panel_ntsc_end - copper_panel_ntsc
+copper_panel_end:
+copper_panel_ntsc:
+	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
+	db $4A, 0			; (grey: tv_setup)
 	db $80 | COPPER_WAIT_H * 2, 211 - 32 - 1
 	db $31, 176 - 211
 	db $80 | COPPER_WAIT_H * 2, 230 - 32 - 1
@@ -573,7 +576,19 @@ copper_panel:
 	db $80 | COPPER_WAIT_H * 2, 231 - 32 - 1
 	db $31, 208 - 231
 	db $30, 0			; (set by panel_frame)
-copper_panel_end:
+copper_panel_ntsc_end:
+; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239, the
+; scrolling line at 243
+copper_panel_pal:
+	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
+	db $4A, 0
+	db $80 | COPPER_WAIT_H * 2, 218 - 32 - 1
+	db $31, 176 - 218
+	db $80 | COPPER_WAIT_H * 2, 240 - 32 - 1
+	db $4A, 0
+	db $80 | COPPER_WAIT_H * 2, 243 - 32 - 1
+	db $31, 208 - 243
+	db $30, 0
 
 copper_start:				; the sprites' palette, index 1
 	db $43,$A0,$40,1
@@ -808,14 +823,24 @@ panel_frame:
 	and $3E
 	add a,2 * ($5C - 32 - WINDOW_FIRST)
 	out (c),a			; X
+	ld a,(tv_pal)			; (rows $D3-$DC on PAL)
+	or a
 	ld a,$CC - RIVER_FIRST + RIVER_TOP
-	out (c),a			; Y
+	jr z,.ny
+	ld a,$D3 - RIVER_FIRST + RIVER_TOP
+.ny	out (c),a			; Y
 	ld a,NEEDLE_OFFSET << 4
 	out (c),a
 	ld a,$C0 | 62			; visible, pattern 124
 	out (c),a
 	ld a,$80
 	out (c),a
+	ld a,(tv_pal)			; the logo: rows $DB-$E1 ($E7-$ED on PAL)
+	or a
+	ld a,$DB - RIVER_FIRST + RIVER_TOP
+	jr z,.ly
+	ld a,$E7 - RIVER_FIRST + RIVER_TOP
+.ly	ld (logo_y),a
 	; the logo: player 3 at quadruple width (data $FC: 6 x 4 colour clocks) at LOGO_X, player
 	; 2 (data $FF) from $15 clocks right of it, a clock further left each row (B72A)
 	ld a,(logo_shown)
@@ -847,7 +872,7 @@ panel_frame:
 .logo	push af
 	ld a,l
 	out (c),a
-	ld a,$DB - RIVER_FIRST + RIVER_TOP
+	ld a,(logo_y)
 	out (c),a
 	ld a,h
 	and 1

@@ -11,10 +11,12 @@
 //     Next's colours, black around the river.
 // It also reports whether every frame was ready in time on the Next.
 //
-// usage: nxcheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-bot N] [-attract]
+// usage: nxcheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-bot N] [-attract] [-pal | -ntsc]
+//   -pal (the default) or -ntsc: the standard, the Next at 50 or 60 Hz
 //   -seed: POKEY's counter at power-on; -bot: the made-up player's choices; -attract: no
 //   player, the attract mode only
 #include <array>
+#include <new>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -42,13 +44,13 @@ constexpr int kRomPage = 5;
 constexpr uint16_t kScan = 0x6000; // scan_p3, scan_x, scan_size, scan_col, scan_bank: 256 each, by scanline
 constexpr int kWindowFirst = 20;   // first colour clock shown
 constexpr int kRiverLines = 160;
-constexpr int kPictureLines = 200;
+constexpr int kPictureLines = 216;   // Layer 2 rows 40-255 (NTSC: the panel ends at 239)
 constexpr int kSpritesMax = 60;     // SPRITES_MAX (sprites.asm)   // the river, the panel, the scrolling line
 constexpr int kRiverFirstLine = 28;
 constexpr int kRiverTop = 40;      // Layer 2 row of the river's top line
 // Where Layer 2 (320x256) is in the core's picture (360 dots x 303 lines, 2 columns a dot)
 constexpr int kL2Left = 8;
-constexpr int kL2Top = 24;
+constexpr int kL2Top = 24;     // (at 50 Hz; at 60 Hz the picture starts with Layer 2 row 0)
 
 int sramOffset(int page) { return 0x40000 + page * 0x2000; }
 
@@ -67,6 +69,11 @@ uint16_t symbol(const std::string &dir, const char *name) {
 		}
 	std::fclose(f);
 	return at;
+}
+
+void writeZ80(Computer *comp, uint16_t addr, uint8_t v) {
+	const int page = comp->next->mmu[addr >> 13];
+	comp->mem->ramData[sramOffset(page) + (addr & 0x1FFF)] = v;
 }
 
 uint8_t readZ80(Computer *comp, uint16_t addr) {
@@ -246,12 +253,16 @@ int main(int argc, char **argv) {
 		return 2;
 	}
 	uint32_t seed = 12345, botSeed = 1;
-	bool attractOnly = false;
+	bool attractOnly = false, pal = true;
+	int switchAt = -1;   // -switch N: CAPS + 1 before frame N, the other standard from the start
 	const char *ppm = nullptr;
 	for (int i = 4; i < argc; i++) {
 		if (!std::strcmp(argv[i], "-seed") && i + 1 < argc) seed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
 		else if (!std::strcmp(argv[i], "-bot") && i + 1 < argc) botSeed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
 		else if (!std::strcmp(argv[i], "-attract")) attractOnly = true;
+		else if (!std::strcmp(argv[i], "-ntsc")) pal = false;
+		else if (!std::strcmp(argv[i], "-pal")) pal = true;
+		else if (!std::strcmp(argv[i], "-switch") && i + 1 < argc) switchAt = std::atoi(argv[++i]);
 		else ppm = argv[i];
 	}
 	std::vector<uint8_t> romData, code[3];
@@ -263,9 +274,11 @@ int main(int argc, char **argv) {
 	}
 	const int frames = std::atoi(argv[3]);
 	const uint16_t sbCount = symbol(argv[2], "sb_count");
+	const uint16_t tvToggle = symbol(argv[2], "tv_toggle"), rndState = symbol(argv[2], "rnd_state");
 	auto word = [&](int at) { return uint16_t(code[0][size_t(at)] | (code[0][size_t(at + 1)] << 8)); };
 	const uint16_t frameHook = word(5), applyHook = word(7);
-	const uint32_t first = rrzx::pokeyFirstRead(seed);   // POKEY's counter at the first read
+	const uint32_t first = rrzx::pokeyFirstRead(seed, pal);   // POKEY's counter at the first read
+	code[0][17] = pal ? 1 : 0;                                  // tv_init
 	code[0][9] = uint8_t(first);
 	code[0][10] = uint8_t(first >> 8);
 	code[0][11] = uint8_t(first >> 16);
@@ -294,21 +307,22 @@ int main(int argc, char **argv) {
 
 	// The C++ port, from the attract mode's start
 	rr::Game game(rom);
-	rr::PokeyRandom random(seed);
-	game.startAttract(false);
+	rr::PokeyRandom random(seed, rr::tvSystem(pal));
+	game.startAttract(pal);
 	random.nextFrame();
 	static uint8_t picture[rr::kScreenHeight][rr::kScreenWidth];
 	std::vector<uint8_t> rows(size_t(kPictureLines) * 320);   // the last frame's river and panel
 	uint8_t osFont[rr::kOsFontBytes];
 	rr::builtinOsFont(osFont);
 	const rr::Charsets charsets = rr::buildCharsets(rom, osFont);
-	game.afterDisplay = [&] {
+	auto afterDisplay = [&] {
 		std::memset(picture, 0, sizeof picture);
 		game.drawRiver(picture);
 	};
+	game.afterDisplay = afterDisplay;
 	auto takePicture = [&] {   // as the C++ port's game shows the frame
 		const rr::GameState &g = game.g;
-		rr::drawStatusBar(rom, charsets, g.panel, g.fuel, g.scroller, g.logoShown, picture);
+		rr::drawStatusBar(rom, charsets, g.panel, g.fuel, g.scroller, g.logoShown, picture, pal);
 		for (int k = 0; k < kPictureLines; k++)
 			std::memcpy(&rows[size_t(k) * 320], &picture[rr::kRiverTop + k][2 * kWindowFirst], 320);
 	};
@@ -345,6 +359,22 @@ int main(int argc, char **argv) {
 	long long lastApply = -1, longestFrame = 0, applyTick = -1, workMax = 0, workSum = 0;
 	int lateFrames = 0, workMaxFrame = 0, worked = 0;
 	for (int f = 1; f <= frames; f++) {
+		if (f == switchAt) {
+			// CAPS + 1: the program starts again with the other standard; so does the C++ port,
+			// a new machine (POKEY's counter from another seed for both)
+			pal = !pal;
+			writeZ80(comp, tvToggle, 1);
+			const uint32_t first = rrzx::pokeyFirstRead(seed + 1, pal);
+			writeZ80(comp, rndState, uint8_t(first));
+			writeZ80(comp, uint16_t(rndState + 1), uint8_t(first >> 8));
+			writeZ80(comp, uint16_t(rndState + 2), uint8_t(first >> 16));
+			game.~Game();
+			new (&game) rr::Game(rom);
+			game.afterDisplay = afterDisplay;
+			game.startAttract(pal);
+			random = rr::PokeyRandom(seed + 1, rr::tvSystem(pal));
+			random.nextFrame();
+		}
 		runTo(frameHook);
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
 			const long long w = comp->tickTotal - applyTick;
@@ -359,7 +389,7 @@ int main(int argc, char **argv) {
 		}
 		if (game.busy()) busyFrames++;
 		if (game.g.pauseState) pausedFrames++;
-		game.frame(input, [&] { return reads++ ? random.read(249, 13) : random.read(192, 13); });
+		game.frame(input, [&] { return reads++ ? random.read(249, 13) : pal ? random.read(191, 24) : random.read(192, 13); });
 		random.nextFrame();
 		takePicture();
 		{
@@ -507,7 +537,10 @@ int main(int argc, char **argv) {
 	std::printf("timing: %d frames late (the longest took %lld Next frames); a frame's work: %lld on average, "
 		"%lld at most (frame %d), in the core's ticks\n", lateFrames, longestFrame, worked ? workSum / worked : 0, workMax, workMaxFrame);
 
-	// The last frame went live at the apply just run; the Next frame after this one shows it
+	// The last frame went live at the apply just run; the Next frame after this one shows it.
+	// The program stops there (JR $ at apply_done), so the next frame's apply cannot come first.
+	sram[sramOffset(kCodePages[0]) + (applyHook - 0x8000)] = 0x18;
+	sram[sramOffset(kCodePages[0]) + (applyHook - 0x8000) + 1] = 0xFE;
 	for (int i = 0; i < 2; i++) {
 		const int swaps = bufSwaps;
 		while (bufSwaps == swaps) compExec(comp);
@@ -521,7 +554,7 @@ int main(int argc, char **argv) {
 			const int r = y - kRiverTop;
 			if (r >= 0 && r < kPictureLines) rrzx::nextRgb(rrzx::nextColour(rows[size_t(r) * 320 + size_t(x)]), want);
 			for (int h = 0; h < 2; h++) {
-				const uint8_t *p = pixel(2 * (kL2Left + x) + h, kL2Top + y);
+				const uint8_t *p = pixel(2 * (kL2Left + x) + h, (pal ? kL2Top : 0) + y);
 				if (p[0] != want[0] || p[1] != want[1] || p[2] != want[2])
 					if (!bad++) { firstBadX = x; firstBadY = y; }
 			}

@@ -17,7 +17,7 @@ DRAW_CYCLE	equ 28
 WSYNC_CYCLE	equ 106
 REFRESH_CYCLES	equ 9
 RIVER_FIRST	equ 28		; the river's first scanline
-PANEL_FIRST	equ 190		; the panel's first (NTSC)
+PANEL_FIRST	equ 190		; the panel's first (NTSC; 194 PAL)
 
 ; An instruction of n cycles. Instructions in a row with nothing the beam sees between
 ; them (a register written, a collision read, WSYNC) can go as one: the events between them
@@ -340,7 +340,11 @@ init_line_tables:
 	ld (hl),5 + 1
 	ld l,RIVER_FIRST + RIVER_LINES
 	ld (hl),5 + 1
-	ld l,PANEL_FIRST		; the panel: mode 6 with an address
+	ld a,(tv_pal)			; the panel: mode 6 with an address (2 blank lines before
+	add a,a				; it, 6 on PAL)
+	add a,a
+	add a,PANEL_FIRST
+	ld l,a
 	ld (hl),5 + 3
 	inc h
 	ld (hl),LINE_CYCLES - DRAW_CYCLE - REFRESH_CYCLES - 20

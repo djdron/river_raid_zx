@@ -702,8 +702,12 @@ reset:
 	jr z,.pm
 	ld (SCREEN_ON),a		; B101: colours off while clearing
 	call clear_screen_memory
+	ld a,(tv_pal)			; 13 frames (8 on PAL: a longer frame, fewer of them)
+	or a
 	ld a,13
-	ld (busy),a
+	jr z,.busy
+	ld a,8
+.busy	ld (busy),a
 	ld a,L2_PAGES			; Layer 2 cleared in the frames to come
 	ld (l2_clear),a
 	jp draw_logo_and_needle
@@ -740,8 +744,9 @@ clear_screen_memory:
 	ret
 
 ; One page of Layer 2 cleared, while there are any left (frames of the reset)
-clear_layer2_page:
-	ld a,(l2_clear)
+clear_layer2_page:			; (two)
+	call .page
+.page	ld a,(l2_clear)
 	or a
 	ret z
 	dec a
@@ -831,6 +836,17 @@ respawn_or_game_over:
 	ret
 .over	ld a,1				; A3B4: after this frame's VBI
 	ld (game_over_text),a
+	ld a,(tv_pal)			; PAL: the panel's DLI keeps the CPU longer, the VBI comes
+	or a				; before sub $B21A and sees the state as it was
+	jr z,.hs
+	ld (vbi_before),a
+	ld a,(FRAME_COUNT)
+	ld (vbi_saved),a
+	ld a,(PLANE_STATE)
+	ld (vbi_saved + 1),a
+	ld a,(ATTRACT_TIMER)
+	ld (vbi_saved + 2),a
+.hs
 	ld hl,SCORE			; A37D: game over
 	call update_high_score
 	ld hl,OTHER_SCORE
@@ -1151,6 +1167,21 @@ read_input:
 	and %00000101
 	jr z,$+4
 	set 0,d
+	ld b,$FE			; CAPS + 1: the other standard (when pressed)
+	in a,(c)
+	ld h,a
+	ld b,$F7
+	in a,(c)
+	or h
+	cpl
+	and 1
+	ld h,a
+	ld a,(tv_keys)
+	cpl
+	and h
+	ld (tv_toggle),a
+	ld a,h
+	ld (tv_keys),a
 	ld b,$BF			; Enter: START; H: pause
 	in a,(c)
 	bit 0,a

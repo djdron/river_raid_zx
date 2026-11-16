@@ -26,7 +26,8 @@ build/tools/nxcheck build/tools/mkpalette build/tools/mkrandom build/tools/mkfon
 	cmake --build build/tools
 
 check: build/test_page4.bin build/tools/nxcheck
-	build/tools/nxcheck $(ROM) build $(FRAMES) build/check_frame.ppm
+	build/tools/nxcheck $(ROM) build $(FRAMES) build/check_frame.ppm -pal
+	build/tools/nxcheck $(ROM) build $(FRAMES) build/check_frame_ntsc.ppm -ntsc
 
 # where a frame's time goes (the frame after FRAMES), per routine
 profile: build/test_page4.bin build/tools/nxcheck

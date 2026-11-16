@@ -33,11 +33,12 @@ L2_FIRST_PAGE	equ L2_BANK * 2
 L2_PAGES	equ 10			; 320x256 bytes
 RIVER_LINES	equ 160
 RIVER_TOP	equ 40			; Layer 2 row (of 256) of the river's top line
-WAIT_LINE	equ 208			; raster line (ULA numbering) where a frame's work starts:
-					; below the scrolling line
+WAIT_LINE_NTSC	equ 208			; raster line (ULA numbering) where a frame's work starts:
+WAIT_LINE_PAL	equ 220			; below the scrolling line
 INIT_PAGE	equ 7			; panel_init.asm, at $6000 while it runs
 PANEL_FIRST_LINE equ 200		; the tilemap's lines: the panel and the scrolling line
-PANEL_LAST_LINE	equ 239
+PANEL_LAST_NTSC	equ 239
+PANEL_LAST_PAL	equ 255
 TILE_256	equ $4000		; page 11 at $4000: the scrolling line's tile 256
 TILE_MAP	equ $4100		; and the map, 40 x 32 entries of 2 bytes
 NEEDLE_OFFSET	equ 4			; sprite palette offsets
@@ -59,6 +60,7 @@ in_stick:	db $0F,$0F		; the controls of the frame (play.asm; the checks set them
 in_trig:	db 0
 in_console:	db 0
 in_key:		db 0
+tv_init:	db 1			; 1 PAL (50 Hz), 0 NTSC (60 Hz); CAPS + 1 changes it
 
 start:
 	ifndef TEST
@@ -78,7 +80,6 @@ start:
 	nextreg $53,DATA_PAGE
 	nextreg $56,CODE2_PAGE
 	call init_tables
-	call init_line_tables
 	call init_video
 	nextreg $53,INIT_PAGE		; the panel's characters, tiles and sprites
 	call panel_init
@@ -87,8 +88,24 @@ start:
 	ld (rnd_state),hl
 	ld a,(rnd_init + 2)
 	ld (rnd_state + 2),a
+	ld a,(tv_init)
+	ld (tv_pal),a
+; The machine switched on with tv_pal's standard: everything from the start
+restart:
+	ld sp,0
+	call tv_setup
+	ld a,L2_PAGES			; Layer 2 empty
+	ld (l2_clear),a
+.cl2	call clear_layer2_page
+	ld a,(l2_clear)
+	or a
+	jr nz,.cl2
 	xor a
 	ld (scroll),a
+	ld (busy),a
+	ld (resume),a
+	ld (game_over_text),a
+	ld (vbi_before),a
 	call start_attract		; frame 0: the attract mode starts, its first line
 main_frame:
 	ld a,(scroll)			; the screen as this frame's display sees it
@@ -102,6 +119,16 @@ main_frame:
 	ifndef TEST
 	call read_input
 	endif
+	ld a,(tv_toggle)		; CAPS + 1: the other standard, from the start (the checks
+	or a				; set it too)
+	jr z,.go
+	xor a
+	ld (tv_toggle),a
+	ld a,(tv_pal)
+	xor 1
+	ld (tv_pal),a
+	jp restart
+.go
 	ld a,(busy)
 	or a
 	jr nz,.busy
@@ -135,8 +162,10 @@ wait_frame:
 	ld a,$1F			; active video line, low byte
 	out (c),a
 	inc b
+	ld a,(wait_line)
+	ld e,a
 .wait	in a,(c)
-	cp WAIT_LINE
+	cp e
 	jr nz,.wait
 	ret
 
@@ -305,6 +334,58 @@ init_tables:
 .n0	djnz .n
 	ret
 
+; The standard's settings (tv_pal): 50 or 60 Hz, ANTIC's cycles at the panel's first line,
+; when a frame starts, POKEY's counter per frame, where the panel and the scrolling line are.
+tv_setup:
+	ld bc,$243B			; nextreg $05 bit 2: 60 Hz for NTSC
+	ld a,$05
+	out (c),a
+	inc b
+	in a,(c)
+	and %11111011
+	ld e,a
+	ld a,(tv_pal)
+	or a
+	ld a,e
+	jr nz,.hz
+	or %00000100
+.hz	nextreg $05,a
+	call init_line_tables
+	ld a,(tv_pal)
+	or a
+	ld a,WAIT_LINE_NTSC
+	ld hl,random_columns_ntsc
+	ld de,copper_panel_ntsc
+	ld bc,PANEL_LAST_NTSC << 8 | 160 - 202
+	jr z,.set
+	ld a,WAIT_LINE_PAL
+	ld hl,random_columns_pal
+	ld de,copper_panel_pal
+	ld bc,PANEL_LAST_PAL << 8 | 160 - 206
+.set	ld (wait_line),a
+	ld (rnd_cols),hl
+	ld a,c				; the tilemap at the panel's first row (copper_start)
+	ld (copper_start + 7),a
+	ex de,hl			; the Copper's part for the panel and the scrolling line
+	ld de,copper_panel
+	push bc
+	ld bc,copper_panel_end - copper_panel
+	ldir
+	pop bc
+	ld a,(palette + $06)		; the panel's background (COLBK $06)
+	ld (copper_panel + 3),a
+	nextreg $1C,%00001010		; clip windows: the sprites and the tilemap to the last line
+	nextreg $19,0
+	nextreg $19,159
+	nextreg $19,RIVER_TOP
+	ld a,b
+	nextreg $19,a
+	nextreg $1B,0
+	nextreg $1B,159
+	nextreg $1B,PANEL_FIRST_LINE
+	nextreg $1B,a
+	ret
+
 init_video:
 	xor a				; black border, no ULA
 	out ($FE),a
@@ -317,15 +398,11 @@ init_video:
 	nextreg $16,0			; no scroll yet
 	nextreg $71,0
 	nextreg $17,0
-	nextreg $1C,%00000011		; clip windows: Layer 2 and the sprites, the river's rows
-	nextreg $18,0
+	nextreg $1C,%00000001		; clip window: Layer 2, the river's rows (the sprites' and
+	nextreg $18,0			; the tilemap's: tv_setup)
 	nextreg $18,159
 	nextreg $18,RIVER_TOP
 	nextreg $18,RIVER_TOP + RIVER_LINES - 1
-	nextreg $19,0
-	nextreg $19,159
-	nextreg $19,RIVER_TOP
-	nextreg $19,PANEL_LAST_LINE	; (and the needle and the logo below)
 	nextreg $15,%00010011		; the tilemap over the sprites over Layer 2 (USL), sprites
 					; visible, also over the border
 	nextreg $43,%10010000		; Layer 2's palette: black, (the bank), the edge, the water
@@ -337,19 +414,6 @@ init_video:
 	nextreg $40,3
 	ld a,(palette + COLOUR_WATER)
 	nextreg $41,a
-	ld c,L2_FIRST_PAGE		; clear Layer 2
-	ld b,L2_PAGES
-.clear	ld a,c
-	nextreg $52,a
-	ld hl,$4000
-	ld de,$4001
-	ld (hl),0
-	push bc
-	ld bc,$1FFF
-	ldir
-	pop bc
-	inc c
-	djnz .clear
 	ld bc,$123B			; Layer 2 on
 	ld a,$02
 	out (c),a
@@ -508,6 +572,14 @@ busy:		ds 1			; frames of sub $B0F1 still to come
 resume:		ds 1			; what the main loop does after them
 l2_clear:	ds 1			; pages of Layer 2 still to clear
 rs_full:	ds 1
+tv_pal:		ds 1			; 1 PAL, 0 NTSC
+tv_toggle:	ds 1			; read_input: CAPS + 1 pressed
+tv_keys:	ds 1			; (it was down last frame)
+wait_line:	ds 1
+rnd_cols:	ds 2			; random_step's map for the standard
+vbi_before:	ds 1			; PAL: the VBI sees the state before sub $B21A (vbi)
+vbi_saved:	ds 3
+logo_y:		ds 1
 rl_page:	ds 1
 cs_sp:		ds 2
 pb_leading:	ds 1

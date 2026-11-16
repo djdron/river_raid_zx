@@ -18,7 +18,7 @@ random_read:				; A = the value read: bits 16-9
 ; The counter one frame (262 x 114 cycles) on: a linear map, random.inc has its columns.
 random_step:
 	ld hl,(rnd_state)
-	ld ix,random_columns
+	ld ix,(rnd_cols)
 	ld de,0
 	ld c,d
 	ld b,16
@@ -141,9 +141,14 @@ start_attract:
 	ld (PLANE_X),a
 	call bank_colour
 	ld (colour_bank),a
-	ld a,$4B			; the scrolling line has been moving since frame 11
+	ld a,$4B			; the scrolling line has been moving since frame 11 (9 on PAL)
 	ld (TEXT_LO),a
+	ld a,(tv_pal)
+	or a
 	ld b,38 - 11 + 1
+	jr z,.steps
+	ld b,25 - 9 + 1
+.steps
 .scroll	push bc
 	or 1
 	call scroller_step
@@ -153,9 +158,16 @@ start_attract:
 
 ; sub $B0F1 leaves the rainbow under the logo and the fuel gauge's needle in player-missile
 ; memory.
-draw_logo_and_needle:
-	ld hl,PM_PLANE + $DB
-	ld de,PM_P3 + $DB
+draw_logo_and_needle:			; (PAL: B133-B15C, 12 and 7 rows lower)
+	ld a,(tv_pal)
+	or a
+	ld a,$DB
+	jr z,.l
+	ld a,$E7
+.l	ld l,a
+	ld e,a
+	ld h,high PM_PLANE
+	ld d,high PM_P3
 	ld b,7
 .logo	ld (hl),$FF
 	ld a,$FC
@@ -163,7 +175,13 @@ draw_logo_and_needle:
 	inc l
 	inc e
 	djnz .logo
-	ld hl,PM_MISSILES + $CC
+	ld a,(tv_pal)
+	or a
+	ld a,$CC
+	jr z,.n
+	ld a,$D3
+.n	ld l,a
+	ld h,high PM_MISSILES
 	ld b,10
 .needle	ld (hl),$0C
 	inc l
@@ -622,7 +640,16 @@ move_shell:
 ; B2A5-B43E: the vertical blank: the sound driver's counters (the sound itself comes later),
 ; the frame counter, the colours of the next frame; POKEY's counter one frame on.
 vbi:
-	call sound_counters
+	ld a,(vbi_before)		; PAL: this VBI comes before sub $B21A's game over
+	or a
+	jr z,.sound
+	ld a,(vbi_saved)
+	ld (FRAME_COUNT),a
+	ld a,(vbi_saved + 1)
+	ld (PLANE_STATE),a
+	ld a,(vbi_saved + 2)
+	ld (ATTRACT_TIMER),a
+.sound	call sound_counters
 	ld hl,FRAME_COUNT
 	inc (hl)
 	jr nz,.colours
@@ -664,7 +691,16 @@ vbi:
 .scroll	ld a,(ATTRACT_TIMER)		; B44B: the scrolling line moves while no game is played
 	or a
 	call scroller_step
-	ld hl,game_over_text		; A3B4: "Game over" scrolls past first
+	ld hl,vbi_before		; (then sub $B21A's values)
+	ld a,(hl)
+	or a
+	jr z,.text
+	ld (hl),0
+	ld a,$FF
+	ld (FRAME_COUNT),a
+	ld (PLANE_STATE),a
+	ld (ATTRACT_TIMER),a
+.text	ld hl,game_over_text		; A3B4: "Game over" scrolls past first
 	ld a,(hl)
 	or a
 	jp z,random_step

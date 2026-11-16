@@ -209,13 +209,11 @@ panel_init:
 	nextreg $1B,0
 	nextreg $1B,159
 	nextreg $1B,PANEL_FIRST_LINE
-	nextreg $1B,PANEL_LAST_LINE
+	nextreg $1B,PANEL_LAST_NTSC
 	nextreg $6B,%10000010
 	xor a
 	ld (pc_next),a
 	ld (pc_next + 1),a
-	ld a,(palette + $06)		; the panel's background (COLBK $06) for the Copper
-	ld (copper_panel + 3),a
 	ret
 
 ; the dot B of row E of the logo's player 2 part: its colour (E + 1) or 0

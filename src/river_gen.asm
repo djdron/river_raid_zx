@@ -1598,7 +1598,8 @@ start_game:
 	ld bc,$05FF
 	ld (hl),l
 	ldir
-	ld a,$2E			; ... but the depot limit (NTSC)
+	ld a,(tv_pal)			; ... but the depot limit ($2E NTSC, $2F PAL)
+	add a,$2E
 	ld (DEPOT_LEVEL_LIMIT),a
 	ld hl,ROM_START_CHECKPOINT
 	ld de,CHECKPOINT

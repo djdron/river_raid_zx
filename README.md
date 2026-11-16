@@ -26,9 +26,17 @@ against the C++ port frame by frame.
 
 Not there yet: the sound.
 
+PAL or NTSC: the program starts as a PAL Atari (the Next at 50 Hz), CAPS + 1 switches to an
+NTSC one (60 Hz) and back, as if the machine were switched on again. They differ as the
+originals do: the NTSC game runs 17% faster (60 frames a second instead of 50), the panel and
+the scrolling line are higher, the memory clearing after a crash takes 13 frames instead of
+8, fuel depots are a little rarer on PAL from level $2F on, and so on (the C++ port's PAL
+and NTSC variants).
+
 Speed: at 28 MHz a frame's work takes under two thirds of a 50 Hz frame on average, the
-busiest (tanks, shells and missiles beside the enemies) up to 95%; about 1 frame in 2000 to
-7000 is a little late and shown twice. At 60 Hz it is too slow.
+busiest (tanks, shells and missiles beside the enemies) up to 95%; on PAL about 1 frame in
+3000 is a little late and shown twice. At 60 Hz (NTSC) the frame is shorter: about 1 frame
+in 13 is late.
 
 ## Running it
 
@@ -45,6 +53,7 @@ and the program stops. The ROM is looked for by its long name, then by its short
 | START | Enter | START on a Mega Drive pad |
 | SELECT (the game, 1-8) | G | A on a Mega Drive pad |
 | pause | H (press and release; again to go on) | |
+| PAL / NTSC | CAPS + 1 (starts again) | |
 
 Games 1-8 as on the Atari: starting at bridge 1, 5, 20 or 50, odd numbers one player, even
 two (they take turns; the keyboard flies for both).
@@ -70,7 +79,8 @@ make check     # FRAMES=... frames (3000 by default); your ROM at rom/River_Raid
 make profile   # where the time of one frame goes (the frame after FRAMES)
 ```
 
-`tools/nxcheck` runs the program on the ZX Spectrum Next core of
+`make check` runs it on PAL and on NTSC (`-pal`, `-ntsc`; `-switch N`: CAPS + 1 before frame
+N). `tools/nxcheck` runs the program on the ZX Spectrum Next core of
 [Xpeccy+](https://github.com/dotkoval/xpeccy-plus) with no window and runs the C++ port
 beside it (`rr::Game::frame`, with the same POKEY counter and the same controls). The
 controls come from a made-up player: it waits in the attract mode, sometimes selects another
