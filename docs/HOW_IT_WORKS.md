@@ -10,6 +10,8 @@ The Atari 800 of 1979 has a 6502 processor at 1.79 MHz; the Next has a Z80 at up
 
 The **Atari** draws the screen line by line, as the TV's beam goes. For moving things it has only eight "sprites": four **players** (each 8 dots wide) and four **missiles** (each 2 dots wide). Eight is far too few for River Raid's plane, jets, helicopters, ships, tanks, balloons, fuel depots and bridges, so the game cheats: it re-uses one player for every enemy down the screen. While the beam draws the screen, a small piece of code (the *display list interrupt*, DLI) wakes up before each object, moves player 3 to the object's place, gives it the object's shape and colour row by row, and when the object is finished, moves the same player down to the next object. Ten objects on screen are really one player, moved ten times during one picture.
 
+What is a DLI? An *interrupt* is the hardware tapping the processor on the shoulder: the processor puts down what it was doing, runs a short piece of code, and goes back. The Atari's video chip follows a *display list*, a small program that says what each band of the screen shows. Any of its lines can carry a mark; when the beam reaches a marked line, the processor is interrupted: a display list interrupt. River Raid's main DLI starts just above the river and keeps hold of the processor down to the river's bottom. At every line it waits for the beam (the chip can hold the processor until the next line begins) and changes player 3 just in time. Only then does the processor go back to the game.
+
 The **Next** has a much more generous video chip: a full-colour background layer (*Layer 2*), up to 128 hardware sprites of 16×16 dots, a layer of tiles for text, and a helper called the *Copper* that can change colours at any line of the screen. It cannot do what the Atari does, re-using a sprite while the picture is being drawn. But it does not need to: it simply has enough sprites.
 
 So the port does not copy what the Atari's chips do. It copies **what the Atari shows**, then builds the same picture from the Next's parts.
@@ -46,11 +48,19 @@ Drawing a sprite's shape takes time, so the Next remembers which shapes it alrea
 
 On the Atari, the game never works out collisions itself. The video chip does it: while drawing, whenever a player's dot lands on a coloured dot of the playfield, or on another player's dot, it sets a bit in a collision register ("player 2 touched colour 1", "missile 2 touched player 3"). The DLI reads these registers after each object: that is how the game knows that the bullet hit this ship, that the plane flew into the bank, that a jet reached the edge and must turn.
 
-The Next's video chip has nothing like that, so the Next works it out, for each line where something moves: which dots of each player and missile are lit, and what is under them.
+These bits are only ever set, never cleared by the chip: they stay until the program clears them all at once (by writing to a register called HITCLR). And player 3 is every enemy in turn. Read once at the end of the frame, the registers would say only "player 3 touched something", not which ship. So after each object the DLI copies the registers into the game's memory, next to that object ("the bullet hit the object in slot 5"), clears them, and moves player 3 on to the next object. The game looks there later.
+
+The Next's video chip has nothing like that, so the Next works it out, for each line where something moves: which dots of each player and missile are lit, and what is under them. Then it sets the same bits the Atari's chip would have set, and the DLI, played on the Next, reads and clears them at the same moment as on the Atari.
+
+The Next does have one hardware flag of this kind: "two sprites overlapped". It is no help here. It says neither which sprites nor anything about the river (the banks are in Layer 2, not sprites). With up to sixty sprites a frame, it would be set by sprites the Atari would never have compared (the logo, the needle). And it is set only while the beam actually draws the sprites, a frame later, when the Atari's DLI had to know in the middle of this one.
 
 There is a catch. The DLI reads the collision registers while the screen is still being drawn, and the Atari's chips and processor share their time very precisely. Whether a touch on the line being drawn "counts" for this object or for the next one depends on exactly at which moment of the line the processor reads the register. To get it right the Next keeps an exact clock of the Atari: it counts, for every instruction of the DLI, how many of the Atari's machine cycles it takes, and lets the "beam" draw each line at the right moment in between. This is the most delicate part of the port, and it is the same model the C++ port uses, checked against the original.
 
 To make it fast, the Next only works out the collisions the game actually reads (ten of the sixty-four the Atari's chip keeps track of): the plane with the bank, the bullet with the bank and with objects, the objects with the bank edge, the tank with the edge, the helicopter's missile with the plane and the bank, the shell with the plane and objects. Two sprites far apart on the line are not compared dot by dot. And water is never a collision in River Raid, so when there is only water under a sprite, there is nothing to look at.
+
+So the work goes "cheap first, exact only if needed". Is there any sprite on this line at all? If not, the line is done. Where do two sprites start and end on the line? If the stretches do not meet, they did not touch; only if they do are their dots compared. Is there anything but water under a sprite? Only then are its dots matched with the bank's.
+
+What it costs, measured over 20 000 frames of play by the robot player (PAL; NTSC is the same): collisions are about a fifth of a frame's work, about 79 000 of the 378 000 ticks of an average frame, or 14% of a fiftieth of a second. Of the whole frame's work, about 9% goes on the cheap part (is there anything on this line, and where is the line's river in memory), about 6% on sprites against the river, and about 6% on sprites against each other. One idea not yet tried: do the cheap test once per object instead of on every line, and skip all of an object's lines when its box touches neither the bank nor another sprite. How much that would save is not known until it is measured, since empty lines are already quick.
 
 ## The panel and the scrolling line
 
@@ -60,9 +70,15 @@ On the Next these are made of *tiles*: small 8×8 pictures arranged in a grid, l
 
 The panel's grey background is the colour the Next shows where nothing at all is drawn, so the fuel needle (a sprite) appears over the grey but under the letters, as on the Atari. The rainbow logo is five sprites.
 
+## Why not the Next's line interrupts
+
+The Next can also interrupt its processor at any chosen line of the screen. The port does not use that, because it does not need to keep up with the beam. The Atari's DLI is played ahead of time, as a calculation, while the previous picture is still showing. What has to change at a particular line of the real screen (the road's colour, player 3's colour) is written into the Copper's list, and the Copper, which never misses a line, does it. The processor only has to watch which line the beam is on, to switch to the new frame below the scrolling line, where nothing changes on the screen (interrupts stay off). A line interrupt might be useful for sound played sample by sample through the Next's DAC, though the Next's DMA can do that without the processor at all.
+
 ## Time
 
 All of this has to happen within a fiftieth of a second. The Next runs at 28 MHz, about sixteen times faster than the Atari, but playing the Atari's DLI cycle by cycle is slow. After three rounds of speeding up, a frame takes about two thirds of the time it may on average, and the busiest moments (tanks, shells and missiles beside the enemies) almost all of it. About once in a minute of play a frame is a little late and shown twice. On NTSC, at sixty frames a second, there is less time per frame and more frames are late.
+
+The program switches the Next to 28 MHz itself. Only the speed depends on it, not what happens in the game. The DLI model counts the Atari's cycles, not the Z80's, so its result is the same however long the Z80 takes, and a frame that is late is simply shown twice. At 14 MHz an average frame would need about 1.3 frames' time and the busiest about 1.9: the game would run at about half speed, in jerks. At 7 MHz it would be unplayable. (These are scaled from 28 MHz, not measured.) Every Next and its emulators run at 28 MHz with a current core. At 28 MHz a real Next now and then makes the processor wait for memory. The core the speed was measured on (the one in the Xpeccy+ emulator) should account for that, but it has not been checked on real hardware.
 
 ## How we know it is right
 

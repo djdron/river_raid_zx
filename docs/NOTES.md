@@ -30,6 +30,7 @@ Header at $8000 (for the checks, `tools/nxcheck.cpp`): `jp start`, the addresses
 - **Tilemap** 40x32 with attributes, 512-tile mode (attribute bit 0 = tile bit 8), NR $6E = $21 (map at bank 5 + $2100), NR $6F = 0 (tiles at bank 5 + 0), pixel 0 transparent (NR $4C), clip rows 200–239 (NTSC) or 200–255 (PAL). Layer order USL (NR $15 = %00010011): tilemap over sprites over Layer 2.
 - **50/60 Hz**: NR $05 bit 2, read-modify-write (the other bits are the joystick modes and the scandoubler).
 - **Controls**: keyboard half-rows on port $FE; Kempston 1 at $1F, 2 at $37 ($FF there means nothing connected); Mega Drive pads: bit 7 START, bit 6 A.
+- **Clock and interrupts**: 28 MHz (NR $07 = 3), set at start; only speed depends on it (the DLI model counts Atari cycles). Interrupts stay off (DI): per-line changes are the Copper's, and the frame goes live by polling the raster line (NR $1E/$1F). Line interrupts (NR $22/$23) and the sprite collision flag ($303B bit 0) are not used: the flag knows neither which sprites nor the playfield, and is set only as the beam draws, a frame too late.
 
 ## Sprites from the Atari's players and missiles
 `build_sprites` in the order `Game::drawRiver` draws: player 3 from the DLI's record (`scan_p3/x/size/col` per scanline), then the plane (player 2), its bullet (missile 2), the tank (player 1), the helicopter's missile (missile 0), the shell (player 0) from player-missile memory at one position. A run is up to 16 lines at one position and size; each run is a sprite. An Atari pixel (colour clock) is two sprite pixels: a byte's 8 bits are 8 bytes of $11/$00 (`exp8`). Missiles' bits become a player's byte through `mc_bullet` (1 clock a bit) and `mc_missile` (2 clocks a bit). Lines are scanned 8 at a time (OR of 8 bytes). At most 60 sprites a frame; the most seen in the checks is 11.
@@ -80,6 +81,8 @@ In the core's ticks (28 MHz T-states); a 50 Hz frame is about 567 000, a 60 Hz o
 | water shortcut, screen line ring, pix_tab | 360–369 000 | 530–546 000 | 0.01–0.05% |
 
 NTSC at 60 Hz: about 8% late. Where the time goes now (average): the DLI ~135 000, bm_draw ~31 000, build_copper ~24 000, channels ~21 000, events ~20 000, pf_under ~18 000, collide ~17 000, emit_sprite ~15 000, p3_channel ~14 000, render ~9 000 a line. Tried and dropped: skipping empty blocks in the Copper's list (slower), a lazily advanced screen pointer (slower than a table), keeping the beam's count in AF' (~700 ops a frame, too little).
+
+Collisions over 20 000 bot frames (NXHISTALL, PAL; NTSC the same): about 21% of the work, ~79 000 ticks a frame on average (14% of a 50 Hz frame): bm_draw's test for anything on the line ~6.0%, collide_line + cl_get ~3.1%, collide ~5.8%, pf_under ~5.7%, bm_hitclr ~0.4%. Not tried: a per-object box test before the per-line work (skip all of an object's lines when its box meets neither a non-water byte nor another sprite).
 
 ## The checks (tools/nxcheck.cpp)
 Xpeccy+'s ZX Spectrum Next core as a library (libxpeccy, MIT), headless: the SRAM loaded with the test pages (4, 6, 7) and the ROM (page 5), a `jp $8000` at 0, run instruction by instruction. Hooks: `frame_done` (a frame worked out), `apply_done` (live).

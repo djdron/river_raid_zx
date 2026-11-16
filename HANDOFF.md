@@ -70,10 +70,10 @@ Each step is ported from the C++ port (which is the spec, line for line, with th
 - Controls: Q A O P, Space/M fire, Enter START, G SELECT, H pause; Kempston 1 and 2, Mega Drive START and A.
 
 ## Open questions
-- Not tried on a real Next; the keyboard and joystick reading is untested (the checks give the controls directly).
+- Not tried on a real Next; the keyboard and joystick reading is untested (the checks give the controls directly). Speed is measured on Xpeccy+'s Next core; the real machine's memory wait states at 28 MHz are not checked.
 - NTSC at 60 Hz: about 8% of frames late.
 - Power-on before the attract mode (the first 38/25 frames) is not shown; the program starts at the attract mode.
 
 ## Next steps
 - Sound: the sound driver's counters are done (VBI); the sound itself is either the four POKEY channels on the AY chips (a few thousand cycles a frame) or a software POKEY into the DAC by DMA (about 5–10% of a frame). Not decided.
-- Optionally more speed for NTSC at 60 Hz (about 15% off the busiest frames).
+- Optionally more speed for NTSC at 60 Hz (about 15% off the busiest frames). Collisions are about 21% of the work (docs/NOTES.md, Speed); a per-object box test before the per-line work is the first idea to measure.
