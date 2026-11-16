@@ -12,9 +12,9 @@ River Raid (Activision, Atari 800, 1983, by Carol Shaw) on the ZX Spectrum Next,
 - no original assets are distributed: the program reads the user's ROM at run time.
 
 ## State
-The game is complete except the sound: attract mode, games 1–8, one and two players, the plane, fuel, enemies, tanks, missiles, bridges, score, lives, high scores, pause, the panel and the scrolling line with the rainbow logo. PAL (50 Hz) by default, NTSC (60 Hz) with CAPS + 1. Checked frame by frame against the C++ port (bot games, hundreds of thousands of frames, PAL and NTSC) and against the original on libatari800 (eight runs, 37 000 frames). Not yet run on a real Next: only on Xpeccy+'s Next core.
+The game is complete, with its sound: attract mode, games 1–8, one and two players, the plane, fuel, enemies, tanks, missiles, bridges, score, lives, high scores, pause, the panel and the scrolling line with the rainbow logo. PAL (50 Hz) by default, NTSC (60 Hz) with CAPS + 1. Checked frame by frame against the C++ port (bot games, hundreds of thousands of frames, PAL and NTSC) and against the original on libatari800 (eight runs, 37 000 frames). Not yet run on a real Next: only on Xpeccy+'s Next core.
 
-Speed (28 MHz, PAL): a frame's work is about 55–57% of a 50 Hz frame on average, up to about 80%; no frame late in 60 000. NTSC at 60 Hz: about 1 frame in 1 700 is late and shown twice.
+Speed (28 MHz, PAL): a frame's work is about 59–61% of a 50 Hz frame on average, up to about 88%; 2 frames late in 60 000. The sound is about 22 000 ticks a frame on average (44 000 at most). NTSC at 60 Hz: about 1 frame in 60 is late and shown twice.
 
 Controls, building, checks: [README.md](README.md).
 
@@ -27,14 +27,15 @@ Controls, building, checks: [README.md](README.md).
 |---|---|
 | `src/river_raid.asm` | the program: memory map, start and restart (PAL/NTSC), the frame loop, tables, the data pages; builds the .nex or the test pages |
 | `src/river_gen.asm` | the river generator (`river_gen.cpp` line for line) |
-| `src/game.asm` | attract mode start, `prepare`, the objects' movement, the VBI (sound counters, colours, scrolling line, POKEY's counter) |
+| `src/game.asm` | attract mode start, `prepare`, the objects' movement, the VBI (colours, scrolling line, POKEY's counter) |
+| `src/sound.asm` | the sound driver (POKEY's registers), POKEY emulated into the DMA's ring, the DMA and DAC set up |
 | `src/play.asm` | the main loop: controls, pause, the plane, explosions, crashes, resets, new games, the panel's characters |
 | `src/display.asm` | the DLI as the C++ port's Beam models it: cycle counts, events, collisions |
 | `src/sprites.asm` | players and missiles as sprites, the Copper's list, `apply`, the panel and scrolling line per frame |
 | `src/render.asm` | a river line into Layer 2 |
 | `src/panel_init.asm` | 8K page 7, at the start only: character sets, tiles, fixed sprite patterns, palettes |
 | `src/vars.inc` | the original's RAM addresses and ROM tables |
-| `src/palette.inc`, `src/random.inc`, `src/font.inc` | made by `make palette` (tools/mkpalette, mkrandom, mkfont) |
+| `src/palette.inc`, `src/random.inc`, `src/font.inc`, `src/poly.inc`, `src/poly17.bin` | made by `make palette` (tools/mkpalette, mkrandom, mkfont, mkpoly) |
 | `tools/nxcheck.cpp` | the checks: the program on Xpeccy+'s Next core beside the C++ port, or against rr_oracle's runs (`-oracle`) |
 | `tools/check_original.sh` | `make check-original`: the eight runs of the original |
 | `tools/prof.py` | per-routine time from nxcheck's histograms |
@@ -71,9 +72,10 @@ Each step is ported from the C++ port (which is the spec, line for line, with th
 
 ## Open questions
 - Not tried on a real Next; the keyboard and joystick reading is untested (the checks give the controls directly). Speed is measured on Xpeccy+'s Next core; the real machine's memory wait states at 28 MHz are not checked.
-- NTSC at 60 Hz: the busiest frames take almost all of a 60 Hz frame (about 1 in 1 700 late).
+- The sound has not been heard on a real Next: the zxnDMA (burst mode, prescaler 55, auto restart, read back of its address) and the DAC on port $DF are as Xpeccy+'s core models the VHDL.
+- NTSC at 60 Hz: the busiest frames take more than a 60 Hz frame (about 1 in 60 late).
 - Power-on before the attract mode (the first 38/25 frames) is not shown; the program starts at the attract mode.
 
 ## Next steps
-- Sound: the sound driver's counters are done (VBI); the sound itself is either the four POKEY channels on the AY chips (a few thousand cycles a frame) or a software POKEY into the DAC by DMA (about 5–10% of a frame). Not decided.
+- The sound cheaper: the running sum (`snd_sum`, ~8 500 ticks a frame) and the ring's clearing (~2 800) are half of it.
 - Optionally more speed. Now the work is about 42% the DLI model, 25% sprites and the Copper's list, 25% collisions (docs/NOTES.md, Speed); a per-object box test before the per-line collision work is the first idea to measure.

@@ -109,6 +109,7 @@ restart:
 	ld (resume),a
 	ld (game_over_text),a
 	ld (vbi_before),a
+	call sound_init
 	call start_attract		; frame 0: the attract mode starts, its first line
 main_frame:
 	ld a,(scroll)			; the screen as this frame's display sees it
@@ -140,7 +141,7 @@ main_frame:
 	call build_sprites
 	call main_loop
 	call vbi
-	jr frame_done
+	jr .sound
 .busy	dec a				; sub $B0F1 is clearing memory: the main loop is stuck,
 	ld (busy),a			; only the interrupts run
 	cp 1
@@ -153,6 +154,7 @@ main_frame:
 	or a
 	call z,finish_reset
 	call vbi
+.sound	call pokey_frame
 frame_done:
 	call wait_frame
 	call apply
@@ -489,6 +491,7 @@ palette:				; Atari colour code -> the Next's colour (nextreg $41)
 random_columns:
 	include "random.inc"
 	include "play.asm"
+	include "sound.asm"
 
 	display "page 4 end: ",$
 	assert $ <= $A000		; page 4 is full
@@ -679,10 +682,27 @@ sm_src:		ds 16			; a sprite's bits doubled, before the shift
 line_start:	ds 256			; per scanline: ANTIC's cycles at its start
 line_after_draw: ds 256			; and the cycles left after it is drawn
 dsh_tables:	ds 12 * 256		; a byte's bits doubled and shifted right by 2s bits: 3 bytes
+	align 256
+snd_tables:	ds 256			; the sound (sound.asm): POKEY's 5-bit counter at the ticks,
+					; its 4-bit one at +$40, a bit's mask at +$80 (sound_init)
+pokey_audf:	ds 4			; what the sound driver wrote: AUDF1-4,
+pokey_audc:	ds 4			; AUDC1-4
+snd_ch:		ds 4 * CH_SIZE		; the channels' state (pokey_frame)
+snd_w:		ds 2			; the ring: where this frame's samples go,
+snd_n:		ds 2			; how many
+snd_s31:	ds 1			; a pulse's steps of the 5-bit and 4-bit counters
+snd_s15:	ds 1
+snd_ticks:	ds 2			; the frame's ticks (4 a sample)
+snd_level:	ds 1			; the level at its start
+pk_d:		ds 1
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------
+	mmu 0 1,POLY_PAGE		; POKEY's 17-bit counter (sound.asm)
+	org $0000
+	incbin "poly17.bin"
 	ifdef TEST
+	savebin "build/test_poly.bin",$0000,$4000
 	mmu 4,4
 	savebin "build/test_page4.bin",$8000,$2000
 	mmu 6,6
@@ -693,6 +713,6 @@ dsh_tables:	ds 12 * 256		; a byte's bits doubled and shifted right by 2s bits: 3
 	savenex open "build/river_raid.nex",entry,0
 	savenex core 3,0,0
 	savenex cfg 0
-	savenex bank 2,3
+	savenex bank 2,3,7
 	savenex close
 	endif

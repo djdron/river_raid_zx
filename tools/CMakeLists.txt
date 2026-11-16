@@ -14,7 +14,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(rrcore STATIC ${RR_SRC}/river_gen.cpp ${RR_SRC}/river_state_io.cpp ${RR_SRC}/river_draw.cpp ${RR_SRC}/palette.cpp
-	${RR_SRC}/game.cpp ${RR_SRC}/game_ram.cpp ${RR_SRC}/display.cpp ${RR_SRC}/status_bar.cpp ${RR_SRC}/os_font.cpp)
+	${RR_SRC}/game.cpp ${RR_SRC}/game_ram.cpp ${RR_SRC}/display.cpp ${RR_SRC}/status_bar.cpp ${RR_SRC}/os_font.cpp ${RR_SRC}/pokey_sound.cpp)
 target_include_directories(rrcore PUBLIC ${RR_SRC} ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(mkpalette mkpalette.cpp)
@@ -22,6 +22,7 @@ target_link_libraries(mkpalette rrcore)
 add_executable(mkfont mkfont.cpp)
 target_link_libraries(mkfont rrcore)
 add_executable(mkrandom mkrandom.cpp)
+add_executable(mkpoly mkpoly.cpp)
 
 # Xpeccy+'s core as its own quick tests build it (tests/CMakeLists.txt there)
 include(TestBigEndian)

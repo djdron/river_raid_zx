@@ -35,6 +35,7 @@
 #include "next_palette.h"
 #include "pokey_counter.h"
 #include "pokey_random.h"
+#include "pokey_sound.h"
 
 namespace {
 
@@ -261,6 +262,7 @@ int main(int argc, char **argv) {
 	const char *oracleDir = nullptr;   // -oracle DIR: against the original (rr_oracle's output)
 	long ramBase = 0;   // -switch N: CAPS + 1 before frame N, the other standard from the start
 	const char *ppm = nullptr;
+	const char *wavPath = nullptr, *wavCppPath = nullptr;   // -wav, -wavcpp: the sound (see below)
 	for (int i = 4; i < argc; i++) {
 		if (!std::strcmp(argv[i], "-seed") && i + 1 < argc) seed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
 		else if (!std::strcmp(argv[i], "-bot") && i + 1 < argc) botSeed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
@@ -270,6 +272,8 @@ int main(int argc, char **argv) {
 		else if (!std::strcmp(argv[i], "-switch") && i + 1 < argc) switchAt = std::atoi(argv[++i]);
 		else if (!std::strcmp(argv[i], "-oracle") && i + 1 < argc) oracleDir = argv[++i];
 		else if (!std::strcmp(argv[i], "-ram-base") && i + 1 < argc) ramBase = std::atol(argv[++i]);
+		else if (!std::strcmp(argv[i], "-wav") && i + 1 < argc) wavPath = argv[++i];
+		else if (!std::strcmp(argv[i], "-wavcpp") && i + 1 < argc) wavCppPath = argv[++i];
 		else ppm = argv[i];
 	}
 	std::vector<uint8_t> romData, code[3];
@@ -279,6 +283,8 @@ int main(int argc, char **argv) {
 		const std::string path = std::string(argv[2]) + "/test_page" + std::to_string(kCodePages[i]) + ".bin";
 		if (!readFile(path, code[i]) || code[i].size() != 0x2000) { std::fprintf(stderr, "cannot read %s\n", path.c_str()); return 2; }
 	}
+	std::vector<uint8_t> poly;   // POKEY's 17-bit counter for the sound, pages 14-15
+	if (!readFile(std::string(argv[2]) + "/test_poly.bin", poly) || poly.size() != 0x4000) { std::fprintf(stderr, "cannot read test_poly.bin\n"); return 2; }
 	const int frames = std::atoi(argv[3]);
 	const uint16_t sbCount = symbol(argv[2], "sb_count");
 	const uint16_t tvToggle = symbol(argv[2], "tv_toggle"), rndState = symbol(argv[2], "rnd_state");
@@ -311,6 +317,7 @@ int main(int argc, char **argv) {
 	sram[2] = 0x80;
 	for (int i = 0; i < 3; i++) std::memcpy(sram + sramOffset(kCodePages[i]), code[i].data(), 0x2000);
 	std::memcpy(sram + sramOffset(kRomPage), romData.data(), 0x2000);
+	std::memcpy(sram + sramOffset(14), poly.data(), 0x4000);
 
 	// The C++ port, from the attract mode's start
 	rr::Game game(rom);
@@ -474,6 +481,19 @@ int main(int argc, char **argv) {
 		for (auto &d : diffCount) std::printf("  %s: %ld frames\n", d.first.c_str(), d.second);
 		return bad || readsBad ? 1 : 0;
 	}
+	// The sound: POKEY's registers as the sound driver set them, compared with the C++ port's;
+	// -wav FILE: the samples the program made for the DAC, -wavcpp FILE: the C++ port's POKEY
+	// (PokeySound) at the same rate from its registers (16-bit WAVs to listen to)
+	const uint16_t pokeyAudf = symbol(argv[2], "pokey_audf"), pokeyAudc = symbol(argv[2], "pokey_audc");
+	const uint16_t sndW = symbol(argv[2], "snd_w");
+	constexpr int kSampleRate = 875000 / 55;
+	std::vector<int16_t> wavZ80, wavCpp;
+	rr::PokeySound cppPokey(kSampleRate, pal ? rr::kPal.clock : rr::kNtsc.clock);
+	uint16_t lastW = 0;
+	long sndSamples = 0, sndFrames = 0;
+	long long sndSum = 0, sndMax = 0;
+	int sndMaxFrame = 0;
+	const uint16_t pokeyFrame = symbol(argv[2], "pokey_frame");
 	int errors = 0;
 	long long lastApply = -1, longestFrame = 0, applyTick = -1, workMax = 0, workSum = 0;
 	int lateFrames = 0, workMaxFrame = 0, worked = 0;
@@ -494,7 +514,20 @@ int main(int argc, char **argv) {
 			random = rr::PokeyRandom(seed + 1, rr::tvSystem(pal));
 			random.nextFrame();
 		}
-		runTo(frameHook);
+		if (!getenv("NXHISTALL")) {   // pokey_frame's time: the samples made
+			runTo(pokeyFrame);
+			const long long t0 = comp->tickTotal;
+			runTo(frameHook);
+			const long long t = comp->tickTotal - t0;
+			if (getenv("NXSNDT") && f >= atoi(getenv("NXSNDT")) && f < atoi(getenv("NXSNDT")) + 15)
+				std::printf("frame %d: pokey_frame %lld ticks, %d samples, work so far %lld\n", f, t,
+					readZ80(comp, symbol(argv[2], "snd_n")) | (readZ80(comp, uint16_t(symbol(argv[2], "snd_n") + 1)) << 8), comp->tickTotal - applyTick);
+			if (applyTick >= 0) {
+				sndSum += t;
+				if (t > sndMax) { sndMax = t; sndMaxFrame = f; }
+			}
+		} else
+			runTo(frameHook);
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
 			const long long w = comp->tickTotal - applyTick;
 			workSum += w;
@@ -576,6 +609,51 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
+		{
+			const rr::PokeyRegs &p = game.g.pokey;
+			for (int c = 0; c < 4; c++) {
+				const uint8_t zc = readZ80(comp, uint16_t(pokeyAudc + c)), zf = readZ80(comp, uint16_t(pokeyAudf + c));
+				// a noise's pitch from RANDOM: read at another moment, not compared
+				// (and kept while nothing writes it again: a pause, the start beep)
+				static bool stale[4];
+				static uint8_t prevAudf[4];
+				const bool noise = (c == 1 && (p.audc[1] & 0xF0) == 0x80) || (c == 3 && p.audc[3] == 0x8C)
+					|| (stale[c] && p.audf[c] == prevAudf[c]);
+				stale[c] = noise;
+				prevAudf[c] = p.audf[c];
+				if (zc != p.audc[c] || (!noise && zf != p.audf[c])) {
+					std::snprintf(b, sizeof b, "pokey %d: z80 audf %02X audc %02X, c++ %02X %02X", c + 1, zf, zc, p.audf[c], p.audc[c]);
+					diffs.push_back(b);
+				}
+			}
+			const uint16_t w = uint16_t(readZ80(comp, sndW) | (readZ80(comp, uint16_t(sndW + 1)) << 8));
+			if (f > 1) {
+				for (uint16_t a = lastW; a != w; a = uint16_t(0x7C00 | ((a + 1) & 0x3FF))) {
+					if (wavPath) wavZ80.push_back(int16_t((int(readZ80(comp, a)) - 60) * 128));
+					sndSamples++;
+				}
+				sndFrames++;
+				if (getenv("NXSND") && (f % 50 == 0 || (f >= atoi(getenv("NXSND")) && f < atoi(getenv("NXSND")) + 12))) {
+					std::printf("frame %d regs", f);
+					for (int c = 0; c < 4; c++) std::printf(" %02X/%02X", p.audf[c], p.audc[c]);
+					std::printf(" ch1:");
+					for (int k = 0; k < 8; k++) std::printf(" %02X", readZ80(comp, uint16_t(symbol(argv[2], "snd_ch") + k)));
+					std::printf(" poly@0 %02X", comp->mem->ramData[sramOffset(14)]);
+					std::printf(" samples:");
+					int k = 0;
+					for (uint16_t a = uint16_t(0x7C00 | ((w - 40) & 0x3FF)); a != w && k < 40; a = uint16_t(0x7C00 | ((a + 1) & 0x3FF)), k++) std::printf(" %d", readZ80(comp, a));
+					std::printf("\n");
+				}
+			}
+			lastW = w;
+			if (wavCppPath) {
+				for (int c = 0; c < 4; c++) {
+					cppPokey.write(2 * c, p.audf[c]);
+					cppPokey.write(2 * c + 1, p.audc[c]);
+				}
+				cppPokey.run(pal ? 312L * 114 : 262L * 114, wavCpp);
+			}
+		}
 		if (!diffs.empty()) {
 			std::printf("frame %d (level %d): %zu differences\n", f, game.gen.s.level, diffs.size());
 			for (size_t i = 0; i < diffs.size() && i < 24; i++) std::printf("  %s\n", diffs[i].c_str());
@@ -653,6 +731,21 @@ int main(int argc, char **argv) {
 	std::printf("played: %ld games started (games %s), %ld crashes, %ld games over, up to bridge %ld; %ld frames paused, %ld of resets\n",
 		games, numbers.empty() ? "-" : numbers.c_str(), crashes, gameOvers, maxBridge, pausedFrames, busyFrames);
 	std::printf("sprites: up to %d of the %d a frame can have\n", maxSprites, kSpritesMax);
+	std::printf("sound: %.1f samples a frame on average; making them (pokey_frame) %lld ticks on average, %lld at most (frame %d)\n",
+		sndFrames ? double(sndSamples) / double(sndFrames) : 0.0, worked ? sndSum / worked : 0, sndMax, sndMaxFrame);
+	auto writeWav = [&](const char *path, const std::vector<int16_t> &v) {
+		FILE *wf = std::fopen(path, "wb");
+		if (!wf) return;
+		auto u32 = [&](uint32_t x) { std::fwrite(&x, 4, 1, wf); };
+		auto u16 = [&](uint16_t x) { std::fwrite(&x, 2, 1, wf); };
+		std::fwrite("RIFF", 1, 4, wf); u32(uint32_t(36 + 2 * v.size())); std::fwrite("WAVEfmt ", 1, 8, wf);
+		u32(16); u16(1); u16(1); u32(kSampleRate); u32(kSampleRate * 2); u16(2); u16(16);
+		std::fwrite("data", 1, 4, wf); u32(uint32_t(2 * v.size()));
+		std::fwrite(v.data(), 2, v.size(), wf);
+		std::fclose(wf);
+	};
+	if (wavPath) writeWav(wavPath, wavZ80);
+	if (wavCppPath) writeWav(wavCppPath, wavCpp);
 	std::printf("timing: %d frames late (the longest took %lld Next frames); a frame's work: %lld on average, "
 		"%lld at most (frame %d), in the core's ticks\n", lateFrames, longestFrame, worked ? workSum / worked : 0, workMax, workMaxFrame);
 

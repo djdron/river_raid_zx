@@ -84,6 +84,9 @@ ROM_DECO_OFFSET_WIDTH	equ $BBD4
 ROM_DECO_ROWS		equ $BBEB
 ROM_DECO_BITMAP		equ $BBF0
 ROM_SHELL_SPEED		equ $B7F4
+ROM_ENGINE_TONE		equ $B4AC	; the sound: AUDC by up/down,
+ROM_SHELL_PITCH		equ $B4C0	; the shell's whistle,
+ROM_SCORE_PITCH		equ $B4E1	; a bonus life
 ROM_TANK_START_X	equ $BFE4
 
 ; The game's state (river_raid/port/src/game.h, GameState), at the original's addresses

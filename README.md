@@ -14,7 +14,7 @@ How it works on the Next, for everyone: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS
 
 ## State
 
-The game, without sound yet. The attract mode runs at start; START begins a game: the plane
+The game, with its sound. The attract mode runs at start; START begins a game: the plane
 flies, steers, speeds up and slows down, fires, burns fuel and refuels over the depots;
 enemies, bridges and depots explode and score; tanks fire at the plane, helicopters fire
 missiles; crashes, new planes from the last bridge, extra planes every 10 000 points, game
@@ -26,7 +26,10 @@ the original does (the game's logic, the river generator, and the display list i
 that shows the objects and reads the collisions, with its cycle counts), and is checked
 against the C++ port frame by frame.
 
-Not there yet: the sound.
+The sound: the original's sound driver sets POKEY's four channels every frame (checked
+against the C++ port); POKEY itself is emulated in software, its output made into a ring of
+samples that the zxnDMA sends to the DAC on its own (15 909 a second). Not yet heard on a
+real Next: on Xpeccy+'s core it plays, and the checks write it to a WAV (`-wav`).
 
 PAL or NTSC: the program starts as a PAL Atari (the Next at 50 Hz), CAPS + 1 switches to an
 NTSC one (60 Hz) and back, as if the machine were switched on again. They differ as the
@@ -35,10 +38,10 @@ the scrolling line are higher, the memory clearing after a crash takes 13 frames
 8, fuel depots are a little rarer on PAL from level $2F on, and so on (the C++ port's PAL
 and NTSC variants).
 
-Speed: at 28 MHz a frame's work takes about 55–57% of a 50 Hz frame on average, the
-busiest (tanks, shells and missiles beside the enemies) up to about 80%; on PAL no frame
-was late in 60 000. At 60 Hz (NTSC) the frame is shorter: about 1 frame in 1 700 is a
-little late and shown twice.
+Speed: at 28 MHz a frame's work takes about 59–61% of a 50 Hz frame on average, the
+busiest (tanks, shells and missiles beside the enemies) up to about 88%; on PAL 2 frames in
+60 000 were a little late and shown twice. The sound is about 22 000 ticks of it (4% of a
+frame). At 60 Hz (NTSC) the frame is shorter: about 1 frame in 60 is late.
 
 ## Running it
 
@@ -71,8 +74,8 @@ make         # build/river_raid.nex
 ```
 
 `make` alone needs only sjasmplus (`make SJASMPLUS=...` for one installed elsewhere).
-`src/palette.inc` (the C++ port's palette model), `src/random.inc` and `src/font.inc` are made by
-`make palette`.
+`src/palette.inc` (the C++ port's palette model), `src/random.inc`, `src/font.inc`, `src/poly.inc`
+and `src/poly17.bin` (POKEY's noise) are made by `make palette`.
 
 ## Checks
 
@@ -146,9 +149,10 @@ Each frame (`src/river_raid.asm`):
    lines for the speed (`src/river_gen.asm`, `river_gen.cpp` line for line) written to
    Layer 2. While the original clears memory after a crash or START (13 frames) only the
    display and the VBI run, and Layer 2 is cleared a page per frame.
-5. `src/game.asm`, `vbi`: the counters of the sound driver, the frame counter, the colours
+5. `src/game.asm`, `vbi`: the sound driver (`src/sound.asm`: POKEY's registers), the frame counter, the colours
    of the next frame (the water flashes red when a bridge is hit), POKEY's counter one frame
-   on (a matrix, `src/random.inc`).
+   on (a matrix, `src/random.inc`). Then `pokey_frame` (`src/sound.asm`) makes the frame's
+   samples of POKEY's output for the DMA.
 6. Below the scrolling line (raster line 208) the new picture goes live: Layer 2's scroll and
    colours, the sprites' attributes (their patterns were written into the set not shown),
    the panel and the scrolling line, the Copper's list.

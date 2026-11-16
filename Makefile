@@ -9,7 +9,7 @@
 SJASMPLUS ?= deps/sjasmplus/sjasmplus
 ROM ?= rom/River_Raid.rom
 FRAMES ?= 3000
-SOURCES := $(wildcard src/*.asm src/*.inc)
+SOURCES := $(wildcard src/*.asm src/*.inc src/*.bin)
 
 all: build/river_raid.nex
 
@@ -21,7 +21,7 @@ build/test_page4.bin: $(SOURCES)
 	@mkdir -p build
 	$(SJASMPLUS) --nologo --msg=war -isrc -DTEST --sym=build/test.sym src/river_raid.asm
 
-build/tools/nxcheck build/tools/mkpalette build/tools/mkrandom build/tools/mkfont: tools/*.cpp tools/*.h tools/CMakeLists.txt
+build/tools/nxcheck build/tools/mkpalette build/tools/mkrandom build/tools/mkfont build/tools/mkpoly: tools/*.cpp tools/*.h tools/CMakeLists.txt
 	cmake -S tools -B build/tools -DCMAKE_BUILD_TYPE=Release
 	cmake --build build/tools
 
@@ -38,10 +38,11 @@ profile: build/test_page4.bin build/tools/nxcheck
 	NXHIST=build/profile.txt build/tools/nxcheck $(ROM) build $(FRAMES) > /dev/null
 	python3 tools/prof.py build/test.sym build/profile.txt
 
-palette: build/tools/mkpalette build/tools/mkrandom build/tools/mkfont
+palette: build/tools/mkpalette build/tools/mkrandom build/tools/mkfont build/tools/mkpoly
 	build/tools/mkpalette src/palette.inc
 	build/tools/mkrandom src/random.inc
 	build/tools/mkfont src/font.inc
+	build/tools/mkpoly src/poly17.bin src/poly.inc
 
 deps:
 	sh tools/get_deps.sh

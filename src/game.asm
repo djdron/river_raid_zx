@@ -660,7 +660,7 @@ vbi:
 	ld (PLANE_STATE),a
 	ld a,(vbi_saved + 2)
 	ld (ATTRACT_TIMER),a
-.sound	call sound_counters
+.sound	call sound_driver
 	ld hl,FRAME_COUNT
 	inc (hl)
 	jr nz,.colours
@@ -761,72 +761,3 @@ scroller_step:
 	ld (LOGO_X),a
 	ret
 
-; B2A5-B3D8: what the sound driver changes in the game's state.
-sound_counters:
-	ld hl,START_BEEP		; B2A6
-	ld a,(hl)
-	or a
-	jr z,.pause
-	dec (hl)
-	ret
-.pause	ld a,(PAUSE_STATE)		; B2BA
-	cp PAUSED
-	ret nc
-	ld a,(EVENT_SOUND)		; B2D2: an event sound
-	or a
-	jr z,.engine
-	ld hl,EVENT_SOUND_TIME
-	dec (hl)
-	jr nz,.ch2
-	xor a
-	ld (EVENT_SOUND),a
-	jr .ch2
-.engine	ld a,(PLANE_STATE)		; B2F9: only with the plane flying
-	or a
-	jr nz,.ch2
-	ld a,(FUEL)			; B2FD: low fuel: a beep every 63 frames
-	cp $40
-	jr nc,.motor
-	ld hl,EVENT_SOUND_TIME
-	ld a,(hl)
-	or a
-	jr nz,.t
-	ld a,$3F
-.t	dec a
-	ld (hl),a
-	ld c,a
-	ld a,(FUEL)
-	cp 4
-	jr nc,.first
-	add a,a				; almost empty: a tone falling with the fuel
-	add a,a
-	ld b,a
-	ld a,(FUEL_FRAC)
-	rlca
-	rlca
-	and 3
-	or b
-	cpl
-	add a,$20
-	add a,a
-	jr nz,.ch2			; the beep, not the engine
-.first	ld a,c
-	cp $1C
-	jr nc,.ch2
-.motor	ld hl,CRASH_PITCH		; B32C: the engine's pitch falls after a crash
-	ld a,(hl)
-	cp $1B
-	jr c,.ch2
-	dec (hl)
-.ch2	ld hl,SOUND_EXPLOSION		; B352
-	call .count
-	ld hl,SOUND_MISSILE		; B367
-	call .count
-	ld hl,SOUND_FIRE		; B386
-	call .count
-	ld hl,SOUND_BONUS		; B399
-.count	ld a,(hl)
-	or a
-	ret z
-	dec (hl)
-	ret
