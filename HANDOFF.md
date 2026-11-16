@@ -28,7 +28,7 @@ Controls, building, checks: [README.md](README.md).
 | `src/river_raid.asm` | the program: memory map, start and restart (PAL/NTSC), the frame loop, tables, the data pages; builds the .nex or the test pages |
 | `src/river_gen.asm` | the river generator (`river_gen.cpp` line for line) |
 | `src/game.asm` | attract mode start, `prepare`, the objects' movement, the VBI (colours, scrolling line, POKEY's counter) |
-| `src/sound.asm` | the sound driver (POKEY's registers), POKEY emulated into the DMA's ring, the DMA and DAC set up |
+| `src/sound.asm`, `src/sound_pulses.asm` | the sound driver (POKEY's registers), POKEY emulated into the DMA's ring, the DMA and DAC set up (the channels' pulses in page 6) |
 | `src/play.asm` | the main loop: controls, pause, the plane, explosions, crashes, resets, new games, the panel's characters |
 | `src/display.asm` | the DLI as the C++ port's Beam models it: cycle counts, events, collisions |
 | `src/sprites.asm` | players and missiles as sprites, the Copper's list, `apply`, the panel and scrolling line per frame |

@@ -501,6 +501,7 @@ random_columns:
 	include "game.asm"
 	include "display.asm"
 	include "sprites.asm"
+	include "sound_pulses.asm"
 
 	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full
