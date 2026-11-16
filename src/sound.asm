@@ -376,17 +376,28 @@ pokey_frame:
 	ld h,a
 	ld (snd_w),hl
 	ld hl,SND_CAP
-.n	ld (snd_n),hl
+	xor a				; (and what the last frame left past its end goes)
+	jr .p
+.n	ex de,hl			; the part of a turn the last frame left past its end
+	ld hl,(snd_w)
+	ld a,(hl)
+	ex de,hl
+.p	ld (snd_spill),a
+	ld (snd_n),hl
 	add hl,hl			; and its ticks
 	add hl,hl
 	ld (snd_ticks),hl
 	nextreg $50,POLY_PAGE		; the 17-bit counter's bits at $0000
 	nextreg $51,POLY_PAGE + 1
-	xor a				; no changes yet
-	ld (snd_level),a
+	xor a				; no changes yet (and one more sample: the part of a turn
+	ld (snd_level),a		; past the end)
 	ld hl,(snd_w)
 	ld de,(snd_n)
+	inc de
 	call snd_fill
+	ld hl,(snd_w)
+	ld a,(snd_spill)
+	ld (hl),a
 	ld ix,snd_ch			; the channels
 	ld iy,pokey_audf
 	ld b,4

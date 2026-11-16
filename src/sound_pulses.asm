@@ -100,6 +100,8 @@ pk_channel:
 	or high SND_RING
 	ld h,a
 	pop bc
+	ld a,b
+	ld (pk_k),a
 	ld e,(ix+CH_F)
 	ld a,(pk_d)
 	ld d,a
@@ -167,18 +169,51 @@ pk_done:
 	exx
 	ret
 
-; A tone: the output turns at every pulse
+; A tone: the output turns at every pulse. A turn comes some ticks into its sample: that
+; sample gets the part of the change after it, the next one the rest (as an average over
+; the sample: the edges do not jump to whole samples, which would buzz)
 pk_tone:
+	ld a,c				; the volume x 0-3 (the ticks before the turn)
+	rrca
+	rrca
+	and $3F
+	ld (snd_tables + $91),a
+	ld b,a
+	add a,a
+	ld (snd_tables + $92),a
+	add a,b
+	ld (snd_tables + $93),a
+	xor a
+	ld (snd_tables + $90),a
+	ld a,(pk_k)			; (B: the pulses)
+	ld b,a
 	ld a,d				; at the next pulse: + or - the volume
 	or a
 	ld a,c
 	jr z,.l
 	neg
 .l	ld d,a
-.loop	ld a,(hl)
+.loop	ld a,e				; the part before the turn
+	rlca
+	rlca
+	or $90
+	ld (.v + 1),a
+.v	ld a,(snd_tables + $90)
+	bit 7,d
+	jr z,.s
+	neg
+.s	ld (.g + 1),a
+	neg				; this sample: the change less it
 	add a,d
+	add a,(hl)
 	ld (hl),a
-	ld a,d
+	inc l				; the next: the part
+	jr z,.wrap
+.g	ld a,0
+	add a,(hl)
+	ld (hl),a
+	dec l
+.turn	ld a,d
 	neg
 	ld d,a
 	ld a,e
@@ -200,6 +235,18 @@ pk_tone:
 	or high SND_RING
 	ld h,a
 	jr .cont
+.wrap	push hl				; (in the next page)
+	ld a,h
+	inc a
+	and 3
+	or high SND_RING
+	ld h,a
+	ld a,(.g + 1)
+	add a,(hl)
+	ld (hl),a
+	pop hl
+	dec l
+	jr .turn
 
 ; Noise: the 17-bit counter's bit at every pulse (its bits in turn: the bit 28 x the
 ; period on is as random as the next one)

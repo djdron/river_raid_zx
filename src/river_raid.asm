@@ -696,6 +696,8 @@ snd_s15:	ds 1
 snd_ticks:	ds 2			; the frame's ticks (4 a sample)
 snd_level:	ds 1			; the level at its start
 pk_d:		ds 1
+pk_k:		ds 1
+snd_spill:	ds 1
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------
