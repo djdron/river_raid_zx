@@ -135,6 +135,13 @@ public:
 			return in;
 		}
 		if (g.planeState == 0xFF || game.busy()) {
+			// NXGAME=n: game n (7: from bridge 50), selected and started at once
+			if (const char *want = getenv("NXGAME")) {
+				if (game.busy()) return in;
+				if ((g.gameNumber & 7) + 1 != std::atoi(want)) { in.select = true; return in; }
+				in.start = true;
+				return in;
+			}
 			// no plane: wait, maybe select another game, start
 			if (wait_ < 0) wait_ = 30 + int(rnd() % 400);
 			if (wait_ > 0) {
@@ -493,6 +500,7 @@ int main(int argc, char **argv) {
 	long sndSamples = 0, sndFrames = 0;
 	long long sndSum = 0, sndMax = 0;
 	int sndMaxFrame = 0;
+	long long lastSnd = 0;
 	const uint16_t pokeyFrame = symbol(argv[2], "pokey_frame");
 	int errors = 0;
 	long long lastApply = -1, longestFrame = 0, applyTick = -1, workMax = 0, workSum = 0;
@@ -519,6 +527,7 @@ int main(int argc, char **argv) {
 			const long long t0 = comp->tickTotal;
 			runTo(frameHook);
 			const long long t = comp->tickTotal - t0;
+			lastSnd = t;
 			if (getenv("NXSNDT") && f >= atoi(getenv("NXSNDT")) && f < atoi(getenv("NXSNDT")) + 15)
 				std::printf("frame %d: pokey_frame %lld ticks, %d samples, work so far %lld\n", f, t,
 					readZ80(comp, symbol(argv[2], "snd_n")) | (readZ80(comp, uint16_t(symbol(argv[2], "snd_n") + 1)) << 8), comp->tickTotal - applyTick);
@@ -530,6 +539,12 @@ int main(int argc, char **argv) {
 			runTo(frameHook);
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
 			const long long w = comp->tickTotal - applyTick;
+			if (getenv("NXSLOW") && w > std::atol(getenv("NXSLOW"))) {
+				std::printf("frame %d: work %lld, pokey_frame %lld (lines left %d, %d samples); regs", f, w, lastSnd,
+					readZ80(comp, symbol(argv[2], "pk_left")), readZ80(comp, symbol(argv[2], "snd_n")) | (readZ80(comp, uint16_t(symbol(argv[2], "snd_n") + 1)) << 8));
+				for (int c = 0; c < 4; c++) std::printf(" %02X/%02X", readZ80(comp, uint16_t(pokeyAudf + c)), readZ80(comp, uint16_t(pokeyAudc + c)));
+				std::printf("\n");
+			}
 			workSum += w;
 			worked++;
 			if (w > workMax) { workMax = w; workMaxFrame = f; }
@@ -720,14 +735,32 @@ int main(int argc, char **argv) {
 			(void)t1;
 			break;
 		}
-		runTo(applyHook);
+		if (getenv("NXSLOW")) {   // the wait for the raster line, then apply
+			runTo(uint16_t(frameHook + 3));
+			const long long t0 = comp->tickTotal;
+			const int line = readZ80(comp, 0) * 0;   // (unused)
+			(void)line;
+			runTo(applyHook);
+			const long long a = comp->tickTotal - t0;
+			if (a > 60000) std::printf("frame %d: apply %lld\n", f, a);
+		} else
+			runTo(applyHook);
 		input = attractOnly ? rr::Input() : bot.next(game);   // the next frame's controls
 		putInput(inputAt, input);
+		// late: more than one Next frame (567 262 ticks at 50 Hz, 481 546 at 60) since the last
+		// apply (counted in ticks: an apply ends near the vertical sync, so its count can be off)
+		{
+			const long long frameTicks = pal ? 567262 : 481546;
+			const long long period = applyTick >= 0 ? comp->tickTotal - applyTick : frameTicks;
+			const long long n = (period + frameTicks / 2) / frameTicks;
+			if (applyTick >= 0 && n > 1) {
+				lateFrames++;
+				if (getenv("NXSLOW")) std::printf("frame %d late: %lld Next frames since the last apply\n", f, n);
+			}
+			if (n > longestFrame) longestFrame = n;
+		}
 		applyTick = comp->tickTotal;
-		const long long v = comp->next->vsyncCount;
-		if (lastApply >= 0 && v - lastApply != 1) lateFrames++;
-		if (lastApply >= 0 && v - lastApply > longestFrame) longestFrame = v - lastApply;
-		lastApply = v;
+		(void)lastApply;
 	}
 	if (errors) {
 		std::printf("FAIL: frames differ\n");

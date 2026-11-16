@@ -38,10 +38,11 @@ the scrolling line are higher, the memory clearing after a crash takes 13 frames
 8, fuel depots are a little rarer on PAL from level $2F on, and so on (the C++ port's PAL
 and NTSC variants).
 
-Speed: at 28 MHz a frame's work takes about 59–61% of a 50 Hz frame on average, the
-busiest (tanks, shells and missiles beside the enemies) up to about 88%; on PAL 2 frames in
-60 000 were a little late and shown twice. The sound is about 22 000 ticks of it (4% of a
-frame). At 60 Hz (NTSC) the frame is shorter: about 1 frame in 60 is late.
+Speed: at 28 MHz a frame's work takes about 60–61% of a 50 Hz frame on average, the
+busiest (tanks, shells and missiles beside the enemies) up to about 88%; on PAL no frame was
+late in 60 000. The sound is about 25 000 ticks of it (4% of a frame); in a busy frame it
+makes fewer samples and leaves the rest to the next frames. At 60 Hz (NTSC) the frame is
+shorter: about 1 frame in 140 is a little late and shown twice.
 
 ## Running it
 
@@ -59,6 +60,7 @@ and the program stops. The ROM is looked for by its long name, then by its short
 | SELECT (the game, 1-8) | G | A on a Mega Drive pad |
 | pause | H (press and release; again to go on) | |
 | PAL / NTSC | CAPS + 1 (starts again) | |
+| sound off / on | CAPS + 2 | |
 
 Games 1-8 as on the Atari: starting at bridge 1, 5, 20 or 50, odd numbers one player, even
 two (they take turns; the keyboard flies for both).

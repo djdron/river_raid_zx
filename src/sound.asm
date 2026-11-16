@@ -21,8 +21,9 @@
 
 SND_RING	equ $7C00		; page 12, 1024 bytes (1K-aligned)
 SND_PRESCALER	equ 55
-SND_LEAD	equ 600			; samples: a little under 2 frames
-SND_CAP		equ 360			; samples a frame at most
+SND_LEAD	equ 760			; samples ahead of the DMA: 2.4 frames (48 ms), as many
+SND_MIN_LEAD	equ 420			; as the time left allows, but 1.3 frames at least
+SND_CAP		equ 700			; samples a frame at most
 DAC_PORT	equ $DF			; DAC A and D (SpecDrum)
 POLY_PAGE	equ 14			; poly17.bin: pages 14 and 15
 
@@ -310,14 +311,34 @@ sound_init:
 	ld bc,8 + 4 * CH_SIZE - 1
 	ld (hl),0
 	ldir
+	xor a
+	ld (snd_off),a
+	ld (snd_keys),a
 	ld hl,snd_tables_init
 	ld de,snd_tables
 	ld bc,$88
 	ldir
-	xor a
-	ld (snd_last),a
 	ld hl,SND_RING + SND_LEAD
 	ld (snd_w),hl
+	ld hl,snd_mod15			; (AUDF + 1) mod 15 and mod 31 by AUDF
+	ld bc,15 << 8 | 31
+	ld de,1 << 8 | 1
+.mod	ld (hl),d
+	inc h
+	ld (hl),e
+	dec h
+	inc d
+	ld a,d
+	cp b
+	jr c,.m15
+	ld d,0
+.m15	inc e
+	ld a,e
+	cp c
+	jr c,.m31
+	ld e,0
+.m31	inc l
+	jr nz,.mod
 	ld hl,dma_program
 	ld bc,(dma_program_end - dma_program) << 8 | $6B
 	otir
@@ -349,42 +370,113 @@ dma_program_end:
 ; output turns on or off), then a running sum from the frame's first level makes them the
 ; levels.
 pokey_frame:
+	ld a,(snd_off)			; the sound off (CAPS + 2): the ring quiet once
+	or a
+	jr z,.on
+	ld a,(snd_clear)
+	or a
+	ret z
+	xor a
+	ld (snd_clear),a
+	ld hl,SND_RING
+	ld de,SND_RING + 1
+	ld bc,1023
+	ld (hl),a
+	ldir
+	ret
+.on
+	ld bc,$243B			; the lines left before wait_line (past it: none, the frame
+					; is late already: the work starts after it, and is longer
+					; than the rest of the frame)
+	ld a,$1E
+	out (c),a
+	inc b
+	in a,(c)
+	and 1
+	ld h,a
+	dec b
+	ld a,$1F
+	out (c),a
+	inc b
+	in l,(c)
+	ld a,(wait_line)
+	sub l
+	ld c,a
+	ld a,0
+	sbc a,h
+	jr z,.left
+	ld c,0
+.left	ld a,c
+	ld (pk_left),a
 	ld bc,$6B
 	ld a,$A7			; A's address: the next byte the DMA sends
 	out (c),a
-	in l,(c)
-	in h,(c)
-	ld de,SND_LEAD
-	add hl,de
-	ld de,(snd_w)
+	in e,(c)
+	in a,(c)			; (in the ring: at a round's end it reads $8000)
+	and 3
+	or high SND_RING
+	ld d,a
+	ld hl,(snd_w)			; how far ahead the samples are
 	or a
 	sbc hl,de
 	ld a,h
 	and 3
 	ld h,a
+	push hl				; more than the lead ever is: the DMA has passed them
+	ld bc,SND_LEAD + 1
+	sbc hl,bc
+	pop hl
+	jr c,.ahead
+	ld (snd_w),de			; from where the DMA is, as many as the time left allows
+	ld hl,0				; (too much work: the sound gives way)
+	ld (pk_must),hl
+	ld d,h
+	ld e,l
+	jr .want
+.ahead	ex de,hl			; DE: ahead
+	ld hl,SND_MIN_LEAD		; the samples it must have (or the DMA passes them before
+	or a				; the next frame's)
+	sbc hl,de
+	jr nc,.must
+	ld hl,0
+.must	ld (pk_must),hl
+.want
+	ld hl,SND_LEAD			; the samples it wants
+	or a
+	sbc hl,de
+	ret z
+	push hl
+	ld a,(pk_left)			; and what the time left allows: 8 a line, past 16 lines
+	sub 16
+	jr nc,.b
+	xor a
+.b	ld l,a
+	ld h,0
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	pop de				; the fewer of these two,
+	push hl
+	or a
+	sbc hl,de
+	pop hl
+	jr c,.f
+	ex de,hl
+.f	ld de,(pk_must)			; but what it must
+	push hl
+	or a
+	sbc hl,de
+	pop hl
+	jr nc,.g
+	ex de,hl
+.g	ld a,h
 	or l
 	ret z
 	ld de,SND_CAP + 1
 	push hl
-	sbc hl,de			; (no carry from the AND)
+	sbc hl,de
 	pop hl
 	jr c,.n
-	ld de,SND_CAP			; behind: the samples up to SND_CAP before the lead stay at
-	sbc hl,de			; the last level (the DMA plays them now)
-	ex de,hl
-	ld hl,(snd_w)
-	push de
-	push hl
-	ld a,(snd_last)
-	call snd_fill
-	pop hl
-	pop de
-	add hl,de
-	ld a,h
-	and 3
-	or high SND_RING
-	ld h,a
-	ld (snd_w),hl
 	ld hl,SND_CAP
 .n	ld (snd_n),hl
 	add hl,hl			; and its ticks
@@ -433,8 +525,6 @@ pokey_frame:
 	ld hl,(snd_w)
 	ld de,(snd_n)
 	call snd_sum
-	ld a,c
-	ld (snd_last),a
 	nextreg $50,ATARI_RAM_PAGE
 	nextreg $51,ATARI_RAM_PAGE + 1
 	ld hl,(snd_w)
@@ -472,8 +562,11 @@ snd_fill:
 .one	add hl,de
 	ex de,hl
 	pop hl
-; DE bytes (> 0) of BC from HL, not past the ring's end
-.seg	bit 0,e
+; DE bytes of BC from HL, not past the ring's end
+.seg	ld a,d
+	or e
+	ret z
+	bit 0,e
 	jr z,.even
 	ld (hl),c
 	inc hl

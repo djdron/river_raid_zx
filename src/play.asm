@@ -1182,6 +1182,26 @@ read_input:
 	ld (tv_toggle),a
 	ld a,h
 	ld (tv_keys),a
+	ld b,$FE			; CAPS + 2: the sound off and on (when pressed)
+	in a,(c)
+	ld h,a
+	ld b,$F7
+	in a,(c)
+	rrca
+	or h
+	cpl
+	and 1
+	ld h,a
+	ld a,(snd_keys)
+	cpl
+	and h
+	jr z,.snd
+	ld a,(snd_off)
+	xor 1
+	ld (snd_off),a
+	ld (snd_clear),a
+.snd	ld a,h
+	ld (snd_keys),a
 	ld b,$BF			; Enter: START; H: pause
 	in a,(c)
 	bit 0,a

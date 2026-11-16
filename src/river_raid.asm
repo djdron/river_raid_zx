@@ -685,7 +685,16 @@ line_after_draw: ds 256			; and the cycles left after it is drawn
 dsh_tables:	ds 12 * 256		; a byte's bits doubled and shifted right by 2s bits: 3 bytes
 	align 256
 snd_tables:	ds 256			; the sound (sound.asm): POKEY's 5-bit counter at the ticks,
-					; its 4-bit one at +$40, a bit's mask at +$80 (sound_init)
+					; its 4-bit one at +$40, a bit's mask at +$80 (sound_init),
+					; the volume x 0-3 at +$90 (pk_channel)
+snd_mod15:	ds 256			; (AUDF + 1) mod 15, mod 31
+snd_mod31:	ds 256
+pk_kh:		ds 1
+snd_off:	ds 1			; CAPS + 2: the sound off,
+snd_clear:	ds 1			; the ring to be made quiet,
+snd_keys:	ds 1			; the keys last frame
+pk_left:	ds 1
+pk_must:	ds 2
 pokey_audf:	ds 4			; what the sound driver wrote: AUDF1-4,
 pokey_audc:	ds 4			; AUDC1-4
 snd_ch:		ds 4 * CH_SIZE		; the channels' state (pokey_frame)
@@ -697,7 +706,6 @@ snd_ticks:	ds 2			; the frame's ticks (4 a sample)
 snd_level:	ds 1			; the level at its start
 pk_d:		ds 1
 pk_k:		ds 1
-snd_last:	ds 1			; the level at the frame's end
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------
