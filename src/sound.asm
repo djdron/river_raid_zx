@@ -314,6 +314,8 @@ sound_init:
 	ld de,snd_tables
 	ld bc,$88
 	ldir
+	xor a
+	ld (snd_last),a
 	ld hl,SND_RING + SND_LEAD
 	ld (snd_w),hl
 	ld hl,dma_program
@@ -341,7 +343,8 @@ dma_program_end:
 
 ; ------------------------------------------------------------------------------------------
 ; This frame's samples: from snd_w up to SND_LEAD past where the DMA is, SND_CAP at most (a
-; frame that came late does not make the next one longer: the DMA plays old samples then).
+; frame that came late does not make the next one longer: the samples skipped keep the last
+; level).
 ; The ring gets each channel's changes first (+ or - its volume at the sample where its
 ; output turns on or off), then a running sum from the frame's first level makes them the
 ; levels.
@@ -366,9 +369,16 @@ pokey_frame:
 	sbc hl,de			; (no carry from the AND)
 	pop hl
 	jr c,.n
-	ld de,SND_CAP			; behind: the samples from SND_CAP before the lead
-	sbc hl,de
-	ld de,(snd_w)
+	ld de,SND_CAP			; behind: the samples up to SND_CAP before the lead stay at
+	sbc hl,de			; the last level (the DMA plays them now)
+	ex de,hl
+	ld hl,(snd_w)
+	push de
+	push hl
+	ld a,(snd_last)
+	call snd_fill
+	pop hl
+	pop de
 	add hl,de
 	ld a,h
 	and 3
@@ -376,28 +386,18 @@ pokey_frame:
 	ld h,a
 	ld (snd_w),hl
 	ld hl,SND_CAP
-	xor a				; (and what the last frame left past its end goes)
-	jr .p
-.n	ex de,hl			; the part of a turn the last frame left past its end
-	ld hl,(snd_w)
-	ld a,(hl)
-	ex de,hl
-.p	ld (snd_spill),a
-	ld (snd_n),hl
+.n	ld (snd_n),hl
 	add hl,hl			; and its ticks
 	add hl,hl
 	ld (snd_ticks),hl
 	nextreg $50,POLY_PAGE		; the 17-bit counter's bits at $0000
 	nextreg $51,POLY_PAGE + 1
-	xor a				; no changes yet (and one more sample: the part of a turn
-	ld (snd_level),a		; past the end)
-	ld hl,(snd_w)
+	xor a				; no changes yet (and one more sample: where the part of a
+	ld (snd_level),a		; turn past the end goes; the next frame starts from the
+	ld hl,(snd_w)			; channels' outputs, the turn whole)
 	ld de,(snd_n)
 	inc de
 	call snd_fill
-	ld hl,(snd_w)
-	ld a,(snd_spill)
-	ld (hl),a
 	ld ix,snd_ch			; the channels
 	ld iy,pokey_audf
 	ld b,4
@@ -433,6 +433,8 @@ pokey_frame:
 	ld hl,(snd_w)
 	ld de,(snd_n)
 	call snd_sum
+	ld a,c
+	ld (snd_last),a
 	nextreg $50,ATARI_RAM_PAGE
 	nextreg $51,ATARI_RAM_PAGE + 1
 	ld hl,(snd_w)

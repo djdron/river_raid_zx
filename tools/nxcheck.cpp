@@ -633,6 +633,21 @@ int main(int argc, char **argv) {
 					sndSamples++;
 				}
 				sndFrames++;
+				if (getenv("NXSNDCHK")) {   // a sample above what the channels can add up to
+					static int prevMax = 0;
+					int mx = 0;
+					for (int c = 0; c < 4; c++) mx += (p.audc[c] & 15) * 4;
+					const int lim = std::max(mx, prevMax);
+					prevMax = mx;
+					int worst = -1;
+					for (uint16_t a = lastW; a != w; a = uint16_t(0x7C00 | ((a + 1) & 0x3FF)))
+						worst = std::max(worst, int(readZ80(comp, a)));
+					if (worst > lim) {
+						std::printf("frame %d: sample %d above %d; regs", f, worst, lim);
+						for (int c = 0; c < 4; c++) std::printf(" %02X/%02X", p.audf[c], p.audc[c]);
+						std::printf("\n");
+					}
+				}
 				if (getenv("NXSND") && (f % 50 == 0 || (f >= atoi(getenv("NXSND")) && f < atoi(getenv("NXSND")) + 12))) {
 					std::printf("frame %d regs", f);
 					for (int c = 0; c < 4; c++) std::printf(" %02X/%02X", p.audf[c], p.audc[c]);
