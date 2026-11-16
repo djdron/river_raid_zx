@@ -14,7 +14,7 @@ River Raid (Activision, Atari 800, 1983, by Carol Shaw) on the ZX Spectrum Next,
 ## State
 The game is complete except the sound: attract mode, games 1–8, one and two players, the plane, fuel, enemies, tanks, missiles, bridges, score, lives, high scores, pause, the panel and the scrolling line with the rainbow logo. PAL (50 Hz) by default, NTSC (60 Hz) with CAPS + 1. Checked frame by frame against the C++ port (bot games, hundreds of thousands of frames, PAL and NTSC) and against the original on libatari800 (eight runs, 37 000 frames). Not yet run on a real Next: only on Xpeccy+'s Next core.
 
-Speed (28 MHz, PAL): a frame's work is about 64% of a 50 Hz frame on average, up to about 95%; about 1 frame in 3000 is late and shown twice. NTSC at 60 Hz: about 1 frame in 13 is late.
+Speed (28 MHz, PAL): a frame's work is about 55–57% of a 50 Hz frame on average, up to about 80%; no frame late in 60 000. NTSC at 60 Hz: about 1 frame in 1 700 is late and shown twice.
 
 Controls, building, checks: [README.md](README.md).
 
@@ -71,9 +71,9 @@ Each step is ported from the C++ port (which is the spec, line for line, with th
 
 ## Open questions
 - Not tried on a real Next; the keyboard and joystick reading is untested (the checks give the controls directly). Speed is measured on Xpeccy+'s Next core; the real machine's memory wait states at 28 MHz are not checked.
-- NTSC at 60 Hz: about 8% of frames late.
+- NTSC at 60 Hz: the busiest frames take almost all of a 60 Hz frame (about 1 in 1 700 late).
 - Power-on before the attract mode (the first 38/25 frames) is not shown; the program starts at the attract mode.
 
 ## Next steps
 - Sound: the sound driver's counters are done (VBI); the sound itself is either the four POKEY channels on the AY chips (a few thousand cycles a frame) or a software POKEY into the DAC by DMA (about 5–10% of a frame). Not decided.
-- Optionally more speed for NTSC at 60 Hz (about 15% off the busiest frames). Collisions are about 21% of the work (docs/NOTES.md, Speed); a per-object box test before the per-line work is the first idea to measure.
+- Optionally more speed. Now the work is about 42% the DLI model, 25% sprites and the Copper's list, 25% collisions (docs/NOTES.md, Speed); a per-object box test before the per-line collision work is the first idea to measure.

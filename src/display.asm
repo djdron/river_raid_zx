@@ -42,6 +42,21 @@ opa:	macro			; an instruction (or several together) of A cycles
 	sub c
 	ld ixh,a
 	endm
+opk:	macro k, n		; k cycles nothing on screen sees, then an instruction of n:
+	ld a,ixh		; the events of those cycles happen before it all the same
+	sub k + 1
+	call m,bm_events
+	sub n - 1
+	ld ixh,a
+	endm
+opc:	macro n, k		; the same, C + k cycles first
+	ld a,ixh
+	sub c
+	sub k + 1
+	call m,bm_events
+	sub n - 1
+	ld ixh,a
+	endm
 taken:	macro			; a branch taken (3 cycles)
 	op 3
 	endm
@@ -1218,34 +1233,31 @@ display:
 .wait	opa				; wait for the scanline where the slot's object starts
 	wsync
 .wait_check
-	call .slot_y			; TXA, CMP $0C,Y
-	ld b,a
-	ld a,(dl_counter)
-	cp b
+	call .slot_y			; TXA, CMP $0C,Y (the slot's y in IXL while it waits)
+	ld ixl,a
+.wait_y	ld a,(dl_counter)
+	cp ixl
 	jr c,.wait_on
 	ld (dl_start),a
-	ld a,6 + 3 + 5			; there (BCS): B575 STX $04, INX
-	opa
+	ld c,6 + 3 + 5			; there (BCS): B575 STX $04, INX
 	call .count
-	jp z,.exit
+	jp z,.exit_c
 	jr .slot_fields
 .wait_on
-	call .count			; INX
+	inc a				; INX
+	ld (dl_counter),a
 	ld a,6 + 2 + 2 + 3 + 4		; not yet: BNE B567, STA WSYNC
 	jr z,.wait_end
 	ld a,(bm_line)			; STA WSYNC goes past the line's end: the next line starts
 	inc a				; and is drawn (WSYNC holds the CPU until then), the
-	cp RIVER_FIRST + RIVER_LINES	; count at 106 again: straight in the river
-	ld a,6 + 2 + 2 + 3 + 4
-	jr nc,.wait
-	ld a,(bm_line)
-	inc a
+	cp RIVER_FIRST + RIVER_LINES	; count at 106 again (as STA WSYNC left it): straight
+	jr nc,.wait_past		; in the river
 	ld (bm_line),a
-	ld a,1
-	ld (bm_drawn),a
 	call bm_draw
-	ld ixh,LINE_CYCLES - WSYNC_CYCLE
-	jr .wait_check
+	jr .wait_y
+.wait_past
+	ld a,6 + 2 + 2 + 3 + 4
+	jr .wait
 .wait_end
 	ld a,6 + 2 + 2 + 2 + 3 + 4 + 3	; the river's end: out through B5E3
 	opa
@@ -1289,13 +1301,10 @@ display:
 	ld (dl_sl_kind),a
 	ld (dl_sl_type),a
 	ld (dl_sl_size),a
-.got	ld a,2 + 4			; B57A-B57D
-	opa
-	op 4
+.got	opc 4, 2 + 4			; B57A-B57D, STA HPOSP3
 	ld a,(dl_sl_x)
 	ld (hpos_p + 3),a
-	op 2				; blank rows above the object
-	op 5
+	opk 2, 5			; blank rows above the object
 	call .p3_row
 	ld (hl),0
 	xor a
@@ -1306,17 +1315,13 @@ display:
 	ld (hl),0
 	xor a
 	call p3_scan
-	op 7				; $07
-	op 4				; B58D
+	opk 7, 4			; $07; B58D
 	wsync
-	op 2
+	ld c,2 + 3
 	ld a,(dl_flags)
 	and $08
-	jr nz,.left
-	taken
-	jr .shapes
-.left	not_taken
-	op 2
+	jr z,.shapes
+	ld c,2 + 2 + 2
 .shapes	ld a,(dl_flags)			; the shape's address (mirrored frames +16)
 	and $08
 	add a,a
@@ -1334,16 +1339,16 @@ display:
 	sub l
 	ld h,a
 	ld (dl_shapes),hl
-	op 17				; CLC ... INX
-	call .count
-	jp z,.exit
-	not_taken
-	op 7				; B5A3-B5A8
-	op 4
+	call .count			; CLC ... INX
+	jr nz,1F
+	ld a,c
+	add a,17
+	ld c,a
+	jp .exit_c
+1:	opc 4, 17 + 2 + 7		; B5A3-B5A8, STA SIZEP3
 	ld a,(dl_sl_size)
 	ld (size_p + 3),a
-	op 7
-	op 4				; B5B0
+	opk 7, 4			; B5B0
 	wsync
 	ld a,(dl_sl_type)		; the colours' address
 	ld l,a
@@ -1368,20 +1373,18 @@ display:
 	ld hl,dl_start
 	sub (hl)
 	ld (dl_row),a
-	op 29				; B5B3-B5C5
+	ld c,29				; B5B3-B5C5
 	call .count
-	jp z,.exit
-	not_taken
-	op 2				; TAY
-	ld a,(dl_row)
+	jp z,.exit_c
+	ld a,(dl_row)			; not taken, TAY
 	cp $80
 	jr c,.rows_start
-	taken				; B5C9: the object has gone: the next slot
-	op 5
-	ld a,(dl_current)
+	ld a,(dl_current)		; B5C9: the object has gone: the next slot (JMP B565)
 	inc a
 	ld (dl_slot),a
-	jp .slot_loop
+	ld (dl_current),a
+	ld a,29 + 2 + 2 + 3 + 5 + 3 + 4
+	jp .wait
 .rows_start
 	; the row loop keeps its pointers in registers (the beam's events keep them): DE the
 	; shape's row, HL its colour, IY player 3's memory at the scanline counter, B the
@@ -1400,7 +1403,7 @@ display:
 	ld iyh,0
 	ld bc,PM_P3_ROWS
 	add iy,bc
-	ld b,2				; (the branch not taken)
+	ld b,29 + 2 + 2 + 2		; (from B5B3, the branch not taken)
 .row	ld a,(dl_shapes_hi)		; B5CB: one shape row per scanline, the bottom row first
 	cp d				; (LDA 6 cycles when the index crosses a page)
 	ld a,b
@@ -1426,7 +1429,68 @@ display:
 	; then the next row's shape part draws it, and STA WSYNC ends at 106 again. So the rows
 	; after the first go straight (.fast), with the beam's count only worked out where the
 	; loop is left.
-.fast	ld a,(bm_line)
+	; The rows that go all the way straight (not a bridge, inside the river, the counter not
+	; wrapping, a row left) are .tight: as many as all three allow, counted in IXL, the
+	; pointers in registers, only what bm_draw reads written, the beam's count left as the
+	; line drawn leaves it (106). The first row that may leave goes the long way (.fast_gen),
+	; which works out the count.
+.fast	ld a,(dl_flags)
+	and $80
+	jp nz,.fast_gen
+	ld a,(bm_line)			; lines before the river's last
+	ld c,a
+	ld a,RIVER_FIRST + RIVER_LINES - 1
+	sub c
+	jp c,.fast_gen
+	jp z,.fast_gen
+	ld c,a
+	ld a,low PM_P3_ROWS - 1		; INX before the counter wraps
+	sub iyl
+	jp z,.fast_gen
+	cp c
+	jr nc,1F
+	ld c,a
+1:	ld a,(dl_row)			; rows left
+	cp c
+	jr nc,1F
+	or a
+	jp z,.fast_gen
+	ld c,a
+1:	ld a,(dl_row)
+	sub c
+	ld (dl_row),a
+	ld ixl,c
+.tight	ld a,(bm_line)
+	inc a
+	ld (bm_line),a
+	ld b,a
+	ld a,(hl)			; player 3's colour
+	ld (colour_p3),a
+	inc iy				; INX, the row above
+	dec de
+	dec hl
+	ld a,(de)			; its shape, latched if the line has not started
+	ld (iy+0),a
+	ld a,b
+	cp iyl
+	jr nc,1F
+	ld b,high scan_p3
+	ld c,iyl
+	ld a,(de)
+	ld (bc),a
+1:	push de
+	push hl
+	call bm_draw
+	pop hl
+	pop de
+	dec ixl
+	jp nz,.tight
+	ld a,iyl
+	sub low PM_P3_ROWS
+	ld (dl_counter),a
+	ld ixh,LINE_CYCLES - WSYNC_CYCLE
+.fast_gen
+	ld a,(bm_line)
 	inc a
 	cp RIVER_FIRST + RIVER_LINES
 	jr nc,.slow_colour
@@ -1555,94 +1619,72 @@ display:
 	ld ixh,LINE_CYCLES - WSYNC_CYCLE
 	jp .fast
 .rows_end
-	ld a,b				; B5E8: the collisions of this object
+	; The collisions of this object (B5E8 on). The cycles of instructions nothing on screen
+	; sees (branches, INX, the game's own memory) go with the next one that something sees
+	; (opk, opc: C cycles more).
+	ld a,b				; DEY, BPL
 	add a,3
-	opa
-	op 4
-	ld a,(coll_mpl + 2)		; M2PL: the bullet touched player 3
+	ld c,a
+	opc 4, 0			; LDA M2PL: the bullet touched player 3
+	ld a,(coll_mpl + 2)
 	and $08
-	ld b,a
-	op 2
-	ld a,b
-	or a
-	jr nz,.bullet
-	taken
-	jr .b5f3
-.bullet	not_taken
-	op 3
+	ld c,2 + 3
+	jr z,.b5f3
 	ld a,(dl_current)
 	ld (HIT_BULLET_OBJECT),a
-.b5f3	op 4				; B5F3
+	ld c,2 + 2 + 3
+.b5f3	opc 4, 0			; B5F3 STA WSYNC
 	wsync
-	op 3
 	ld a,(dl_flags)
 	and $80
 	jr nz,.bridge_end
-	taken_far
-	op 4
-	ld a,(coll_ppl + 3)		; P3PL: player 3 touched the shell
+	opk 3 + 4, 4			; LDA P3PL: player 3 touched the shell
+	ld a,(coll_ppl + 3)
 	and $01
-	ld b,a
-	op 2
-	ld a,b
-	or a
-	jr nz,.shell
-	taken
-	jr .b60a
-.shell	not_taken
-	op 3
+	ld c,2 + 3
+	jr z,.b60a
 	ld a,(dl_current)
 	ld (HIT_SHELL_OBJECT),a
+	ld c,2 + 2 + 3
 	jr .b60a
 .bridge_end
-	not_taken			; a bridge: the bank colour back
-	op 3
-	op 4
+	opk 3 + 2 + 3, 4		; a bridge: the bank colour back
 	ld a,(SECTION_BANK_COLOUR)
 	ld (beam_bank),a
 	push hl
 	ld hl,rec_bank
 	call rec_set
 	pop hl
-	op 3
-.b60a	op 2				; B60A INX
-	call .count
-	jp z,.taken_end
-	not_taken
-	op 4
-	ld a,(coll_ppl + 2)		; P2PL: the plane touched players
+	ld c,3
+.b60a	call .count			; B60A INX
+	jr nz,1F
+	ld a,c
+	add a,2 + 3
+	ld c,a
+	jp .end_c
+1:	opc 4, 2 + 2			; LDA P2PL: the plane touched players
+	ld a,(coll_ppl + 2)
 	ld (dl_touched),a
-	op 2
-	ld a,(dl_touched)
 	and $01
-	jr nz,.plane_shell
-	taken
-	jr .p_obj
-.plane_shell
-	not_taken
-	op 3
+	ld c,2 + 3
+	jr z,.p_obj
 	ld a,(dl_current)
 	ld (HIT_PLANE_SHELL),a
-.p_obj	op 2
-	ld a,(dl_touched)
+	ld c,2 + 2 + 3
+.p_obj	ld a,(dl_touched)
 	and $08
 	jr nz,.plane_obj
-	taken
+	opc 4, 2 + 3			; LDA P3PF: the object touched the bank edge
 	jr .edge
 .plane_obj
-	not_taken
-	op 3
 	ld a,(dl_current)
 	ld (HIT_PLANE_OBJECT),a
-.edge	op 4
-	ld a,(coll_ppf + 3)		; P3PF: the object touched the bank edge
+	opc 4, 2 + 2 + 3
+.edge	ld a,(coll_ppf + 3)
 	and $02
 	ld (dl_touched),a
-	op 2
-	op 4				; B61F
+	opk 2, 4			; B61F STA WSYNC
 	wsync
-	op 10
-	op 5
 	ld a,(dl_current)
 	cp SLOTS
 	jr nc,.e1
@@ -1659,114 +1701,86 @@ display:
 	jr z,.e0
 	or 1
 .e0	ld (hl),a
-.e1	op 2
-	call .count
-	jp z,.taken_end
-	not_taken
-	op 4
-	ld a,(coll_mpl)			; M0PL: the missile touched the plane
+.e1	call .count			; INX
+	jr nz,1F
+	ld c,10 + 5 + 2 + 3
+	jp .end_c
+1:	opk 10 + 5 + 2 + 2, 4		; LDA M0PL: the missile touched the plane
+	ld a,(coll_mpl)
 	and $04
-	ld b,a
-	op 2
-	ld a,b
-	or a
 	jr nz,.m_plane
-	taken
+	opk 2 + 3, 4			; LDA M0PF: bank or edge
 	jr .m_bank
 .m_plane
-	not_taken
-	op 3
 	ld a,(dl_current)
 	ld (HIT_MISSILE_PLANE),a
-.m_bank	op 4
-	ld a,(coll_mpf)			; M0PF: bank or edge
+	opk 2 + 2 + 3, 4
+.m_bank	ld a,(coll_mpf)
 	and $03
-	ld b,a
-	op 2
-	ld a,b
-	or a
 	jr nz,.m_bank_hit
-	taken
+	opk 2 + 3, 4			; LDA P1PF: the tank reached the edge
 	jr .tank
 .m_bank_hit
-	not_taken
-	op 3
 	ld a,(dl_current)
 	ld (HIT_MISSILE_BANK),a
-.tank	op 4
-	ld a,(coll_ppf + 1)		; P1PF: the tank reached the edge
+	opk 2 + 2 + 3, 4
+.tank	ld a,(coll_ppf + 1)
 	and $02
 	ld (dl_touched),a
-	op 4				; B645
+	op 4				; B645 STA WSYNC
 	wsync
-	op 2
 	ld a,(dl_touched)
 	or a
 	jr nz,.tank_hit
-	taken
+	opk 2 + 3, 4			; LDA P2PF: the plane touched the bank
 	jr .plane_bank
 .tank_hit
-	not_taken
-	op 3
 	ld a,(dl_current)
 	ld (HIT_TANK_AT_EDGE),a
+	opk 2 + 2 + 3, 4
 .plane_bank
-	op 4
-	ld a,(coll_ppf + 2)		; P2PF: the plane touched the bank
+	ld a,(coll_ppf + 2)
 	and $01
-	ld b,a
-	op 2
-	ld a,b
-	or a
 	jr nz,.plane_bank_hit
-	taken
+	opk 2 + 3, 4			; LDA M2PF: bank or edge
 	jr .bullet_bank
 .plane_bank_hit
-	not_taken
-	op 3
 	ld a,(dl_current)
 	ld (HIT_PLANE_BANK),a
+	opk 2 + 2 + 3, 4
 .bullet_bank
-	op 4
-	ld a,(coll_mpf + 2)		; M2PF: bank or edge
+	ld a,(coll_mpf + 2)
 	and $03
-	ld b,a
-	op 2
-	ld a,b
-	or a
 	jr nz,.bullet_bank_hit
-	taken
+	opk 2 + 3, 4			; B65F HITCLR
 	jr .hitclr
 .bullet_bank_hit
-	not_taken
-	op 3
 	ld a,(dl_current)
 	ld (HIT_BULLET_BANK),a
-.hitclr	op 4				; B65F HITCLR
-	call bm_hitclr
-	op 4
+	opk 2 + 2 + 3, 4
+.hitclr	call bm_hitclr
 	ld a,(dl_current)
 	inc a
 	ld (dl_slot),a
-	call .count
+	call .count			; INX, BNE
 	jr nz,.loop_on
-	taken
-	op 3
 	ld a,1
 	ld (dl_ended_b664),a
-	jr .end
-.loop_on
-	not_taken
-	op 3				; JMP B565
-	jp .slot_loop
-.exit	taken				; the loop left through B5E3
-	exit_b5e3
-	jr .end
-.taken_end
-	taken
+	ld c,4 + 3 + 3
+	jp .end_c
+.loop_on				; JMP B565
+	ld a,(dl_slot)
+	ld (dl_current),a
+	ld a,4 + 2 + 3 + 3 + 4
+	jp .wait
+.exit_c	ld a,c				; the loop left through B5E3 (C cycles before)
+	add a,3 + 4 + 3
+	ld c,a
+	jp .end_c
 .end	; B66B: the end of the river; the panel's part reads the collisions of the object still
 	; in progress, unless the loop ended right after a HITCLR
-	op 4
+	ld c,0
+.end_c	opc 4, 0
 	wsync
 	op 4
 	xor a

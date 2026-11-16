@@ -35,10 +35,10 @@ the scrolling line are higher, the memory clearing after a crash takes 13 frames
 8, fuel depots are a little rarer on PAL from level $2F on, and so on (the C++ port's PAL
 and NTSC variants).
 
-Speed: at 28 MHz a frame's work takes under two thirds of a 50 Hz frame on average, the
-busiest (tanks, shells and missiles beside the enemies) up to 95%; on PAL about 1 frame in
-3000 is a little late and shown twice. At 60 Hz (NTSC) the frame is shorter: about 1 frame
-in 13 is late.
+Speed: at 28 MHz a frame's work takes about 55–57% of a 50 Hz frame on average, the
+busiest (tanks, shells and missiles beside the enemies) up to about 80%; on PAL no frame
+was late in 60 000. At 60 Hz (NTSC) the frame is shorter: about 1 frame in 1 700 is a
+little late and shown twice.
 
 ## Running it
 
