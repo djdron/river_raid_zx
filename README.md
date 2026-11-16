@@ -10,7 +10,7 @@ An unofficial fan project for educational purposes, not affiliated with Activisi
 Microsoft. No part of the game is included: the program reads your own cartridge image at
 run time.
 
-For picking the work up: [HANDOFF.md](HANDOFF.md); how it is done, with numbers: [docs/NOTES.md](docs/NOTES.md).
+How it works on the Next, for everyone: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md). For picking the work up: [HANDOFF.md](HANDOFF.md); how it is done, with numbers: [docs/NOTES.md](docs/NOTES.md).
 
 ## State
 

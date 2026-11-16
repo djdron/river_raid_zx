@@ -39,6 +39,7 @@ Controls, building, checks: [README.md](README.md).
 | `tools/check_original.sh` | `make check-original`: the eight runs of the original |
 | `tools/prof.py` | per-routine time from nxcheck's histograms |
 | [docs/NOTES.md](docs/NOTES.md) | how it is done and what was found, with numbers |
+| [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | how the Atari's picture and collisions are made on the Next, for everyone |
 
 ## Established facts (all checked)
 1. **Same RAM.** The Atari's 16 KB of RAM is 8K pages 30–31 at $0000–$3FFF: every variable at the original's address. A RAM dump compares byte for byte with the original's and the C++ port's (`Game::diffWithRam`).

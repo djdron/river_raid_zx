@@ -39,6 +39,7 @@ River Raid (Activision, Atari 800, 1983, автор Кэрол Шоу) на ZX S
 | `tools/check_original.sh` | `make check-original`: восемь прогонов оригинала |
 | `tools/prof.py` | время по процедурам из гистограмм nxcheck |
 | [docs/NOTES.ru.md](docs/NOTES.ru.md) | как сделано и что выяснилось, с цифрами |
+| [docs/HOW_IT_WORKS.ru.md](docs/HOW_IT_WORKS.ru.md) | как картинка и столкновения Atari получаются на Next, для всех |
 
 ## Установленные факты (всё проверено)
 1. **Та же RAM.** 16 КБ RAM Atari — 8K-страницы 30–31 по адресам $0000–$3FFF: каждая переменная по адресу оригинала. Дамп RAM сравнивается байт в байт с оригиналом и C++-портом (`Game::diffWithRam`).
