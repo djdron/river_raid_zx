@@ -492,6 +492,7 @@ random_columns:
 	include "random.inc"
 	include "play.asm"
 	include "sound.asm"
+	include "sound_handlers.asm"
 
 	display "page 4 end: ",$
 	assert $ <= $A000		; page 4 is full
@@ -628,6 +629,7 @@ ov_wlog:	ds 1
 	align 16
 es_key:		ds 16			; emit_sprite: a pattern's rows
 es_hash:	ds 1
+es_src:		ds 2			; the run's rows
 pc_next:	ds 2			; the next pattern to take, in each set			; the bank colour's record (rec_set): value, from which line, scan page
 sp_pf:		ds 1
 dl_counter:	ds 1
@@ -690,6 +692,7 @@ snd_tables:	ds 256			; the sound (sound.asm): POKEY's 5-bit counter at the ticks
 snd_mod15:	ds 256			; (AUDF + 1) mod 15, mod 31
 snd_mod31:	ds 256
 pk_kh:		ds 1
+pk_dma:		ds 2			; where the DMA was
 snd_off:	ds 1			; CAPS + 2: the sound off,
 snd_clear:	ds 1			; the ring to be made quiet,
 snd_keys:	ds 1			; the keys last frame

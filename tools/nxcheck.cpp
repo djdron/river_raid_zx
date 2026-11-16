@@ -503,6 +503,7 @@ int main(int argc, char **argv) {
 	long long lastSnd = 0;
 	const uint16_t pokeyFrame = symbol(argv[2], "pokey_frame");
 	int errors = 0;
+	bool soloMode = false;
 	long long lastApply = -1, longestFrame = 0, applyTick = -1, workMax = 0, workSum = 0;
 	int lateFrames = 0, workMaxFrame = 0, worked = 0;
 	for (int f = 1; f <= frames; f++) {
@@ -684,6 +685,7 @@ int main(int argc, char **argv) {
 				cppPokey.run(pal ? 312L * 114 : 262L * 114, wavCpp);
 			}
 		}
+		if (soloMode) diffs.clear();
 		if (!diffs.empty()) {
 			std::printf("frame %d (level %d): %zu differences\n", f, game.gen.s.level, diffs.size());
 			for (size_t i = 0; i < diffs.size() && i < 24; i++) std::printf("  %s\n", diffs[i].c_str());
@@ -746,6 +748,20 @@ int main(int argc, char **argv) {
 		} else
 			runTo(applyHook);
 		input = attractOnly ? rr::Input() : bot.next(game);   // the next frame's controls
+		// NXSOLO=1 (for the time only): once a game has started, the program's plane cannot
+		// crash (crash: RET), the made-up player flies it by its state, nothing is compared
+		static bool solo = false;
+		if (getenv("NXSOLO") && !solo && game.g.planeState == 0 && !game.busy() && !(game.g.attractFlags & 0x80)) {
+			solo = true;
+			sram[sramOffset(kCodePages[0]) + (symbol(argv[2], "crash") - 0x8000)] = 0xC9;
+		}
+		if (solo) {   // the made-up player flies by the program's state
+			soloMode = true;
+			std::memcpy(ram, sram + sramOffset(kAtariRamPage), sizeof ram);
+			game.loadFromRam(ram);
+			input = bot.next(game);
+			input.start = input.select = input.key = false;
+		}
 		putInput(inputAt, input);
 		// late: more than one Next frame (567 262 ticks at 50 Hz, 481 546 at 60) since the last
 		// apply (counted in ticks: an apply ends near the vertical sync, so its count can be off)

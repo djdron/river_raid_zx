@@ -22,8 +22,10 @@
 SND_RING	equ $7C00		; page 12, 1024 bytes (1K-aligned)
 SND_PRESCALER	equ 55
 SND_LEAD	equ 760			; samples ahead of the DMA: 2.4 frames (48 ms), as many
-SND_MIN_LEAD	equ 420			; as the time left allows, but 1.3 frames at least
+SND_MIN_LEAD	equ 200			; as the time left allows, but 0.6 frames at least
 SND_CAP		equ 700			; samples a frame at most
+SND_HOLD	equ 400			; past them, the last level held, when they are less than
+SND_HOLD_PAST	equ 600			; this far ahead
 DAC_PORT	equ $DF			; DAC A and D (SpecDrum)
 POLY_PAGE	equ 14			; poly17.bin: pages 14 and 15
 
@@ -416,6 +418,7 @@ pokey_frame:
 	and 3
 	or high SND_RING
 	ld d,a
+	ld (pk_dma),de
 	ld hl,(snd_w)			; how far ahead the samples are
 	or a
 	sbc hl,de
@@ -527,15 +530,45 @@ pokey_frame:
 	call snd_sum
 	nextreg $50,ATARI_RAM_PAGE
 	nextreg $51,ATARI_RAM_PAGE + 1
+	ld a,c				; the last level
 	ld hl,(snd_w)
 	ld de,(snd_n)
 	add hl,de
+	ld b,a
 	ld a,h
 	and 3
 	or high SND_RING
 	ld h,a
 	ld (snd_w),hl
-	ret
+	push bc				; past them, up to SND_HOLD, the last level held: if the
+	ld de,(pk_dma)			; DMA gets there before the next frame's samples it plays
+	or a				; that, not what the ring had a round ago
+	sbc hl,de
+	ld a,h
+	and 3
+	ld h,a
+	ex de,hl
+	ld hl,SND_HOLD_PAST		; far enough ahead: none (the next frame's come first)
+	sbc hl,de
+	pop bc
+	ret c
+	ld hl,1024 - 8
+	or a
+	sbc hl,de
+	ret c
+	ld de,SND_HOLD
+	push hl
+	sbc hl,de
+	pop hl
+	jr c,.hold
+	ex de,hl
+.hold	ld a,h
+	or l
+	ret z
+	ex de,hl
+	ld hl,(snd_w)
+	ld a,b
+	jp snd_fill
 
 ; DE bytes (1-1023) of A from HL on in the ring: two stretches at most, each pushed from its
 ; end down (the stack pointer kept)

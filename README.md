@@ -42,7 +42,9 @@ Speed: at 28 MHz a frame's work takes about 60–61% of a 50 Hz frame on average
 busiest (tanks, shells and missiles beside the enemies) up to about 88%; on PAL no frame was
 late in 60 000. The sound is about 25 000 ticks of it (4% of a frame); in a busy frame it
 makes fewer samples and leaves the rest to the next frames. At 60 Hz (NTSC) the frame is
-shorter: about 1 frame in 140 is a little late and shown twice.
+shorter: about 1 frame in 140 is a little late and shown twice. From bridge 50 on the scenes
+are much busier: there a frame is late now and then on PAL, and often on NTSC (the sound
+then gives way first, with short flat gaps).
 
 ## Running it
 

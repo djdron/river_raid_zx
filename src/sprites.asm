@@ -230,64 +230,103 @@ emit_sprite:
 	ld a,(sb_count)
 	cp SPRITES_MAX
 	ret nc
-	ld a,(sb_bits)			; the pattern's 16 rows (then empty)
+	ld a,(sb_bits)			; the pattern's rows: sb_lines of them, then empty to 16
 	ld h,a
 	ld a,(sb_off)
 	ld l,a
 	ld a,(sb_start)
 	add a,l
 	ld l,a
-	ld de,es_key
-	ld a,(sb_lines)
-	ld b,a
-.key	ld a,(hl)
-	ld (de),a
-	inc l
-	inc e
-	djnz .key
+	ld (es_src),hl
+	ld a,(sb_lines)			; the hash (16 rows: rotated, XORed in turn; the empty
+	ld b,a				; rows only rotate), 3 bytes a row
 	ld a,16
-	ld hl,sb_lines
-	sub (hl)
-	jr z,.cache
-	ld b,a
+	sub b
+	ld c,a				; C: the empty rows
+	add a,a
+	add a,c
+	add a,low .hb
+	ld (.hj + 1),a
+	ld a,high .hb
+	adc a,0
+	ld (.hj + 2),a
 	xor a
-.k0	ld (de),a
-	inc e
-	djnz .k0
-.cache	ld hl,es_key			; a pattern of this set with these rows already: no need
-	xor a				; to write one (page 7 at $4000: the patterns' rows, a hash
-	ld b,16				; table, which are used this frame)
-.h	rlca
+.hj	jp .hb
+.hb	rept 16
+	rlca
 	xor (hl)
 	inc l
-	djnz .h
-	ld (es_hash),a
-	ld l,a
-	ld a,(sb_half)
+	endr
+	ld e,a
+	ld a,c
+	and 7
+	ld b,a
+	ld a,e
+	jr z,.hd
+.rot	rlca
+	djnz .rot
+.hd	ld (es_hash),a			; a pattern of this set with these rows already: no need
+	ld l,a				; to write one (page 7 at $4000: the patterns' rows, a hash
+	ld a,(sb_half)			; table, which are used this frame)
 	rlca
 	rlca
 	add a,high PC_BUCKETS
 	ld h,a
 	ld a,(hl)
 	or a
-	jr z,.alloc
+	jp z,.alloc
 	dec a
 	ld (sb_pattern),a
 	call .rows_of
-	ld de,es_key
-	ld b,16
-.cmp	ld a,(de)
+	ld a,c				; its rows: the run's, 7 bytes a row
+	add a,a
+	add a,a
+	add a,a
+	sub c
+	add a,low .cb
+	ld (.cj + 1),a
+	ld a,high .cb
+	adc a,0
+	ld (.cj + 2),a
+	ld de,(es_src)
+.cj	jp .cb
+.cb	rept 16
+	ld a,(de)
 	cp (hl)
-	jr nz,.alloc
-	inc l
+	jp nz,.alloc
 	inc e
-	djnz .cmp
-	ld a,(sb_pattern)		; used again
+	inc l
+	endr
+	ld a,c				; then empty
+	or a
+	jr z,.hit
+	ld b,a
+.ce	ld a,(hl)
+	or a
+	jp nz,.alloc
+	inc l
+	djnz .ce
+.hit	ld a,(sb_pattern)		; used again
 	ld l,a
 	ld h,high PC_USED
 	ld (hl),1
 	jp .attributes
-.alloc	ld a,(sb_half)			; a pattern not used this frame, in turn
+.alloc	ld hl,(es_src)			; a new one: its rows (and the empty ones) in es_key
+	ld de,es_key
+	ld a,(sb_lines)
+	ld c,a
+	ld b,0
+	ldir
+	ld a,16
+	ld hl,sb_lines
+	sub (hl)
+	jr z,.ak
+	ld b,a
+	xor a
+.az	ld (de),a
+	inc e
+	djnz .az
+.ak	ld a,(sb_half)			; a pattern not used this frame, in turn
 	or a
 	ld hl,pc_next
 	jr z,.an
@@ -470,11 +509,11 @@ build_copper:
 	ldir
 	ld a,$A0
 	ld (bc_select),a
-	ld ix,$FFFF			; IXH the bank colour, IXL player 3's set (none yet: no Atari
+	ld bc,$FFFF			; B the bank colour, C player 3's set (none yet: no Atari
 	ld l,RIVER_FIRST		; colour is odd); L the scanline
 .line	ld h,high scan_bank
 	ld a,(hl)
-	cp ixh
+	cp b
 	jr nz,.change
 	ld h,high scan_p3
 	ld a,(hl)
@@ -482,12 +521,12 @@ build_copper:
 	jr z,.next
 	ld h,high scan_col
 	ld a,(hl)
-	cp ixl
+	cp c
 	jr nz,.change
 .next	inc l
 	ld a,l
 	cp RIVER_FIRST + RIVER_LINES
-	jr c,.line
+	jp c,.line
 	ld hl,copper_panel		; the panel and the scrolling line
 	ld bc,copper_panel_end - copper_panel
 	ldir
@@ -510,12 +549,12 @@ build_copper:
 	inc de
 	ld h,high scan_bank
 	ld a,(hl)
-	cp ixh
+	cp b
 	jr z,.colour
-	ld ixh,a			; the bank: Layer 2's palette
-	ld b,$90
+	ld b,a				; the bank: Layer 2's palette
+	ld a,$90
 	call .select
-	ld a,ixh
+	ld a,b
 	call .move41
 .colour	ld h,high scan_p3
 	ld a,(hl)
@@ -523,39 +562,40 @@ build_copper:
 	jr z,.next
 	ld h,high scan_col
 	ld a,(hl)
-	cp ixl
+	cp c
 	jr z,.next
-	ld ixl,a			; player 3: the sprites' palette
-	ld b,$A0
+	ld c,a				; player 3: the sprites' palette
+	ld a,$A0
 	call .select
-	ld a,ixl
+	ld a,c
 	call .move41
 	jr .next
-.select					; MOVE $43,B unless it is already
-	ld a,(bc_select)
-	cp b
-	ret z
-	ld a,b
-	ld (bc_select),a
+.select					; MOVE $43,A unless it is already
+	push hl
+	ld hl,bc_select
+	cp (hl)
+	jr z,.sel
+	ld (hl),a
 	ex de,hl
 	ld (hl),$43
 	inc hl
 	ld (hl),a
 	inc hl
 	ex de,hl
+.sel	pop hl
 	ret
 .move41					; MOVE $41, the Next colour of Atari colour A
 	push hl
 	ld l,a
 	ld h,high palette
 	ld a,(hl)
-	pop hl
 	ex de,hl
 	ld (hl),$41
 	inc hl
 	ld (hl),a
 	inc hl
 	ex de,hl
+	pop hl
 	ret
 
 ; The tilemap's rows (NTSC): the panel's at 202, 211 and 219 (map rows 20, 22, 23; buffer rows

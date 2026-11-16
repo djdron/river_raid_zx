@@ -14,7 +14,7 @@ River Raid (Activision, Atari 800, 1983, by Carol Shaw) on the ZX Spectrum Next,
 ## State
 The game is complete, with its sound: attract mode, games 1–8, one and two players, the plane, fuel, enemies, tanks, missiles, bridges, score, lives, high scores, pause, the panel and the scrolling line with the rainbow logo. PAL (50 Hz) by default, NTSC (60 Hz) with CAPS + 1. Checked frame by frame against the C++ port (bot games, hundreds of thousands of frames, PAL and NTSC) and against the original on libatari800 (eight runs, 37 000 frames). Not yet run on a real Next: only on Xpeccy+'s Next core.
 
-Speed (28 MHz, PAL): a frame's work is about 60–61% of a 50 Hz frame on average, up to about 88%; no frame late in 60 000. The sound is about 25 000 ticks a frame on average (up to ~60 000; fewer samples in a busy frame). NTSC at 60 Hz: about 1 frame in 140 is late and shown twice. A slowdown seen on a real Next at bridge 50 with a firing helicopter is not seen on Xpeccy+'s core (bot, game 7: no frame late); the sound can be turned off with CAPS + 2 to tell whether it is the sound.
+Speed (28 MHz, PAL): a frame's work is about 60–61% of a 50 Hz frame on average, up to about 88%; no frame late in 60 000. The sound is about 25 000 ticks a frame on average (up to ~60 000; fewer samples in a busy frame). NTSC at 60 Hz: about 1 frame in 140 is late and shown twice. At bridge 50 and on the scenes are much busier (`NXSOLO=1 NXGAME=7`: ~441 000 ticks on average, 1 frame in 235 late on PAL, 45% on NTSC); on a real Next it slows down there, with and without the sound (CAPS + 2).
 
 Controls, building, checks: [README.md](README.md).
 
@@ -74,7 +74,7 @@ Each step is ported from the C++ port (which is the spec, line for line, with th
 - Not tried on a real Next; the keyboard and joystick reading is untested (the checks give the controls directly). Speed is measured on Xpeccy+'s Next core; the real machine's memory wait states at 28 MHz are not checked.
 - The sound has not been heard on a real Next: the zxnDMA (burst mode, prescaler 55, auto restart, read back of its address) and the DAC on port $DF are as Xpeccy+'s core models the VHDL.
 - NTSC at 60 Hz: the busiest frames take more than a 60 Hz frame (about 1 in 140 late).
-- Real hardware may be slower than the core measured on: a slowdown was seen at bridge 50 on a real Next (PAL).
+- The busy scenes from bridge 50 on: slow on a real Next on PAL and more on NTSC; the work there needs to come down by 10-15% (collisions ~120 000 ticks, the DLI model ~125 000, sprites and the Copper's list ~110 000).
 - Power-on before the attract mode (the first 38/25 frames) is not shown; the program starts at the attract mode.
 
 ## Next steps
