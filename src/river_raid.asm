@@ -42,6 +42,7 @@ TILE_256	equ $4000		; page 11 at $4000: the scrolling line's tile 256
 TILE_MAP	equ $4100		; and the map, 40 x 32 entries of 2 bytes
 NEEDLE_OFFSET	equ 4			; sprite palette offsets
 LOGO_OFFSET	equ 5
+PATTERN_CACHE	equ $4800		; page 7 at $4000: the rows of each sprite pattern (128 x 16)
 
 	mmu 4,4
 	org $8000
@@ -136,30 +137,36 @@ wait_frame:
 	jr nz,.wait
 	ret
 
-; row_buf (320 bytes) into Layer 2 row A. Layer 2 at 320x256 is stored by columns: byte
-; x * 256 + y, 32 columns per 8K page.
-write_row:
-	ld (wr_row),a
-	ld de,row_buf
-	ld c,L2_FIRST_PAGE
-	ld b,L2_PAGES
-.page	ld a,c
-	nextreg $52,a			; page into $4000
-	ld a,(wr_row)
-	ld l,a
-	ld h,$40
-	rept 32
-	ld a,(de)
-	ld (hl),a
-	inc de
-	inc h
-	endr
-	inc c
-	dec b
-	jp nz,.page
-	ret
-
 init_tables:
+	ld hl,mc_bullet			; the missiles' bits as a player's byte
+.mc	ld a,l
+	ld c,0
+	bit 5,a
+	jr z,$+4
+	set 7,c
+	bit 4,a
+	jr z,$+4
+	set 6,c
+	ld (hl),c
+	inc h
+	ld c,0
+	bit 1,a
+	jr z,$+4
+	ld c,$C0
+	bit 0,a
+	jr z,.mc1
+	ld a,c
+	or $30
+	ld c,a
+.mc1	ld (hl),c
+	dec h
+	inc l
+	jr nz,.mc
+	ld hl,cl_lo			; no screen memory outside the river
+	ld de,cl_lo + 1
+	ld bc,511
+	ld (hl),0
+	ldir
 	ld hl,0				; double_hi/lo: each bit of a byte doubled
 .dbl	ld a,l
 	rrca
@@ -206,35 +213,6 @@ init_tables:
 	djnz .e8b
 	inc c
 	jr nz,.e8
-	ld hl,shr_tables		; shift tables: right by 2s bits, then left by 8 - 2s
-	ld c,1
-.shr	ld l,0
-.sr	ld a,l
-	ld b,c
-.sr1	srl a
-	srl a
-	djnz .sr1
-	ld (hl),a
-	inc l
-	jr nz,.sr
-	inc h
-	inc c
-	ld a,c
-	cp 4
-	jr c,.shr
-	ld c,3				; left by 6, 4, 2 (for shifts 1, 2, 3)
-.shl	ld l,0
-.sl	ld a,l
-	ld b,c
-.sl1	add a,a
-	add a,a
-	djnz .sl1
-	ld (hl),a
-	inc l
-	jr nz,.sl
-	inc h
-	dec c
-	jr nz,.shl
 	ld l,0				; dsh_tables: for shift s, byte k of (bits doubled, 24 bits) >> 2s
 .dsh	ld h,high double_hi
 	ld d,(hl)
@@ -480,7 +458,6 @@ exp8:		ds 8 * 256		; a byte as 8 bytes of 4-bit pixels, $11 a bit
 	mmu 7,1
 	org $E000
 line_buf:	ds 256			; the generated line (48 bytes; the drawing wraps at 256)
-row_buf:	ds 320			; the line as Layer 2 shows it
 bh_obj_x:	ds 1
 bh_obj_size:	ds 1
 bh_island:	ds 1
@@ -550,6 +527,15 @@ coll_ppl:	ds 4
 sp_active:	ds 1
 cl_size_m:	ds 1
 cl_line:	ds 2
+rec_bank:	ds 3
+cs_present:	ds 1			; collide: the sprites on the line (bit n)
+cs_list:	ds 5 * 8		; collide: per sprite on the line: bits, position, size,
+					; end, mask made
+pu_hpos:	ds 1			; pf_under
+pu_pf:		ds 1
+pu_q:		ds 3
+	align 16
+es_key:		ds 16			; emit_sprite: a pattern's rows			; the bank colour's record (rec_set): value, from which line, scan page
 sm_hpos:	ds 1
 sm_base:	ds 1
 sm_bytes:	ds 1
@@ -589,7 +575,9 @@ sb_bits:	ds 1
 sb_off:		ds 1
 sb_const:	ds 1
 sb_const_x:	ds 1
-sb_missiles:	ds 1
+sb_mask:	ds 1
+sb_conv:	ds 1
+ch_end:		ds 1
 sb_offset:	ds 1
 sb_start:	ds 1
 sb_lines:	ds 1
@@ -603,7 +591,11 @@ bc_p3:		ds 1
 copper_bytes:	ds 2
 ap_shown:	ds 1
 	align 256
-shr_tables:	ds 6 * 256		; a byte shifted right by 2, 4, 6 bits; and left by 6, 4, 2
+cl_lo:		ds 256			; per scanline: its playfield's screen memory (0: none)
+cl_hi:		ds 256
+mc_bullet:	ds 256			; missile 2's bits ($30) as a player's byte (1 clock a bit)
+mc_missile:	ds 256			; missile 0's bits ($03) as a player's byte (2 clocks a bit)
+		ds 2 * 256
 pf_class:	ds 256			; the playfield colours of a byte's pixels: 1 bank, 2 edge, 4 water
 sm_src:		ds 16			; a sprite's bits doubled, before the shift
 	align 256

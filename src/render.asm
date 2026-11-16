@@ -5,22 +5,33 @@
 
 WINDOW_FIRST	equ 20		; the first colour clock shown (the water never comes nearer)
 
-render_line:
-	ld hl,line_buf + WINDOW_FIRST / 4
-	ld de,row_buf
-	ld b,160 / 4
-.byte	ld c,(hl)
-	inc l
+render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
+	ld (wr_row),a			; 32 columns per 8K page)
+	ld de,line_buf + WINDOW_FIRST / 4
+	ld b,L2_FIRST_PAGE
+.page	ld a,b
+	nextreg $52,a
+	ld a,(wr_row)
+	ld l,a
+	ld h,$40
+	rept 4				; 4 bytes of the line: 16 colour clocks, 32 columns
+	ld a,(de)
+	ld c,a
+	inc e
 	rept 4
 	ld a,c
 	rlca
 	rlca
 	ld c,a
 	and 3
-	ld (de),a
-	inc de
-	ld (de),a
-	inc de
+	ld (hl),a
+	inc h
+	ld (hl),a
+	inc h
 	endr
-	djnz .byte
+	endr
+	inc b
+	ld a,b
+	cp L2_FIRST_PAGE + L2_PAGES
+	jp nz,.page
 	ret

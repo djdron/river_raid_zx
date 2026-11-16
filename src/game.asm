@@ -194,12 +194,11 @@ line_done:				; the checks look at the generator here
 	ld hl,line_buf
 	ld bc,48
 	ldir
-	call render_line
 	ld a,(scroll)
 	dec a
 	ld (scroll),a
 	add a,RIVER_TOP
-	jp write_row
+	jp render_line
 
 ; ------------------------------------------------------------------------------------------
 ; AE99-AF38, at the top of the frame: the shapes of the tank, the helicopter missile, the

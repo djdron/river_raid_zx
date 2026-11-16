@@ -73,28 +73,25 @@ bm_op:					; an instruction of A cycles (A > 0)
 	ret
 
 ; The events due (IXH <= 0): the line drawn, the next line, until the next event is ahead.
-; In: A = IXH - 1; out: the same for the new IXH.
+; In: A = IXH - 1; out: the same for the new IXH. Drawing a line only matters when a player
+; or missile is on it: the collisions, and player 3's position, size and colour (scan_*,
+; only where player 3 is on the line). Player 3's data is kept as the lines latch it
+; (p3_scan), the bank colour when it changes (rec_set).
 bm_events:
 	push hl
-	push bc
 	inc a
 .loop	ld ixh,a
-	ld a,(bm_drawn)
+	ld hl,bm_drawn
+	ld a,(hl)
 	or a
 	jr nz,.next_line
-	inc a				; drawn at 28 - IXH: collisions, the record
-	ld (bm_drawn),a
-	ld a,(bm_any)
-	or a
-	jr z,.record
-	push de
-	call collide
-	pop de
-.record	ld a,(bm_line)			; the line's record (scan_*: by scanline)
+	inc (hl)			; drawn at 28 - IXH
+	ld a,(bm_line)
 	ld l,a
-	ld h,high scan_p3
-	ld a,(bm_p + 3)
-	ld (hl),a
+	ld h,high scan_p3		; player 3 on the line: its position, size and colour
+	ld a,(hl)
+	or a
+	jr z,.no_p3
 	inc h
 	ld a,(hpos_p + 3)
 	ld (hl),a
@@ -104,81 +101,176 @@ bm_events:
 	inc h
 	ld a,(colour_p3)
 	ld (hl),a
+	ld h,high PM_MISSILES		; only player 3 (the usual): with the playfield, if any
+	ld a,(hl)
 	inc h
-	ld a,(beam_bank)
+	or (hl)
+	inc h
+	or (hl)
+	inc h
+	or (hl)
+	jr nz,.collide
+	ld h,high cl_hi
+	ld a,(hl)
+	or a
+	jr z,.after
+	push bc
+	push de
+	ld (cl_line + 1),a
+	dec h
+	ld a,(hl)
+	ld (cl_line),a
+	ld h,high scan_p3
+	ld d,(hl)
+	ld a,(hpos_p + 3)
+	ld e,a
+	ld a,(size_p + 3)
+	call pf_under
+	ld hl,coll_ppf + 3
+	or (hl)
 	ld (hl),a
-.after	ld a,(bm_line)			; then refresh and screen data
+	pop de
+	pop bc
+	ld a,(bm_line)
 	ld l,a
-	ld h,high line_after_draw
+	jr .after
+.no_p3	ld h,high PM_MISSILES		; anything else: the collisions
+	ld a,(hl)
+	inc h
+	or (hl)
+	inc h
+	or (hl)
+	inc h
+	or (hl)
+	jr z,.after
+.collide
+	push bc
+	push de
+	call collide_line
+	pop de
+	pop bc
+	ld a,(bm_line)
+	ld l,a
+.after	ld h,high line_after_draw	; then refresh and screen data
 	ld a,ixh
 	add a,(hl)
-	jr .check
+	dec a				; due again?
+	jp m,.again
+	pop hl
+	ret
 .next_line				; at 114 - IXH: the next line from its start cycles
-	xor a
-	ld (bm_drawn),a
+	ld (hl),0
 	ld hl,bm_line
 	inc (hl)
 	ld l,(hl)
-	ld h,high PM_MISSILES		; latch the players' and missiles' data
-	ld a,(hl)
-	ld (bm_m),a
-	ld c,a
-	inc h
-	ld a,(hl)
-	ld (bm_p),a
-	or c
-	ld c,a
-	inc h
-	ld a,(hl)
-	ld (bm_p + 1),a
-	or c
-	ld c,a
-	inc h
-	ld a,(hl)
-	ld (bm_p + 2),a
-	or c
-	ld c,a
-	inc h
-	ld a,(hl)
-	ld (bm_p + 3),a
-	or c
-	ld (bm_any),a
-	ld a,l				; the line's screen memory (0 outside the river)
-	sub RIVER_FIRST
-	jr z,.top
-	cp RIVER_LINES
-	jr nc,.off
-	ld bc,(cl_line)			; 48 bytes on, round the two blocks
-	ld a,c
-	add a,48
-	ld c,a
-	jr nc,.b
-	inc b
-.b	ld a,b
-	cp $2F
-	jr nz,.b1
-	ld b,$30
-.b1	cp $3F
-	jr nz,.b2
-	ld b,$20
-.b2	ld (cl_line),bc
-	jr .start
-.top	ld bc,(SCREEN_TOP)
-	ld (cl_line),bc
-	jr .start
-.off	ld bc,0
-	ld (cl_line),bc
-.start	ld h,high line_start
+	ld h,high line_start
 	ld a,ixh
 	add a,DRAW_CYCLE
 	sub (hl)
-.check	dec a				; due again?
+	dec a				; due again?
 	jp m,.again
-	pop bc
 	pop hl
 	ret
 .again	inc a
 	jp .loop
+
+; The line's players, missiles and playfield for collide
+collide_line:
+	ld a,(bm_line)
+	ld l,a
+	ld h,high PM_MISSILES
+	ld a,(hl)
+	ld (bm_m),a
+	inc h
+	ld a,(hl)
+	ld (bm_p),a
+	inc h
+	ld a,(hl)
+	ld (bm_p + 1),a
+	inc h
+	ld a,(hl)
+	ld (bm_p + 2),a
+	ld h,high scan_p3
+	ld a,(hl)
+	ld (bm_p + 3),a
+	ld h,high cl_lo
+	ld a,(hl)
+	inc h
+	ld h,(hl)
+	ld l,a
+	ld (cl_line),hl
+	jp collide
+
+; A register shown per line changes to A (HL: its record: value, from which line, the
+; scan_* page): the lines since the last change get the old value. A is kept.
+rec_set:
+	push af
+	push bc
+	push de
+	ld b,a
+	ld a,(bm_drawn)			; the first line it shows on: this one if not yet drawn
+	ld c,a
+	ld a,(bm_line)
+	add a,c
+	ld c,a
+	ld a,(hl)
+	ld (hl),b
+	ld b,a				; B: the old value
+	inc hl
+	ld a,c
+	sub (hl)
+	jr c,.done
+	jr z,.done
+	ld e,(hl)
+	ld (hl),c
+	inc hl
+	ld d,(hl)
+	ex de,hl
+.fill	ld (hl),b
+	inc l
+	dec a
+	jr nz,.fill
+.done	pop de
+	pop bc
+	pop af
+	ret
+
+; the last value of a record to the river's end
+rec_end:
+	ld b,(hl)
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ld a,RIVER_FIRST + RIVER_LINES
+	sub e
+	ret c
+	ret z
+	ex de,hl
+.fill	ld (hl),b
+	inc l
+	dec a
+	jr nz,.fill
+	ret
+
+; Player 3's data written at HL (A): if its line has not started yet, that is what the line
+; latches. A is kept.
+p3_scan:
+	push af
+	ld a,(bm_line)
+	cp l
+	jr nc,.late
+	ld a,h
+	cp high PM_P3
+	jr nz,.late
+	pop af
+	push hl
+	ld h,high scan_p3
+	ld (hl),a
+	pop hl
+	ret
+.late	pop af
+	ret
 
 bm_wsync:				; STA WSYNC (after its 4 cycles): on to cycle 106
 	ld a,(bm_drawn)
@@ -251,106 +343,493 @@ bm_hitclr:
 SPRITES	equ 8				; players 0-3, missiles 0-3
 
 collide:					; (cl_line: the playfield of the line, 0 outside the river)
-	ld a,(bm_p)			; only player 3 (the usual): its mask and the playfield
-	ld hl,bm_p + 1
-	or (hl)
+.all	; more than player 3. Only what the DLI reads (B5E8-B664, B6BC on): with the
+	; playfield P1PF, P2PF, P3PF, M0PF, M2PF; with each other M0PL (the plane), M2PL (player
+	; 3), P2PL (the shell, player 3), P3PL (the shell). The others are never read.
+	xor a				; none yet, no masks made
+	ld (cs_present),a
+	ld (cs_list + 0 * 5),a
+	ld (cs_list + 0 * 5 + 4),a
+	ld (cs_list + 2 * 5),a
+	ld (cs_list + 2 * 5 + 4),a
+	ld (cs_list + 3 * 5),a
+	ld (cs_list + 3 * 5 + 4),a
+	ld (cs_list + 4 * 5),a
+	ld (cs_list + 4 * 5 + 4),a
+	ld (cs_list + 6 * 5),a
+	ld (cs_list + 6 * 5 + 4),a
+	ld a,(bm_p)			; P0: only touched
+	or a
+	jr z,.p1
+	ld d,a
+	ld a,(hpos_p)
+	ld e,a
+	ld a,(size_p)
+	ld b,0
+	call .add
+.p1	ld a,(bm_p + 1)			; P1: the playfield
+	or a
+	jr z,.p2
+	ld d,a
+	ld a,(hpos_p + 1)
+	ld e,a
+	ld a,(size_p + 1)
+	ld hl,coll_ppf + 1
+	call .pf
+.p2	ld a,(bm_p + 2)
+	or a
+	jr z,.p3
+	ld d,a
+	ld a,(hpos_p + 2)
+	ld e,a
+	ld a,(size_p + 2)
+	ld b,2
+	call .add
+	ld hl,coll_ppf + 2
+	call .pf_entry
+.p3	ld a,(bm_p + 3)
+	or a
+	jr z,.m0
+	ld d,a
+	ld a,(hpos_p + 3)
+	ld e,a
+	ld a,(size_p + 3)
+	ld b,3
+	call .add
+	ld hl,coll_ppf + 3
+	call .pf_entry
+.m0	ld a,(bm_m)			; missiles: 2 bits each, at the top like a player's first two
+	and $03
+	jr z,.m2
+	rrca
+	rrca
+	ld d,a
+	ld a,(hpos_m)
+	ld e,a
+	ld a,(size_m)
+	ld b,4
+	call .add
+	ld hl,coll_mpf
+	call .pf_entry
+.m2	ld a,(bm_m)
+	and $30
+	jr z,.pairs
+	rlca
+	rlca
+	ld d,a
+	ld a,(hpos_m + 2)
+	ld e,a
+	ld a,(size_m)
+	rrca
+	rrca
+	rrca
+	rrca
+	ld b,6
+	call .add
+	ld hl,coll_mpf + 2
+	call .pf_entry
+.pairs	ld a,(cs_present)
+	ld d,a
+	and $48				; M2PL: player 3
+	cp $48
+	jr nz,.pr2
+	ld bc,6 << 8 | 3
+	ld hl,coll_mpl + 2
+	ld e,$08
+	call .pair
+.pr2	ld a,d
+	and $09				; P3PL: the shell
+	cp $09
+	jr nz,.pr3
+	ld bc,3 << 8 | 0
+	ld hl,coll_ppl + 3
+	ld e,$01
+	call .pair
+.pr3	ld a,d
+	and $05				; P2PL: the shell, player 3
+	cp $05
+	jr nz,.pr4
+	ld bc,2 << 8 | 0
+	ld hl,coll_ppl + 2
+	ld e,$01
+	call .pair
+.pr4	ld a,d
+	and $0C
+	cp $0C
+	jr nz,.pr5
+	ld bc,2 << 8 | 3
+	ld hl,coll_ppl + 2
+	ld e,$08
+	call .pair
+.pr5	ld a,d
+	and $14				; M0PL: the plane
+	cp $14
+	ret nz
+	ld bc,4 << 8 | 2
+	ld hl,coll_mpl
+	ld e,$04
+	; (on to .pair)
+
+; sprites B and C: if both are on the line and touch, (HL) |= E
+.pair	push hl
+	push de
+	ld a,b
+	call .entry
+	ld a,(hl)			; bits: there?
+	or a
+	jr z,.no
 	inc hl
+	ld e,(hl)			; hpos B
+	inc hl
+	inc hl
+	ld d,(hl)			; end B
+	ld a,c
+	call .entry
+	ld a,(hl)
+	or a
+	jr z,.no
+	inc hl
+	ld a,(hl)			; hpos C < end B
+	cp d
+	jr nc,.no
+	inc hl
+	inc hl
+	ld a,e				; hpos B < end C
+	cp (hl)
+	jr nc,.no
+	push bc				; the spans meet: the masks
+	ld a,b
+	call .mask
+	pop bc
+	push bc
+	ld a,c
+	call .mask
+	pop bc
+	call sprites_overlap
+	jr nc,.no
+	pop de
+	pop hl
+	ld a,e
 	or (hl)
-	ld hl,bm_m
+	ld (hl),a
+	ret
+.no	pop de
+	pop hl
+	ret
+
+; sprite B (bits D, position E, size A) on the line: its entry (bits, hpos, size, end, mask
+; made)
+.add	and 3
+	ld c,a
+	push bc
+	ld a,1
+	inc b
+.ab	dec b
+	jr z,.ab1
+	add a,a
+	jr .ab
+.ab1	ld hl,cs_present
 	or (hl)
-	jp nz,.all
-	ld hl,(cl_line)			; only player 3 (the usual): with the playfield, if any
+	ld (hl),a
+	pop bc
+	ld a,b
+	call .entry
+	ld (hl),d
+	inc hl
+	ld (hl),e
+	inc hl
+	ld (hl),c
+	inc hl
+	ld a,b				; width: 8 or 2 clocks a sprite, x1, 2, 4
+	cp 4
+	ld a,8
+	jr c,.w
+	ld a,2
+.w	bit 0,c
+	jr z,.wn
+	add a,a
+	bit 1,c
+	jr z,.wn
+	add a,a
+.wn	add a,e
+	jr nc,.we
+	ld a,$FF
+.we	ld (hl),a
+	ld a,c
+	ret
+
+; its playfield colours into (HL) (A = size)
+.pf_entry
+	push hl
+	call pf_under
+	pop hl
+	or (hl)
+	ld (hl),a
+	ret
+.pf	push hl
+	call pf_under
+	pop hl
+	or (hl)
+	ld (hl),a
+	ret
+
+; HL = entry A of the list
+.entry	ld l,a
+	add a,a
+	add a,a
+	add a,l
+	add a,low cs_list
+	ld l,a
+	ld a,high cs_list
+	adc a,0
+	ld h,a
+	ret
+
+; entry A's mask, once
+.mask	ld b,a
+	call .entry
+	push hl
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	ld a,(hl)
+	or a
+	pop hl
+	ret nz
+	push hl
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	ld (hl),1
+	pop hl
+	ld d,(hl)
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld a,(hl)
+	jp sprite_mask
+
+; The playfield colours (bits 1 bank, 2 edge, 4 water) under a sprite: bits D (the first at
+; bit 7), position E, size A (each bit 1, 2 or 4 colour clocks). Its bits, doubled for the
+; playfield's 2 bits a clock, give 1, 2 or 4 bytes q; each shifted right by the clock within
+; the first screen byte is 3 bytes from dsh_tables (t0, t1, t2), at byte 2i: a mask of 3, 5
+; or 9 bytes, ANDed with the screen; pf_class gives the colours of each byte (accumulated in
+; the other registers: H' pf_class, B' the colours).
+pf_acc:	macro			; A: covered pixels of a screen byte
+	exx
+	ld l,a
+	ld a,(hl)
+	or b
+	ld b,a
+	exx
+	endm
+
+pf_under:
+	ld c,a
+	ld hl,(cl_line)
 	ld a,h
 	or a
-	ret z
-	ld a,(size_p + 3)		; normal width: its 3 mask bytes, straight
+	ret z				; no playfield on this line
+	ld a,e				; the first screen byte
+	srl a
+	srl a
+	sub 8
+	ld b,a
+	ld a,c
 	and 3
 	cp 1
-	jp z,.wide
+	jr z,.double
 	cp 3
-	jp z,.wide
-	ld a,(hpos_p + 3)
-	ld c,a
-	and 3
-	ld e,a
-	add a,a
-	add a,e
-	add a,high dsh_tables
-	ld d,a
-	ld a,(bm_p + 3)
-	ld e,a
-	ld a,c
-	srl a
-	srl a
-	sub 8				; the first screen byte
-	ld c,a
-	ld b,e
-	ld e,a				; HL: the line's byte (if on the line)
-	add a,a
-	sbc a,a
-	push de
-	ld d,a
-	ld hl,(cl_line)
-	add hl,de
-	pop de
-	ld e,b
-	ld b,0				; the colours under it
-	ld a,c				; all 3 bytes on the line: no checks
+	jr z,.quad
+	ld a,b				; normal width: 3 bytes
 	cp 48 - 2
-	jr nc,.edge3
-	rept 3
+	jp nc,.general_n
+	call .start
+	ld e,d				; (D: the bits)
+	ld d,c
 	ld a,(de)
 	and (hl)
-	jr z,1F
-	push hl
-	ld l,a
-	ld h,high pf_class
-	ld a,(hl)
-	or b
-	ld b,a
-	pop hl
-1:	inc hl
+	pf_acc
+	inc hl
 	inc d
-	endr
+	ld a,(de)
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)
+	and (hl)
+	pf_acc
+	jp .done
+.double	ld a,b				; 5 bytes
+	cp 48 - 4
+	jp nc,.general_n
+	call .start
+	push hl
+	ld l,d
+	ld h,high double_hi
+	ld e,(hl)			; q0
+	inc h
+	ld b,(hl)			; q1
+	pop hl
+	ld d,c
+	ld a,(de)			; t0[q0]
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)			; t1[q0]
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)			; t2[q0] | t0[q1]
+	ld e,b
+	ld d,c
+	ld b,a
+	ld a,(de)
+	or b
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)			; t1[q1]
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)			; t2[q1]
+	and (hl)
+	pf_acc
+	jp .done
+.quad	ld a,b				; 9 bytes
+	cp 48 - 8
+	jp nc,.general_n
+	call .start
+	push hl
+	ld l,d				; q0-q3: the bits doubled twice
+	ld h,high double_hi
+	ld e,(hl)
+	inc h
+	ld b,(hl)
+	ld l,e
+	ld a,(hl)			; double_lo of the first: q1
+	dec h
+	ld e,(hl)			; q0
+	ld (pu_q),a
+	ld l,b
+	ld a,(hl)
+	ld (pu_q + 1),a			; q2
+	inc h
+	ld a,(hl)
+	ld (pu_q + 2),a			; q3
+	pop hl
+	ld d,c
+	ld a,(de)			; t0[q0]
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)			; t1[q0]
+	and (hl)
+	pf_acc
+	inc hl
+	inc d				; t2[q0] | t0[q1], then t1[q1]
+	ld a,(de)
+	ld b,a
+	ld a,(pu_q + 0)
+	ld e,a
+	ld d,c
+	ld a,(de)
+	or b
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)
+	and (hl)
+	pf_acc
+	inc hl
+	inc d				; t2[q1] | t0[q2], then t1[q2]
+	ld a,(de)
+	ld b,a
+	ld a,(pu_q + 1)
+	ld e,a
+	ld d,c
+	ld a,(de)
+	or b
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)
+	and (hl)
+	pf_acc
+	inc hl
+	inc d				; t2[q2] | t0[q3], then t1[q3]
+	ld a,(de)
+	ld b,a
+	ld a,(pu_q + 2)
+	ld e,a
+	ld d,c
+	ld a,(de)
+	or b
+	and (hl)
+	pf_acc
+	inc hl
+	inc d
+	ld a,(de)
+	and (hl)
+	pf_acc
+	inc hl
+
+	inc d
+	ld a,(de)			; t2[q3]
+	and (hl)
+	pf_acc
+.done	exx
 	ld a,b
-	ld hl,coll_ppf + 3
-	or (hl)
-	ld (hl),a
+	exx
 	ret
-.edge3	rept 3
+
+; HL = the screen's byte B, C = the shift's tables, B' = 0, H' = pf_class
+.start	ld a,e
+	and 3
+	ld c,a
+	add a,a
+	add a,c
+	add a,high dsh_tables
+	ld c,a
+	ld a,b
+	add a,l
+	ld l,a
+	adc a,h
+	sub l
+	ld h,a
+	exx
+	ld b,0
+	ld h,high pf_class
+	exx
+	ret
+
+; near the line's ends: byte by byte, those on the line
+.general_n
 	ld a,c
-	cp 48
-	jr nc,1F
-	ld a,(de)
-	and (hl)
-	jr z,1F
-	push hl
-	ld l,a
-	ld h,high pf_class
-	ld a,(hl)
-	or b
-	ld b,a
-	pop hl
-1:	inc hl
-	inc d
-	inc c
-	endr
-	ld a,b
-	ld hl,coll_ppf + 3
-	or (hl)
-	ld (hl),a
-	ret
-.wide	ld a,(bm_p + 3)			; q: the bits doubled once or twice for wider sizes
+	ld c,a
+	ld a,e
+	ld (pu_hpos),a
 	ld hl,cl_q
-	ld (hl),a
+	ld (hl),d
 	ld b,1
-	ld a,(size_p + 3)
+	ld a,c
 	and 3
 	cp 1
 	jr z,.q2
 	cp 3
 	jr nz,.qs
-	ld l,(hl)			; quadruple: 4 bytes
+	ld l,d				; quadruple: 4 bytes
 	ld h,high double_hi
 	ld e,(hl)
 	inc h
@@ -369,7 +848,7 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ld (cl_q + 3),a
 	ld b,4
 	jr .qs
-.q2	ld l,(hl)			; double: 2 bytes
+.q2	ld l,d				; double: 2 bytes
 	ld h,high double_hi
 	ld a,(hl)
 	inc h
@@ -378,7 +857,7 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ld a,c
 	ld (cl_q + 1),a
 	ld b,2
-.qs	ld a,(hpos_p + 3)		; the tables of the shift; the first screen byte
+.qs	ld a,(pu_hpos)			; the tables of the shift; the first screen byte
 	ld c,a
 	and 3
 	ld e,a
@@ -397,7 +876,8 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ld d,a
 	ld hl,(cl_line)
 	add hl,de
-	ld ixl,0			; the colours under it
+	xor a
+	ld (pu_pf),a			; the colours under it
 	ld de,cl_q
 .qb	push bc				; each q: its 3 mask bytes from byte 2i
 	push de
@@ -416,9 +896,9 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	push hl
 	ld l,a
 	ld h,high pf_class
-	ld a,(hl)
-	or ixl
-	ld ixl,a
+	ld a,(pu_pf)
+	or (hl)
+	ld (pu_pf),a
 	pop hl
 .fn	inc hl
 	inc d
@@ -433,164 +913,7 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	inc c
 	inc c
 	djnz .qb
-	ld a,ixl
-	ld hl,coll_ppf + 3
-	or (hl)
-	ld (hl),a
-	ret
-.all	xor a				; which sprites are on this line
-	ld (sp_active),a
-	ld b,0				; players
-.player	push bc
-	ld hl,bm_p
-	call .index
-	ld a,(hl)
-	or a
-	jr z,.p_next
-	ld d,a
-	ld hl,hpos_p
-	call .index
-	ld e,(hl)
-	ld hl,size_p
-	call .index
-	ld a,(hl)
-	call sprite_mask
-	call sprite_playfield
-	ld e,a
-	pop bc
-	push bc
-	ld hl,coll_ppf
-	call .index
-	ld a,e
-	or (hl)
-	ld (hl),a
-	call .set_active
-.p_next	pop bc
-	inc b
-	ld a,b
-	cp 4
-	jr c,.player
-	ld a,(bm_m)			; missiles: 2 bits each
-	ld c,a
-	ld a,(size_m)
-	ld (cl_size_m),a
-.missile
-	push bc
-	ld a,c
-	and 3
-	jr z,.m_next
-	rrca				; the 2 bits at the top, like a player's first two
-	rrca
-	ld d,a
-	ld a,b
-	sub 4
-	ld hl,hpos_m
-	add a,l
-	ld l,a
-	adc a,h
-	sub l
-	ld h,a
-	ld e,(hl)
-	ld a,(cl_size_m)
-	call sprite_mask
-	call sprite_playfield
-	ld e,a
-	pop bc
-	push bc
-	ld hl,coll_mpf - 4
-	call .index
-	ld a,e
-	or (hl)
-	ld (hl),a
-	call .set_active
-.m_next	ld hl,cl_size_m
-	srl (hl)
-	srl (hl)
-	pop bc
-	srl c
-	srl c
-	inc b
-	ld a,b
-	cp SPRITES
-	jr c,.missile
-	ld a,(sp_active)		; with each other, if more than one
-	ld b,a
-	dec a
-	and b
-	ret z
-	ld b,0				; sprite n
-.pn	ld a,(sp_active)
-	call .bit_b
-	jr z,.pn_next
-	ld c,0				; player k
-.pk	ld a,b
-	cp c
-	jr z,.pk_next
-	ld a,(sp_active)
-	push bc
-	ld b,c
-	call .bit_b
-	pop bc
-	jr z,.pk_next
-	push bc
-	call sprites_overlap
-	pop bc
-	jr nc,.pk_next
-	ld hl,coll_ppl			; P?PL / M?PL |= 1 << k
-	ld a,b
-	cp 4
-	jr c,.pl_p
-	ld hl,coll_mpl - 4
-.pl_p	call .index
-	push bc
-	ld a,1
-	inc c
-.shift	dec c
-	jr z,.or
-	add a,a
-	jr .shift
-.or	pop bc
-	or (hl)
-	ld (hl),a
-.pk_next
-	inc c
-	ld a,c
-	cp 4
-	jr c,.pk
-.pn_next
-	inc b
-	ld a,b
-	cp SPRITES
-	jr c,.pn
-	ret
-.index					; HL += B
-	ld a,b
-	add a,l
-	ld l,a
-	adc a,h
-	sub l
-	ld h,a
-	ret
-.bit_b					; Z: bit B of A clear
-	push bc
-	inc b
-.bb	dec b
-	jr z,.bt
-	rrca
-	jr .bb
-.bt	pop bc
-	and 1
-	ret
-.set_active				; sp_active |= 1 << B
-	ld a,1
-	inc b
-.sa	dec b
-	jr z,.sa_set
-	add a,a
-	jr .sa
-.sa_set	ld hl,sp_active
-	or (hl)
-	ld (hl),a
+	ld a,(pu_pf)
 	ret
 
 ; Sprite B's mask: graphics bits D (first at bit 7), position E, size A (SIZEP/SIZEM bits).
@@ -845,27 +1168,39 @@ sprites_overlap:
 ; The DLI, frame by frame (B500-B6BC, B6C5-B727)
 
 display:
-	ld (dl_sp),sp			; scan = {}: zeros pushed
-	ld hl,0
-	ld a,high scan_p3
-	ld c,5
-.clear	ld d,a
-	ld e,RIVER_FIRST + RIVER_LINES
-	ex de,hl
-	ld sp,hl
-	ex de,hl
-	ld b,RIVER_LINES / 8
-.cl	push hl
-	push hl
-	push hl
-	push hl
-	djnz .cl
-	inc a
-	dec c
-	jr nz,.clear
-	ld sp,(dl_sp)
-	ld hl,0				; the line before the river: no playfield
-	ld (cl_line),hl
+	call .beam
+	ld hl,rec_bank			; the bank colour's last value to the river's end
+	jp rec_end
+.beam	ld hl,PM_P3			; player 3's data as the lines will latch it (p3_scan: as
+	ld de,scan_p3			; the DLI changes it)
+	ld b,16
+.p3	rept 16
+	ldi
+	endr
+	djnz .p3
+	ld hl,(SCREEN_TOP)		; the river lines' screen memory: 48 bytes a line, round
+	ld e,RIVER_FIRST		; the two blocks
+	ld b,RIVER_LINES
+.cl	ld d,high cl_lo
+	ld a,l
+	ld (de),a
+	inc d
+	ld a,h
+	ld (de),a
+	inc e
+	ld a,l
+	add a,48
+	ld l,a
+	jr nc,.cn
+	inc h
+	ld a,h
+	cp $2F
+	jr nz,.c1
+	ld h,$30
+.c1	cp $3F
+	jr nz,.cn
+	ld h,$20
+.cn	djnz .cl
 	; rows whose display list instruction has a screen address: the top row and where screen
 	; memory goes on in the other block
 	ld hl,(SCREEN_TOP)
@@ -927,33 +1262,8 @@ display:
 	ld a,1
 	ld (size_m),a			; missile 0 double width (A116)
 	call bm_hitclr
-	ld a,23				; (its players latched: rows 23 of player-missile memory)
+	ld a,23
 	ld (bm_line),a
-	ld l,a
-	ld h,high PM_MISSILES
-	ld a,(hl)
-	ld (bm_m),a
-	inc h
-	ld a,(hl)
-	ld (bm_p),a
-	inc h
-	ld a,(hl)
-	ld (bm_p + 1),a
-	inc h
-	ld a,(hl)
-	ld (bm_p + 2),a
-	inc h
-	ld a,(hl)
-	ld (bm_p + 3),a
-	ld hl,bm_p			; anything on the line
-	or (hl)
-	inc hl
-	or (hl)
-	inc hl
-	or (hl)
-	ld hl,bm_m
-	or (hl)
-	ld (bm_any),a
 	ld a,1				; drawn, at cycle 76
 	ld (bm_drawn),a
 	ld ixh,LINE_CYCLES - 76
@@ -961,6 +1271,10 @@ display:
 	ld (beam_bank),a
 	ld a,(SLOT_SIZE + SLOTS - 1)
 	ld (size_p + 3),a
+	ld hl,rec_bank			; the bank colour the lines show from the river's top
+	ld de,beam_bank
+	ld bc,high scan_bank << 8 | RIVER_FIRST
+	call .rec_init
 	ld hl,HIT			; B510
 	ld b,9
 	ld a,$FF
@@ -1093,10 +1407,14 @@ display:
 	op 5
 	call .p3_row
 	ld (hl),0
+	xor a
+	call p3_scan
 	op 5
 	call .p3_row
 	inc hl
 	ld (hl),0
+	xor a
+	call p3_scan
 	op 7				; $07
 	op 4				; B58D
 	wsync
@@ -1200,6 +1518,15 @@ display:
 	op 5
 	ld a,(de)
 	ld (iy+0),a
+	ld c,a				; (p3_scan)
+	ld a,(bm_line)
+	cp iyl
+	jr nc,1F
+	ld a,c
+	ld c,iyl
+	ld b,high scan_p3
+	ld (bc),a
+1:
 	op 4
 	wsync
 	ld a,(dl_flags)			; BIT $07
@@ -1222,6 +1549,10 @@ display:
 	op 4
 	ld a,(hl)
 	ld (beam_bank),a
+	push hl
+	ld hl,rec_bank
+	call rec_set
+	pop hl
 	pop hl
 	ld a,(dl_colours_hi)		; LDA colour
 	cp h
@@ -1295,6 +1626,10 @@ display:
 	op 4
 	ld a,(SECTION_BANK_COLOUR)
 	ld (beam_bank),a
+	push hl
+	ld hl,rec_bank
+	call rec_set
+	pop hl
 	op 3
 .b60a	op 2				; B60A INX
 	call .count
@@ -1598,6 +1933,14 @@ display:
 .hit_current
 	ld a,(dl_current)
 	ld (de),a
+	ret
+.rec_init				; record HL of register DE (scan page B, from line C)
+	ld a,(de)
+	ld (hl),a
+	inc hl
+	ld (hl),c
+	inc hl
+	ld (hl),b
 	ret
 .p3_row					; HL = player 3's row at the scanline counter
 	ld a,(dl_counter)

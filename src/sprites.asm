@@ -35,115 +35,45 @@ build_sprites:
 	call p3_channel
 	ld a,1				; the others: one position, normal width
 	ld (sb_const),a
-	ld hl,PM_MISSILES + RIVER_FIRST	; which missiles are there at all
-	call or160
-	ld (sb_missiles),a
-	ld hl,PM_PLANE + RIVER_FIRST	; the plane
-	ld a,(PLANE_X)
-	ld c,PLANE_OFFSET
+	ld a,(PLANE_X)			; the plane
+	ld hl,high PM_PLANE << 8 | $FF	; (page, mask)
+	ld bc,PLANE_OFFSET		; (no conversion)
 	call pm_channel
-	ld a,(sb_missiles)		; its bullet: missile 2, 1 clock a bit
-	and $30
-	jr z,.tank
-	ld b,$80
-	ld c,$40
-	ld a,4
-	call copy_missile
-	ld a,(PLANE_X)
+	ld a,(PLANE_X)			; its bullet: missile 2, 1 clock a bit
 	add a,4
-	ld c,PLANE_OFFSET
-	call ch_channel
-.tank	ld hl,PM_TANK + RIVER_FIRST	; the tank
-	ld a,(TANK_X)
-	ld c,TANK_OFFSET
+	ld hl,high PM_MISSILES << 8 | $30
+	ld bc,high mc_bullet << 8 | PLANE_OFFSET
 	call pm_channel
-	ld a,(sb_missiles)		; the helicopter's missile: missile 0, 2 clocks a bit
-	and $03
-	jr z,.shell
-	ld b,$C0
-	ld c,$30
-	xor a
-	call copy_missile
-	ld a,(MISSILE_X)
-	ld c,SHELL_OFFSET
-	call ch_channel
-.shell	ld hl,PM_SHELL + RIVER_FIRST	; the shell
-	ld a,(SHELL_X)
-	ld c,SHELL_OFFSET
+	ld a,(TANK_X)			; the tank
+	ld hl,high PM_TANK << 8 | $FF
+	ld bc,TANK_OFFSET
+	call pm_channel
+	ld a,(MISSILE_X)		; the helicopter's missile: missile 0, 2 clocks a bit
+	ld hl,high PM_MISSILES << 8 | $03
+	ld bc,high mc_missile << 8 | SHELL_OFFSET
+	call pm_channel
+	ld a,(SHELL_X)			; the shell
+	ld hl,high PM_SHELL << 8 | $FF
+	ld bc,SHELL_OFFSET
 	call pm_channel
 	jp build_copper
 
-or160:					; A = the OR of 160 bytes from HL (not crossing a page)
-	xor a
-	rept RIVER_LINES
-	or (hl)
-	inc l
-	endr
-	ret
-
-pm_channel:				; a player's lines from player-missile memory at HL, if any:
-	push hl				; position A, palette offset C
-	push af
-	call or160
-	pop de
-	pop hl
-	ret z
+; A player's or a missile's lines from player-missile memory into sprites at one position
+; A, normal width: page H, the bits L of each byte (a missile's), palette offset C; B: a
+; table turning a missile's bits into a player's byte (0: none).
+pm_channel:
+	ld (sb_const_x),a
 	ld a,h
 	ld (sb_bits),a
 	ld a,l
-	ld (sb_off),a
-	ld a,d
-	ld (sb_const_x),a
+	ld (sb_mask),a
 	ld a,c
 	ld (sb_offset),a
-	jp channel
-
-ch_channel:				; the lines in ch_bits: position A, palette offset C
-	ld (sb_const_x),a
-	ld a,c
-	ld (sb_offset),a
-	ld a,high ch_bits
-	ld (sb_bits),a
-	xor a
+	ld a,b
+	ld (sb_conv),a
+	ld a,RIVER_FIRST
 	ld (sb_off),a
 	jp channel
-
-copy_missile:				; ch_bits = a missile's 2 bits as a player's (B: the first's,
-	ld (cm_shift),a			; C: the second's), from the missiles' byte shifted right by A
-	ld hl,PM_MISSILES + RIVER_FIRST
-	ld de,ch_bits
-	ld a,RIVER_LINES
-	ld (cm_count),a
-.line	ld a,(hl)
-	push hl
-	ld h,a
-	ld a,(cm_shift)
-	or a
-	ld a,h
-	jr z,.s
-	rrca
-	rrca
-	rrca
-	rrca
-.s	ld l,0
-	bit 1,a
-	jr z,.b0
-	ld l,b
-.b0	bit 0,a
-	jr z,.b1
-	ld a,l
-	or c
-	ld l,a
-.b1	ld a,l
-	pop hl
-	ld (de),a
-	inc hl
-	inc e
-	ld a,(cm_count)
-	dec a
-	ld (cm_count),a
-	jr nz,.line
-	ret
 
 ; Player 3's lines into sprites: runs of up to 16 lines at one position and size (lines
 ; with nothing to draw fit any run), from the DLI's record.
@@ -202,8 +132,9 @@ p3_channel:
 	jr c,.find
 	ret
 
-; Another player's lines (at sb_bits, sb_off + line) into sprites, at one position
-; (sb_const_x), normal width.
+; Another player's or missile's lines (at sb_bits, sb_off + line, the bits sb_mask) into
+; sprites, at one position (sb_const_x), normal width. Lines are looked at 8 at a time; a
+; missile's run is turned into a player's bytes in ch_bits (sb_conv) for emit_sprite.
 channel:
 	ld a,(sb_const_x)
 	ld (sb_run_x),a
@@ -212,47 +143,138 @@ channel:
 	ld a,(sb_off)
 	ld l,a
 	add a,RIVER_LINES
-	ld c,a				; the end
+	ld (ch_end),a
 	ld a,(sb_bits)
 	ld h,a
-.scan	ld a,(hl)
-	or a
+	ld a,(sb_mask)
+	ld c,a
+.block	ld a,(ch_end)			; (may read up to 7 lines past the end: never used)
+	dec a
+	cp l
+	ret c
+	xor a
+	rept 8
+	or (hl)
+	inc l
+	endr
+	and c
+	jr z,.block
+	ld a,l
+	sub 8
+	ld l,a
+.find	ld a,(ch_end)
+	dec a
+	cp l
+	ret c
+	ld a,(hl)
+	and c
 	jr nz,.run
 	inc l
-	ld a,l
-	cp c
-	jr c,.scan
-	ret
+	jr .find
 .run	ld a,(sb_off)
 	ld b,a
 	ld a,l
 	sub b
 	ld (sb_start),a
-	ld b,16				; the run: 16 lines, or to the end
-	ld a,c
+	ld a,(ch_end)			; the run: 16 lines, or to the end
 	sub l
-	cp b
-	jr nc,.lines
+	cp 16
+	jr c,.n
+	ld a,16
+.n	ld (sb_lines),a
 	ld b,a
-.lines	ld a,b
-	ld (sb_lines),a
-	push bc
 	push hl
-	call emit_sprite
-	pop hl
+	ld a,(sb_conv)			; a missile: its bits as a player's byte
+	or a
+	jr z,.emit
+	ld d,high ch_bits
+	ld e,l
+.conv	push bc
+	ld a,(sb_conv)
+	ld b,a
+	ld a,(hl)
+	and c
+	ld c,a
+	ld a,(bc)
+	ld (de),a
 	pop bc
-	ld a,l
-	add a,b
+	inc l
+	inc e
+	djnz .conv
+	ld a,(sb_bits)
+	push af
+	ld a,high ch_bits
+	ld (sb_bits),a
+	call emit_sprite
+	pop af
+	ld (sb_bits),a
+	jr .next
+.emit	call emit_sprite
+.next	pop hl
+	ld a,(sb_mask)
+	ld c,a
+	ld a,(sb_lines)
+	add a,l
 	ld l,a
-	cp c
-	jr c,.scan
-	ret
+	ld a,(sb_bits)
+	ld h,a
+	jr .find
 
 ; A sprite for the run: its pattern now (into the set not shown), its attributes for apply.
 emit_sprite:
 	ld a,(sb_count)
 	cp SPRITES_MAX
 	ret nc
+	ld a,(sb_bits)			; the pattern's 16 rows (then empty)
+	ld h,a
+	ld a,(sb_off)
+	ld l,a
+	ld a,(sb_start)
+	add a,l
+	ld l,a
+	ld de,es_key
+	ld a,(sb_lines)
+	ld b,a
+.key	ld a,(hl)
+	ld (de),a
+	inc l
+	inc e
+	djnz .key
+	ld a,16
+	ld hl,sb_lines
+	sub (hl)
+	jr z,.cache
+	ld b,a
+	xor a
+.k0	ld (de),a
+	inc e
+	djnz .k0
+.cache	nextreg $52,INIT_PAGE		; the same as this pattern had: no need to write it
+	ld a,(sb_pattern)		; (page 7 at $4000: PATTERN_CACHE, 16 bytes a pattern)
+	ld l,a
+	ld h,0
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	ld de,PATTERN_CACHE
+	add hl,de
+	ld de,es_key
+	ld b,16
+.cmp	ld a,(de)
+	cp (hl)
+	jr nz,.new
+	inc l
+	inc e
+	djnz .cmp
+	jp .attributes
+.new	ld a,l				; back to the pattern's first byte; the key is the new content
+	and $F0
+	ld l,a
+	ex de,hl
+	ld hl,es_key
+	ld bc,16
+	ldir
 	ld a,(sb_pattern)		; the pattern: slot pattern / 2, half pattern & 1
 	ld c,a
 	srl a
@@ -262,21 +284,9 @@ emit_sprite:
 .slot	ld bc,$303B
 	out (c),a
 	ld c,$5B
-	ld a,(sb_bits)
-	ld h,a
-	ld a,(sb_off)
-	ld l,a
-	ld a,(sb_start)
-	add a,l
-	ld l,a
-	ld a,(sb_lines)
-	ld e,a
+	ld hl,es_key
 	ld d,16
-.row	ld a,e				; rows after the run: empty
-	or a
-	jr z,.empty
-	dec e
-	ld a,(hl)
+.row	ld a,(hl)
 	inc l
 	or a
 	jr z,.empty
@@ -302,8 +312,7 @@ emit_sprite:
 	dec d
 	jr nz,.row
 	jr .attributes
-.empty	xor a
-	out (c),a
+.empty	out (c),a
 	out (c),a
 	out (c),a
 	out (c),a

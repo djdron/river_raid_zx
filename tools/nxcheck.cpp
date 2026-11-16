@@ -320,7 +320,21 @@ int main(int argc, char **argv) {
 	long games = 0, crashes = 0, gameOvers = 0, pausedFrames = 0, busyFrames = 0, maxBridge = 0;
 	uint8_t lastState = 0xFF;
 
+	// NXHISTALL=file: the time spent at each instruction in all frames' work (with -bot, the
+	// frames of a game); tools/prof.py sums it per routine
+	static long long histAll[0x10000];
+	const char *histAllPath = getenv("NXHISTALL");
 	auto runTo = [&](uint16_t hook) {
+		if (histAllPath && hook == frameHook) {
+			long long t = comp->tickTotal;
+			for (;;) {
+				const uint16_t pc = comp->cpu->regPC;
+				compExec(comp);
+				histAll[pc] += comp->tickTotal - t;
+				t = comp->tickTotal;
+				if (comp->cpu->regPC == hook) return;
+			}
+		}
 		for (;;) {
 			compExec(comp);
 			if (comp->cpu->regPC == hook) return;
@@ -405,6 +419,7 @@ int main(int argc, char **argv) {
 			const uint8_t want[5] = {sc.p3, sc.p3x, sc.p3size, sc.p3colour, sc.bankColour};
 			static const char *names[5] = {"p3", "p3x", "p3size", "p3colour", "bankColour"};
 			for (int i = 0; i < 5; i++) {
+				if (i >= 1 && i <= 3 && !want[0]) continue;   // player 3's position, size, colour: where it is
 				const uint8_t z = readZ80(comp, uint16_t(kScan + 0x100 * i + kRiverFirstLine + k));
 				if (z != want[i]) {
 					std::snprintf(b, sizeof b, "scan line %d %s: z80=%02X c++=%02X", k, names[i], z, want[i]);
@@ -475,6 +490,12 @@ int main(int argc, char **argv) {
 	if (errors) {
 		std::printf("FAIL: frames differ\n");
 		return 1;
+	}
+	if (histAllPath) {
+		FILE *hf = std::fopen(histAllPath, "w");
+		for (int a = 0; a < 0x10000; a++)
+			if (histAll[a]) std::fprintf(hf, "%04X %lld\n", a, histAll[a]);
+		std::fclose(hf);
 	}
 	std::printf("%d frames: state, screen and the DLI's lines the same\n", frames);
 	std::string numbers;

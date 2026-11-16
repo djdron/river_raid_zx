@@ -26,9 +26,9 @@ against the C++ port frame by frame.
 
 Not there yet: the sound.
 
-Speed: not enough yet. At 28 MHz a frame's work takes about a 50 Hz frame on average, up
-to 1.8 frames when the most is on screen; such frames are shown twice, and the scrolling
-stutters. At 60 Hz it is too slow. Making it fit comes after the sound.
+Speed: almost enough. At 28 MHz a frame's work takes about 75% of a 50 Hz frame on
+average; about 1 frame in 30 (the busiest: tanks, shells and missiles beside the enemies)
+takes up to 1.25 frames and is shown twice. At 60 Hz it is too slow.
 
 ## Running it
 

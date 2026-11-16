@@ -94,7 +94,22 @@ panel_init:
 	dec hl
 	djnz .lc
 
-	ld bc,$303B			; the patterns: 124 the needle (2 dots x 10 lines)
+	ld bc,$303B			; the patterns: all empty, as the cache has them
+	xor a
+	out (c),a
+	ld c,$5B
+	ld d,64
+.pc	ld b,0
+.pc1	out (c),a
+	djnz .pc1
+	dec d
+	jr nz,.pc
+	ld hl,PATTERN_CACHE + $2000	; (page 7 at $6000 now)
+	ld de,PATTERN_CACHE + $2001
+	ld bc,128 * 16 - 1
+	ld (hl),0
+	ldir
+	ld bc,$303B			; 124: the needle (2 dots x 10 lines)
 	ld a,62
 	out (c),a
 	ld c,$5B
