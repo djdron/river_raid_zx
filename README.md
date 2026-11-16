@@ -26,9 +26,9 @@ against the C++ port frame by frame.
 
 Not there yet: the sound.
 
-Speed: at 28 MHz a frame's work takes about two thirds of a 50 Hz frame on average, the
-busiest (tanks, shells and missiles beside the enemies) all of it; about 1 frame in 500 to
-1000 is a little late and shown twice. At 60 Hz it is too slow.
+Speed: at 28 MHz a frame's work takes under two thirds of a 50 Hz frame on average, the
+busiest (tanks, shells and missiles beside the enemies) up to 95%; about 1 frame in 2000 to
+7000 is a little late and shown twice. At 60 Hz it is too slow.
 
 ## Running it
 

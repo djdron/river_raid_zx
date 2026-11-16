@@ -139,16 +139,16 @@ bm_draw:
 	inc h
 	or (hl)
 	jr nz,.collide
-	ld h,high cl_hi
-	ld a,(hl)
-	or a
+	ld a,(coll_ppf + 3)		; P3PF: only the edge is read, once set it stays
+	and $02
+	ret nz
+	push hl
+	ld a,l
+	call cl_get
+	pop hl
 	ret z
 	push bc
 	push de
-	ld (cl_line + 1),a
-	dec h
-	ld a,(hl)
-	ld (cl_line),a
 	ld h,high scan_p3
 	ld d,(hl)
 	ld a,(hpos_p + 3)
@@ -197,13 +197,36 @@ collide_line:
 	ld h,high scan_p3
 	ld a,(hl)
 	ld (bm_p + 3),a
-	ld h,high cl_lo
+	ld a,l
+	call cl_get
+	jp collide
+
+; cl_line = the screen memory of line A (Z, 0: not in the river). Screen memory is a ring
+; of 160 lines (80 in each block, ring_lo/ring_hi); the river's top is at cl_slot.
+cl_get:	sub RIVER_FIRST
+	jr c,.none
+	cp RIVER_LINES
+	jr nc,.none
+	ld hl,cl_slot
+	add a,(hl)
+	jr c,.wrap
+	cp RIVER_LINES
+	jr c,.at
+.wrap	sub RIVER_LINES
+.at	ld l,a
+	ld h,high ring_lo
 	ld a,(hl)
 	inc h
 	ld h,(hl)
 	ld l,a
 	ld (cl_line),hl
-	jp collide
+	ld a,h
+	or a
+	ret
+.none	ld hl,0
+	ld (cl_line),hl
+	xor a
+	ret
 
 ; A register shown per line changes to A (HL: its record: value, from which line, the
 ; scan_* page): the lines since the last change get the old value. A is kept.
@@ -700,11 +723,20 @@ pf_under:
 	cp 1
 	jr z,.double
 	cp 3
-	jr z,.quad
+	jp z,.quad
 	ld a,b				; normal width: 3 bytes
 	cp 48 - 2
 	jp nc,.general_n
 	call .start
+	push hl				; all water under it (the only colour never looked at): none
+	ld a,(hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	pop hl
+	inc a
+	jp z,.water
 	ld e,d				; (D: the bits)
 	ld d,c
 	ld a,(de)
@@ -725,6 +757,19 @@ pf_under:
 	cp 48 - 4
 	jp nc,.general_n
 	call .start
+	push hl				; all water under it (the only colour never looked at): none
+	ld a,(hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	pop hl
+	inc a
+	jp z,.water
 	push hl
 	ld l,d
 	ld h,high double_hi
@@ -766,6 +811,27 @@ pf_under:
 	cp 48 - 8
 	jp nc,.general_n
 	call .start
+	push hl				; all water under it (the only colour never looked at): none
+	ld a,(hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	inc hl
+	and (hl)
+	pop hl
+	inc a
+	jp z,.water
 	push hl
 	ld l,d				; q0-q3: the bits doubled twice
 	ld h,high double_hi
@@ -850,6 +916,8 @@ pf_under:
 .done	exx
 	ld a,b
 	exx
+	ret
+.water	xor a
 	ret
 
 ; HL = the screen's byte B, C = the shift's tables, B' = 0, H' = pf_class
@@ -988,29 +1056,23 @@ display:
 	ldi
 	endr
 	djnz .p3
-	ld hl,(SCREEN_TOP)		; the river lines' screen memory: 48 bytes a line, round
-	ld e,RIVER_FIRST		; the two blocks
-	ld b,RIVER_LINES
-.cl	ld d,high cl_lo
-	ld a,l
-	ld (de),a
-	inc d
+	ld hl,(SCREEN_TOP)		; the river's top in the ring of screen lines (cl_get)
+	ld c,0
 	ld a,h
-	ld (de),a
-	inc e
-	ld a,l
-	add a,48
-	ld l,a
-	jr nc,.cn
-	inc h
-	ld a,h
-	cp $2F
-	jr nz,.c1
-	ld h,$30
-.c1	cp $3F
-	jr nz,.cn
-	ld h,$20
-.cn	djnz .cl
+	ld de,-$2000
+	cp $30
+	jr c,.blk
+	ld c,80
+	ld de,-$3000
+.blk	add hl,de
+	ld de,-48
+.slot	add hl,de
+	jr nc,.slot_done
+	inc c
+	jr .slot
+.slot_done
+	ld a,c
+	ld (cl_slot),a
 	; rows whose display list instruction has a screen address: the top row and where screen
 	; memory goes on in the other block
 	ld hl,(SCREEN_TOP)

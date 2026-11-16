@@ -165,11 +165,21 @@ init_tables:
 	dec h
 	inc l
 	jr nz,.mc
-	ld hl,cl_lo			; no screen memory outside the river
-	ld de,cl_lo + 1
-	ld bc,511
-	ld (hl),0
-	ldir
+	ld hl,pix_tab			; render_line's tables
+.pix	ld a,l
+	ld c,h
+	ld b,4
+.pk	rlca
+	rlca
+	ld e,a
+	and 3
+	ld (hl),a
+	ld a,e
+	inc h
+	djnz .pk
+	ld h,c
+	inc l
+	jr nz,.pix
 	ld hl,0				; double_hi/lo: each bit of a byte doubled
 .dbl	ld a,l
 	rrca
@@ -185,25 +195,23 @@ init_tables:
 	ld (hl),a
 	inc l
 	jr nz,.dbl
-	ld hl,exp4			; exp4: a nibble as 4 bytes of 4-bit pixels, $11 a bit
-	ld c,0
-.exp	ld b,4
-	ld a,c
-	rlca
-	rlca
-	rlca
-	rlca
-	ld d,a
-.e	sla d
-	sbc a,a
-	and $11
-	ld (hl),a
-	inc l
-	djnz .e
-	inc c
-	ld a,c
-	cp 16
-	jr c,.exp
+	ld hl,$2000			; ring_lo/hi: screen memory's lines, 80 in each block
+	ld de,ring_lo
+.ring	ld a,l
+	ld (de),a
+	inc d
+	ld a,h
+	ld (de),a
+	dec d
+	inc e
+	ld bc,48
+	add hl,bc
+	ld a,e
+	cp 80
+	jr nz,.r1
+	ld hl,$3000
+.r1	cp 160
+	jr nz,.ring
 	ld hl,exp8			; exp8: a byte as 8 bytes of 4-bit pixels
 	ld c,0
 .e8	ld b,8
@@ -442,12 +450,11 @@ scan_x:		ds 256			; its position,
 scan_size:	ds 256			; its size,
 scan_col:	ds 256			; its colour,
 scan_bank:	ds 256			; and the bank colour
-		ds 256
 double_hi:	ds 256			; a byte's bits doubled
 double_lo:	ds 256
 ch_bits:	ds 256			; one player's bytes for the sprites
-exp4:		ds 64			; a nibble as 4-bit pixels
-		ds 256 - 64
+ring_lo:	ds 256			; screen memory's 160 lines, in the order they follow
+ring_hi:	ds 256
 sprite_list:	ds 5 * SPRITES_MAX	; the sprites' attributes for apply
 	align 256
 copper_list:	ds 2048
@@ -501,6 +508,7 @@ busy:		ds 1			; frames of sub $B0F1 still to come
 resume:		ds 1			; what the main loop does after them
 l2_clear:	ds 1			; pages of Layer 2 still to clear
 rs_full:	ds 1
+rl_page:	ds 1
 cs_sp:		ds 2
 pb_leading:	ds 1
 fp_exploding:	ds 1
@@ -526,6 +534,7 @@ coll_ppl:	ds 4
 sp_active:	ds 1
 cl_size_m:	ds 1
 cl_line:	ds 2
+cl_slot:	ds 1			; cl_get: the river's top in the ring
 rec_bank:	ds 3
 cs_present:	ds 1			; collide: the sprites on the line (bit n)
 cs_list:	ds 5 * 8		; collide: per sprite on the line: bits, position, size,
@@ -586,11 +595,9 @@ bc_p3:		ds 1
 copper_bytes:	ds 2
 ap_shown:	ds 1
 	align 256
-cl_lo:		ds 256			; per scanline: its playfield's screen memory (0: none)
-cl_hi:		ds 256
+pix_tab:	ds 4 * 256		; render_line: pixel k (bits 7-6 first) of a line byte
 mc_bullet:	ds 256			; missile 2's bits ($30) as a player's byte (1 clock a bit)
 mc_missile:	ds 256			; missile 0's bits ($03) as a player's byte (2 clocks a bit)
-		ds 2 * 256
 pf_class:	ds 256			; the playfield colours of a byte's pixels: 1 bank, 2 edge, 4 water
 sm_src:		ds 16			; a sprite's bits doubled, before the shift
 	align 256
