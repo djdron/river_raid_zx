@@ -1,9 +1,9 @@
-; River Raid river viewer for the ZX Spectrum Next: the attract mode, as the C++ port's
-; river viewer shows it. The river of game 1 from the start, one line per frame; the enemies
-; wake up and move (from bridge 2 on, as in the original), tanks drive to the river and
-; fire, helicopters fire missiles.
+; River Raid for the ZX Spectrum Next. The attract mode, then the game with START, as the
+; C++ port runs them: the plane, its bullet and fuel, the enemies, tanks and missiles,
+; crashes, new planes, two players. (No panel or sound yet: the panel's characters are
+; kept in memory as the original keeps them.)
 ;
-; Every frame does what the original does (game.asm, display.asm, river_gen.asm), then the
+; Every frame does what the original does (game.asm, play.asm, display.asm, river_gen.asm), then the
 ; result is shown the Next's way: the river on Layer 2 (320x256), scrolled by the hardware;
 ; the players and missiles as sprites (sprites.asm); the colours the DLI changes per line by
 ; the Copper.
@@ -17,7 +17,7 @@
 ;   $C000-$DFFF  the program (page 6)
 ;   $E000-$FFFF  buffers and the stack (page 1)
 ;
-; Build: sjasmplus src/viewer.asm (river_view.nex), with -DTEST the image for the checks
+; Build: sjasmplus src/river_raid.asm (river_raid.nex), with -DTEST the image for the checks
 ; (tools/check): no file loading, the cartridge put in page 5 by the check.
 
 	device zxspectrumnext
@@ -43,6 +43,10 @@ entry:	jp start
 	dw apply_done			; and where it has gone live
 rnd_init:
 	db $01,$00,$00			; POKEY's counter at the first read (the checks set it)
+in_stick:	db $0F,$0F		; the controls of the frame (play.asm; the checks set them)
+in_trig:	db 0
+in_console:	db 0
+in_key:		db 0
 
 start:
 	ifndef TEST
@@ -74,10 +78,37 @@ start:
 main_frame:
 	ld a,(scroll)			; the screen as this frame's display sees it
 	ld (show_scroll),a
+	ld a,(colour_edge)
+	ld (show_edge),a
+	ld a,(colour_water)
+	ld (show_water),a
+	ld a,(PLAYER)
+	ld (show_player),a
+	ld a,(IDLE_TIME)
+	ld (show_idle),a
+	ifndef TEST
+	call read_input
+	endif
+	ld a,(busy)
+	or a
+	jr nz,.busy
 	call prepare
 	call display
 	call build_sprites
-	call logic
+	call main_loop
+	call vbi
+	jr frame_done
+.busy	dec a				; sub $B0F1 is clearing memory: the main loop is stuck,
+	ld (busy),a			; only the interrupts run
+	cp 1
+	jr nz,.b
+	ld (SCREEN_ON),a		; colours back on
+.b	call display
+	call build_sprites
+	call clear_layer2_page
+	ld a,(busy)
+	or a
+	call z,finish_reset
 	call vbi
 frame_done:
 	call wait_frame
@@ -389,9 +420,11 @@ rom_short_name:	db "RIVER_~1.ROM",0
 	align 256
 palette:				; Atari colour code -> the Next's colour (nextreg $41)
 	include "palette.inc"
-random_matrix:
+random_columns:
 	include "random.inc"
+	include "play.asm"
 
+	display "page 4 end: ",$
 	assert $ <= $A000		; page 4 is full
 
 	mmu 6,6
@@ -400,6 +433,7 @@ random_matrix:
 	include "display.asm"
 	include "sprites.asm"
 
+	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full
 
 ; ------------------------------------------------------------------------------------------
@@ -454,7 +488,20 @@ show_scroll:	ds 1
 wr_row:		ds 1
 rom_handle:	ds 1
 rnd_state:	ds 3
-colour_bank:	ds 1
+colour_bank:	ds 1			; the playfield's colours for the next frame (the VBI)
+colour_edge:	ds 1
+colour_water:	ds 1
+show_edge:	ds 1			; and as this frame shows them
+show_water:	ds 1
+show_player:	ds 1
+show_idle:	ds 1
+busy:		ds 1			; frames of sub $B0F1 still to come
+resume:		ds 1			; what the main loop does after them
+l2_clear:	ds 1			; pages of Layer 2 still to clear
+rs_full:	ds 1
+cs_sp:		ds 2
+pb_leading:	ds 1
+fp_exploding:	ds 1
 shell_colour:	ds 1
 ms_right:	ds 1
 ; the beam (display.asm)
@@ -547,7 +594,7 @@ dsh_tables:	ds 12 * 256		; a byte's bits doubled and shifted right by 2s bits: 3
 	mmu 6,6
 	savebin "build/test_page6.bin",$C000,$2000
 	else
-	savenex open "build/river_view.nex",entry,0
+	savenex open "build/river_raid.nex",entry,0
 	savenex core 3,0,0
 	savenex cfg 0
 	savenex bank 2,3

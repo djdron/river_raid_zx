@@ -528,13 +528,31 @@ apply:
 	call .colour
 	nextreg $41,a
 	nextreg $40,PLANE_OFFSET * 16 + 1
-	ld a,(PLAYER)			; COLPM2 (B542)
+	ld a,(show_player)		; COLPM2 (B542)
 	or a
 	ld a,$1E
 	jr z,.p
 	ld a,$8E
 .p	call .colour
 	nextreg $41,a
+	nextreg $43,%10010000		; Layer 2: the edge and the water (red while a bridge flashes;
+	nextreg $40,2			; black while the screen is cleared)
+	ld a,(show_edge)
+	call .colour
+	nextreg $41,a
+	nextreg $40,3
+	ld a,(show_water)
+	call .colour
+	nextreg $41,a
+	ld a,(show_idle)		; A1F5: the screen off after a long time without input
+	rla
+	ld a,%00000011
+	jr nc,.on
+	xor a
+.on	nextreg $15,a			; the sprites
+	and 2
+	ld bc,$123B			; Layer 2
+	out (c),a
 	nextreg $62,0			; the Copper: stopped, the new list, started for each frame
 	nextreg $61,0
 	ld bc,$243B

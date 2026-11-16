@@ -1,5 +1,5 @@
-# make            build/river_view.nex (needs deps/: make deps)
-# make check      runs the viewer on Xpeccy+'s Next core and compares it with the C++ port
+# make            build/river_raid.nex (needs deps/: make deps)
+# make check      runs the program on Xpeccy+'s Next core and compares it with the C++ port
 #                 (needs your ROM at rom/River_Raid.rom; FRAMES=... how many, 3000 by default)
 # make profile    where the time of one frame goes on the Next (FRAMES=... which one)
 # make palette    writes src/palette.inc and src/random.inc again (the C++ port's palette
@@ -11,15 +11,15 @@ ROM ?= rom/River_Raid.rom
 FRAMES ?= 3000
 SOURCES := $(wildcard src/*.asm src/*.inc)
 
-all: build/river_view.nex
+all: build/river_raid.nex
 
-build/river_view.nex: $(SOURCES)
+build/river_raid.nex: $(SOURCES)
 	@mkdir -p build
-	$(SJASMPLUS) --nologo --msg=war -isrc src/viewer.asm
+	$(SJASMPLUS) --nologo --msg=war -isrc src/river_raid.asm
 
 build/test_page4.bin: $(SOURCES)
 	@mkdir -p build
-	$(SJASMPLUS) --nologo --msg=war -isrc -DTEST --sym=build/test.sym src/viewer.asm
+	$(SJASMPLUS) --nologo --msg=war -isrc -DTEST --sym=build/test.sym src/river_raid.asm
 
 build/tools/nxcheck build/tools/mkpalette build/tools/mkrandom: tools/*.cpp tools/*.h tools/CMakeLists.txt
 	cmake -S tools -B build/tools -DCMAKE_BUILD_TYPE=Release

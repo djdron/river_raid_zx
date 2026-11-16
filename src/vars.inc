@@ -148,3 +148,58 @@ ROM_SHELL_RISE		equ $B4AF
 ROM_TANK_SHAPE		equ $B4D1	; pointers
 ROM_SHELL_SHAPE		equ $BAB7
 ROM_PLANE_SHAPE		equ $BACD
+
+; More of the game's state (the game proper)
+PLANE_X_FRAC		equ $58
+BRIDGES			equ $61		; 2, BCD
+SCORE			equ $63		; 3, BCD, high byte first
+OTHER			equ $6B		; the other player's $60-$6A
+OTHER_BRIDGES		equ $6C
+OTHER_SCORE		equ $6E
+EVENT_SOUND		equ $7A
+EVENT_SOUND_TIME	equ $7B
+SOUND_FIRE		equ $7D
+SOUND_BONUS		equ $7E
+HIGH_SCORE		equ $80		; 16
+HIGH_SCORE_CHECK	equ $90		; 16
+START_BEEP		equ $C6
+PANEL			equ $1000	; 60 characters
+
+; PLANE_STATE
+FLYING			equ 0
+WAITING			equ $2F
+LIFE_LOST		equ $30
+CRASHED			equ $FE
+NO_PLANE		equ $FF
+
+; PAUSE_STATE
+PLAYING			equ 0
+RESUMING		equ 1
+PAUSED			equ 2
+PAUSING			equ 3
+
+; EVENT_SOUND
+CRASH_SOUND		equ 1
+OUT_OF_FUEL_SOUND	equ 2
+TANK_FULL_SOUND		equ 3
+REFUEL_SOUND		equ 4
+
+; panel positions and digit characters
+PANEL_SCORE		equ $02
+PANEL_PLAYER1_MARK	equ $0B
+PANEL_HIGH_SCORE	equ $0C		; or the other player's score
+PANEL_PLAYER2_MARK	equ $12
+PANEL_BRIDGES		equ $23
+PANEL_GAME_NUMBER	equ $2A
+PANEL_LIVES		equ $33
+PANEL_OTHER_BRIDGES	equ $37
+LIFE_SYMBOL		equ $9C
+DIGITS_SCORE		equ $10
+DIGITS_OTHER		equ $50
+DIGITS_BRIDGES		equ $90
+DIGITS_HIGH_SCORE	equ $D0
+
+ROM_START_BRIDGES	equ $B4A8	; BCD
+ROM_POINTS		equ $BB0B
+ROM_PANEL_TEXT		equ $BB70
+ROM_PLAYER_TWO_TEXT	equ $BB8F

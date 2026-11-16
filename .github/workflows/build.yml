@@ -1,4 +1,4 @@
-# Builds river_view.nex on every push and keeps it as an artifact. The checks need a ROM,
+# Builds river_raid.nex on every push and keeps it as an artifact. The checks need a ROM,
 # which is not in the repository, so they are run locally (make check).
 name: build
 
@@ -23,5 +23,5 @@ jobs:
       - run: make
       - uses: actions/upload-artifact@v7
         with:
-          path: build/river_view.nex
+          path: build/river_raid.nex
           archive: false   # the .nex as it is, not zipped (the file's name is the artifact's)

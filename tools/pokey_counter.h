@@ -1,7 +1,7 @@
 // POKEY's RANDOM counter as river_raid/port/src/pokey_random.h models it: 17 bits, one step
-// per machine cycle; a read returns its top 8 bits. The game logic reads it at A205 every 16
-// frames, on scanline 192 at cycle 13 (NTSC), so the viewer keeps the counter at that point
-// and moves it 16 frames on after each read: a linear map over the 17 bits.
+// per machine cycle; a read returns its top 8 bits. The game logic reads it at A205, on
+// scanline 192 at cycle 13 (NTSC), so the Next keeps the counter at that point of the frame
+// and moves it one frame on in each VBI: a linear map over the 17 bits.
 #pragma once
 
 #include <cstdint>
@@ -10,7 +10,6 @@ namespace rrzx {
 
 constexpr long kFrameCycles = 262 * 114;                // NTSC
 constexpr long kReadCycle = 192 * 114 + 13;              // A205 in its frame
-constexpr long kReadEvery = 16 * kFrameCycles;
 
 inline uint32_t pokeyStep(uint32_t s) { return (s >> 1) | (((s ^ (s >> 5)) & 1) << 16); }
 

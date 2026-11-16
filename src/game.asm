@@ -1,48 +1,58 @@
-; The attract mode, frame by frame: river_raid/port/src/game.cpp (Game::startAttract,
-; prepare, logic and vbi as the attract mode runs them: no plane, no player, no sound).
+; The game frame by frame, part 1: river_raid/port/src/game.cpp (Game::startAttract,
+; prepare, the objects' movement, vbi). The rest of the main loop is in play.asm.
 ; Addresses in comments refer to the original cartridge code.
 
 ; ------------------------------------------------------------------------------------------
 ; POKEY's RANDOM ($D20A): a 17-bit polynomial counter stepping every machine cycle
-; (river_raid/port/src/pokey_random.h). The game logic reads it only at A205, every 16
-; frames, always at the same point of the frame; rnd_state is the counter there, and the
-; next read is 16 frames (16 x 262 x 114 cycles) on: a linear map, the matrix in random.inc.
-random_read:				; A = the value read; the counter moves to the next read
-	ld a,(rnd_state + 1)		; bits 16-9
+; (river_raid/port/src/pokey_random.h). The game logic reads it at A205, always at the same
+; point of the frame (scanline 192, cycle 13); rnd_state is the counter there in this frame.
+random_read:				; A = the value read: bits 16-9
+	ld a,(rnd_state + 1)
 	ld b,a
 	ld a,(rnd_state + 2)
 	rra
 	ld a,b
 	rra
-	push af
-	ld ix,random_matrix + 16 * 3	; new bit i = parity(row i AND state), from bit 16 down
-	ld c,0
-	ld d,c
-	ld e,c
-	ld b,17
-.bit	ld a,(rnd_state)
-	and (ix+0)
-	ld h,a
-	ld a,(rnd_state + 1)
-	and (ix+1)
-	xor h
-	ld h,a
-	ld a,(rnd_state + 2)
-	and (ix+2)
-	xor h				; parity flag: even
-	jp pe,.even
-	scf
-.even	rl e
-	rl d
-	rl c
-	dec ix
-	dec ix
-	dec ix
+	ret
+
+; The counter one frame (262 x 114 cycles) on: a linear map, random.inc has its columns.
+random_step:
+	ld hl,(rnd_state)
+	ld ix,random_columns
+	ld de,0
+	ld c,d
+	ld b,16
+.bit	srl h
+	rr l
+	jr nc,.next
+	ld a,e
+	xor (ix+0)
+	ld e,a
+	ld a,d
+	xor (ix+1)
+	ld d,a
+	ld a,c
+	xor (ix+2)
+	ld c,a
+.next	inc ix
+	inc ix
+	inc ix
 	djnz .bit
-	ld (rnd_state),de
+	ld a,(rnd_state + 2)
+	rra
+	jr nc,.done
+	ld a,e
+	xor (ix+0)
+	ld e,a
+	ld a,d
+	xor (ix+1)
+	ld d,a
+	ld a,c
+	xor (ix+2)
+	ld c,a
+.done	ld (rnd_state),de
 	ld a,c
 	ld (rnd_state + 2),a
-	pop af
 	ret
 
 ; ------------------------------------------------------------------------------------------
@@ -93,29 +103,18 @@ start_attract:
 	ld (JOYSTICK),a
 	ld hl,$2000
 	ld (SCREEN_TOP),hl
-	ld hl,PM_PLANE + $DB		; drawLogoAndNeedle: the rainbow under the logo
-	ld de,PM_P3 + $DB
-	ld b,7
-.logo	ld (hl),$FF
-	ld a,$FC
-	ld (de),a
-	inc l
-	inc e
-	djnz .logo
-	ld hl,PM_MISSILES + $CC		; the fuel needle
-	ld b,10
-.needle	ld (hl),$0C
-	inc l
-	djnz .needle
-	ld hl,CHECKPOINT		; setUpGame: the other player's start, the bridge counter
-	ld de,$71
-	ld bc,4
+	ld a,$20
+	ld (colour_edge),a
+	ld a,$84
+	ld (colour_water),a
+	call draw_logo_and_needle
+	ld hl,ROM_PANEL_TEXT		; A0F0: the panel
+	ld de,PANEL
+	ld bc,60
 	ldir
-	ld a,(LEVEL)
-	ld ($6B),a
-	ld a,$01
-	ld ($62),a
-	ld ($6D),a
+	ld a,$80
+	ld (ATTRACT_FLAGS),a
+	call set_up_game
 	ld a,1
 	ld (BULLET_Y),a
 	ld (RESPAWNED),a
@@ -138,6 +137,25 @@ start_attract:
 	call bank_colour
 	ld (colour_bank),a
 	jp push_line
+
+; sub $B0F1 leaves the rainbow under the logo and the fuel gauge's needle in player-missile
+; memory.
+draw_logo_and_needle:
+	ld hl,PM_PLANE + $DB
+	ld de,PM_P3 + $DB
+	ld b,7
+.logo	ld (hl),$FF
+	ld a,$FC
+	ld (de),a
+	inc l
+	inc e
+	djnz .logo
+	ld hl,PM_MISSILES + $CC
+	ld b,10
+.needle	ld (hl),$0C
+	inc l
+	djnz .needle
+	ret
 
 ; ------------------------------------------------------------------------------------------
 ; A new river line at the top of the screen (Game::pushLine): the generator, screen memory
@@ -243,7 +261,15 @@ prepare:
 	call .shape
 	ld hl,PM_PLANE + $AA
 	ld b,14
-	jp .copy
+	call .copy
+	ld a,(ATTRACT_TIMER)		; AF3A-AF58: lives, bridges and score into the panel
+	or a
+	call z,show_lives
+	call show_bridges
+	ld a,(PLAYER)
+	or a
+	jp z,show_score
+	jp show_other_score
 .shape					; DE = the pointer at HL + (2 * A & $FF)
 	add a,a
 	add a,l
@@ -275,67 +301,6 @@ prepare:
 	ret
 
 ; ------------------------------------------------------------------------------------------
-; The main loop in the attract mode (A197-A6EA): no input, no plane.
-logic:
-	xor a				; (the viewer keeps the screen on: as if a key had been touched)
-	ld (IDLE_TIME),a
-	ld a,(FRAME_COUNT)		; A1FF: every 16 frames a random slot wakes up
-	and $0F
-	jr nz,.awake
-	call random_read
-	and $0F
-	cp SLOTS
-	jr c,.n
-	sub 5
-.n	ld c,a
-	ld a,(ENTERING_SLOT)
-	cp c
-	jr z,.awake
-	ld b,0
-	ld hl,SLOT_FLAGS
-	add hl,bc
-	set 6,(hl)
-.awake	call drive_tank
-	call move_objects
-	ld a,(ATTRACT_TIMER)		; A2F5: the attract timer goes round
-	or a
-	jr z,.stick
-	ld a,(FRAME_COUNT)
-	and 7
-	jr nz,.stick
-	ld hl,ATTRACT_TIMER
-	dec (hl)
-	jr nz,.stick
-	ld (hl),$FF
-.stick	ld a,(JOYSTICK)			; A312
-	add a,a
-	add a,a
-	add a,a
-	add a,a
-	ld (JOYSTICK_PREV),a
-	ld a,$0F
-	ld (JOYSTICK),a
-	call move_missile		; A5B7
-	call move_shell			; A607
-	xor a
-	ld (SELECT_DELAY),a
-	ld a,(GAME_NUMBER)		; A6F1
-	cp 4
-	ld a,$80
-	jr c,.speed
-	ld a,$FE
-.speed	ld (SPEED),a
-	; A6FD-A70F: the speed is added twice to a fraction; each carry is a new line
-	call .step
-.step	ld a,(SPEED)
-	cp $FE
-	jp nc,push_line
-	ld hl,SCROLL_FRAC
-	add a,(hl)
-	ld (hl),a
-	ret nc
-	jp push_line
-
 ; A21B-A26A: the tank on the road drives; at the river edge it fires.
 drive_tank:
 	ld a,(TANK_KIND)
@@ -351,6 +316,13 @@ drive_tank:
 	ld a,(SHELL_TIMER)		; no shell in flight
 	and $80
 	jr z,.kind
+	ld a,(ATTRACT_FLAGS)		; and the attract mode or a plane flying
+	rla
+	jr c,.fires
+	ld a,(PLANE_STATE)
+	or a
+	jr nz,.kind
+.fires
 	ld a,(TANK_FIRES)
 	and $80
 	jr z,.bridge
@@ -401,7 +373,7 @@ move_objects:
 	add hl,de
 	ld a,(hl)
 	cp $0E				; bridges and depots stay put
-	jr nc,.next
+	jp nc,.next
 	cp $0C
 	jr nc,.move
 	ld b,$07			; animation every 8 frames, or 2 for kinds 7+
@@ -421,7 +393,13 @@ move_objects:
 	ld a,(hl)
 	pop hl
 	ld (hl),a
-.move	ld a,(LEVEL)			; nothing moves before bridge 2
+.move	ld a,(ATTRACT_FLAGS)		; nothing moves until the plane flies
+	rla
+	jr c,.level
+	ld a,(PLANE_STATE)
+	or a
+	jr nz,.next
+.level	ld a,(LEVEL)			; nothing moves before bridge 2
 	srl a
 	jr z,.next
 	ld a,(hl)
@@ -498,7 +476,13 @@ move_missile:
 	add a,c
 	ld b,a
 	jr .set
-.fire	ld hl,SLOT_Y
+.fire	ld a,(ATTRACT_FLAGS)		; not until the plane flies
+	rla
+	jr c,.f1
+	ld a,(PLANE_STATE)
+	or a
+	jr nz,.set
+.f1	ld hl,SLOT_Y
 	add hl,de
 	ld a,(hl)
 	sub $3C
@@ -623,21 +607,11 @@ move_shell:
 	ret
 
 ; ------------------------------------------------------------------------------------------
-; B2A5-B43E: the vertical blank, without the sound itself: its counters, the frame counter,
-; the colours of the next frame.
+; B2A5-B43E: the vertical blank: the sound driver's counters (the sound itself comes later),
+; the frame counter, the colours of the next frame; POKEY's counter one frame on.
 vbi:
-	ld hl,SOUND_EXPLOSION		; B352
-	ld a,(hl)
-	or a
-	jr z,.missile
-	dec (hl)
-.missile
-	ld hl,SOUND_MISSILE		; B367
-	ld a,(hl)
-	or a
-	jr z,.frame
-	dec (hl)
-.frame	ld hl,FRAME_COUNT
+	call sound_counters
+	ld hl,FRAME_COUNT
 	inc (hl)
 	jr nz,.colours
 	ld a,(ATTRACT_FLAGS)
@@ -650,7 +624,99 @@ vbi:
 	inc (hl)
 	jr nz,.colours
 	ld (hl),$80
-.colours
+.colours				; B3F2: the water flashes red while a hit bridge flashes
+	ld c,$84
+	ld a,(PAUSE_STATE)
+	cp PAUSED
+	jr nc,.water
+	ld hl,BRIDGE_FLASH
+	ld a,(hl)
+	or a
+	jr z,.water
+	dec (hl)
+	rra
+	jr nc,.water
+	ld c,$42
+.water	ld a,c
+	ld (colour_water),a
+	ld a,$20
+	ld (colour_edge),a
 	call bank_colour		; sub $AFD0
 	ld (colour_bank),a
+	ld a,(SCREEN_ON)		; off while the screen is being cleared
+	or a
+	jp nz,random_step
+	ld (colour_bank),a
+	ld (colour_edge),a
+	ld (colour_water),a
+	jp random_step
+
+; B2A5-B3D8: what the sound driver changes in the game's state.
+sound_counters:
+	ld hl,START_BEEP		; B2A6
+	ld a,(hl)
+	or a
+	jr z,.pause
+	dec (hl)
+	ret
+.pause	ld a,(PAUSE_STATE)		; B2BA
+	cp PAUSED
+	ret nc
+	ld a,(EVENT_SOUND)		; B2D2: an event sound
+	or a
+	jr z,.engine
+	ld hl,EVENT_SOUND_TIME
+	dec (hl)
+	jr nz,.ch2
+	xor a
+	ld (EVENT_SOUND),a
+	jr .ch2
+.engine	ld a,(PLANE_STATE)		; B2F9: only with the plane flying
+	or a
+	jr nz,.ch2
+	ld a,(FUEL)			; B2FD: low fuel: a beep every 63 frames
+	cp $40
+	jr nc,.motor
+	ld hl,EVENT_SOUND_TIME
+	ld a,(hl)
+	or a
+	jr nz,.t
+	ld a,$3F
+.t	dec a
+	ld (hl),a
+	ld c,a
+	ld a,(FUEL)
+	cp 4
+	jr nc,.first
+	add a,a				; almost empty: a tone falling with the fuel
+	add a,a
+	ld b,a
+	ld a,(FUEL_FRAC)
+	rlca
+	rlca
+	and 3
+	or b
+	cpl
+	add a,$20
+	add a,a
+	jr nz,.ch2			; the beep, not the engine
+.first	ld a,c
+	cp $1C
+	jr nc,.ch2
+.motor	ld hl,CRASH_PITCH		; B32C: the engine's pitch falls after a crash
+	ld a,(hl)
+	cp $1B
+	jr c,.ch2
+	dec (hl)
+.ch2	ld hl,SOUND_EXPLOSION		; B352
+	call .count
+	ld hl,SOUND_MISSILE		; B367
+	call .count
+	ld hl,SOUND_FIRE		; B386
+	call .count
+	ld hl,SOUND_BONUS		; B399
+.count	ld a,(hl)
+	or a
+	ret z
+	dec (hl)
 	ret
