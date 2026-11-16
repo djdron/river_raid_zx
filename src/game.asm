@@ -7,6 +7,17 @@
 ; (river_raid/port/src/pokey_random.h). The game logic reads it at A205, always at the same
 ; point of the frame (scanline 192, cycle 13); rnd_state is the counter there in this frame.
 random_read:				; A = the value read: bits 16-9
+	ifdef TEST
+	ld a,(rnd_feed_on)		; (the checks against the original: the value it read)
+	or a
+	jr z,.model
+	ld a,(rnd_feed_reads)
+	inc a
+	ld (rnd_feed_reads),a
+	ld a,(rnd_feed)
+	ret
+.model
+	endif
 	ld a,(rnd_state + 1)
 	ld b,a
 	ld a,(rnd_state + 2)

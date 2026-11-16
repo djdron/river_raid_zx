@@ -29,6 +29,10 @@ check: build/test_page4.bin build/tools/nxcheck
 	build/tools/nxcheck $(ROM) build $(FRAMES) build/check_frame.ppm -pal
 	build/tools/nxcheck $(ROM) build $(FRAMES) build/check_frame_ntsc.ppm -ntsc
 
+# against the original cartridge (rr_oracle, from the C++ port's repository; builds it)
+check-original: build/test_page4.bin build/tools/nxcheck
+	sh tools/check_original.sh $(ROM)
+
 # where a frame's time goes (the frame after FRAMES), per routine
 profile: build/test_page4.bin build/tools/nxcheck
 	NXHIST=build/profile.txt build/tools/nxcheck $(ROM) build $(FRAMES) > /dev/null

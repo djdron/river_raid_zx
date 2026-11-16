@@ -79,6 +79,19 @@ make check     # FRAMES=... frames (3000 by default); your ROM at rom/River_Raid
 make profile   # where the time of one frame goes (the frame after FRAMES)
 ```
 
+`make check-original` compares the program with the original cartridge itself, as the C++ port
+was compared: `rr_oracle` (from the C++ port's repository, built by the target: the original
+on libatari800, which needs git, a C compiler, make, autoconf, automake) records runs of the
+original (its RAM after every frame, what its game logic read from RANDOM, the input), and
+`nxcheck -oracle DIR` runs the program on the same input and the same RANDOM values and
+compares its RAM with the original's after every frame (`Game::diffWithRam`: the river
+generator, the objects, the game's state, the collisions, player-missile memory, the river's
+lines), going on from the original's state after a difference. Eight runs, 37 000 frames: the
+attract mode, a bot game to game over and a new start, a two-player game, flying, refuelling,
+NTSC and PAL. The same, but the frame of a game over in two NTSC runs: there the original sets
+the frame counter just before or just after its VBI, depending on how long that frame's work
+takes (the C++ port, and so the program, takes the more usual one).
+
 `make check` runs it on PAL and on NTSC (`-pal`, `-ntsc`; `-switch N`: CAPS + 1 before frame
 N). `tools/nxcheck` runs the program on the ZX Spectrum Next core of
 [Xpeccy+](https://github.com/dotkoval/xpeccy-plus) with no window and runs the C++ port

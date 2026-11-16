@@ -61,6 +61,9 @@ in_trig:	db 0
 in_console:	db 0
 in_key:		db 0
 tv_init:	db 1			; 1 PAL (50 Hz), 0 NTSC (60 Hz); CAPS + 1 changes it
+rnd_feed_on:	db 0			; test builds: RANDOM as the checks give it (random_read)
+rnd_feed:	db 0
+rnd_feed_reads:	db 0
 
 start:
 	ifndef TEST

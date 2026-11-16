@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -237,6 +238,8 @@ private:
 };
 
 // The controls as play.asm keeps them (in_stick, in_trig, in_console, in_key)
+uint8_t *inputInHeader(uint8_t *hdr) { return hdr + 12; }
+
 void putInput(uint8_t *at, const rr::Input &in) {
 	at[0] = in.stick[0];
 	at[1] = in.stick[1];
@@ -254,7 +257,9 @@ int main(int argc, char **argv) {
 	}
 	uint32_t seed = 12345, botSeed = 1;
 	bool attractOnly = false, pal = true;
-	int switchAt = -1;   // -switch N: CAPS + 1 before frame N, the other standard from the start
+	int switchAt = -1;
+	const char *oracleDir = nullptr;   // -oracle DIR: against the original (rr_oracle's output)
+	long ramBase = 0;   // -switch N: CAPS + 1 before frame N, the other standard from the start
 	const char *ppm = nullptr;
 	for (int i = 4; i < argc; i++) {
 		if (!std::strcmp(argv[i], "-seed") && i + 1 < argc) seed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
@@ -263,6 +268,8 @@ int main(int argc, char **argv) {
 		else if (!std::strcmp(argv[i], "-ntsc")) pal = false;
 		else if (!std::strcmp(argv[i], "-pal")) pal = true;
 		else if (!std::strcmp(argv[i], "-switch") && i + 1 < argc) switchAt = std::atoi(argv[++i]);
+		else if (!std::strcmp(argv[i], "-oracle") && i + 1 < argc) oracleDir = argv[++i];
+		else if (!std::strcmp(argv[i], "-ram-base") && i + 1 < argc) ramBase = std::atol(argv[++i]);
 		else ppm = argv[i];
 	}
 	std::vector<uint8_t> romData, code[3];
@@ -354,8 +361,120 @@ int main(int argc, char **argv) {
 			if (comp->cpu->regPC == hook) return;
 		}
 	};
-	int errors = 0;
 	static uint8_t ram[0x4000], ref[0x4000];
+	if (oracleDir) {
+		// Against the original: rr_oracle's run (ram.bin, random.log, frames.csv in DIR), from
+		// the attract mode's start (frame 38, 25 on PAL) as game_check -attract does. The
+		// program gets the original's input and the value its game logic read from RANDOM
+		// (A205; the VBI's reads are the sound's); after every frame its RAM is compared with
+		// the original's as the C++ port's Game reads it (Game::diffWithRam).
+		const std::string dir = oracleDir;
+		FILE *ramf = std::fopen((dir + "/ram.bin").c_str(), "rb");
+		FILE *rndf = std::fopen((dir + "/random.log").c_str(), "r");
+		FILE *csv = std::fopen((dir + "/frames.csv").c_str(), "r");
+		if (!ramf || !rndf || !csv) { std::fprintf(stderr, "cannot read %s/{ram.bin,random.log,frames.csv}\n", oracleDir); return 2; }
+		std::map<long, std::deque<uint8_t>> logicReads;
+		std::map<long, int> readCount;
+		char lb[512];
+		while (std::fgets(lb, sizeof lb, rndf)) {
+			long fr; int sc, xp; unsigned v;
+			if (lb[0] != '#' && std::sscanf(lb, "%ld %d %d %x", &fr, &sc, &xp, &v) == 4 && sc < 240) {
+				logicReads[fr].push_back(uint8_t(v));
+				readCount[fr]++;
+			}
+		}
+		std::map<long, rr::Input> inputs;
+		std::map<long, unsigned> pcs;
+		if (!std::fgets(lb, sizeof lb, csv)) lb[0] = 0;
+		while (std::fgets(lb, sizeof lb, csv)) {
+			long fr; int joy, fire, start;
+			if (std::sscanf(lb, "%ld,%d,%d,%d", &fr, &joy, &fire, &start) != 4) continue;
+			rr::Input in;
+			in.stick[0] = uint8_t(~joy & 0x0F);
+			in.trigger[0] = fire != 0;
+			in.start = start != 0;
+			int col = 0, extra[5] = {}, n = 0;
+			for (char *c = lb; *c; c++)
+				if (*c == ',' && ++col >= 22 && n < 5) extra[n++] = std::atoi(c + 1);
+			in.select = extra[0] != 0;
+			in.option = extra[1] != 0;
+			in.stick[1] = uint8_t(~extra[2] & 0x0F);
+			in.trigger[1] = extra[3] != 0;
+			in.key = extra[4] != 0;
+			inputs[fr] = in;
+			unsigned pc = 0;
+			if (std::sscanf(lb, "%*d,%*d,%*d,%*d,%x", &pc) == 1) pcs[fr] = pc;
+		}
+		const long first = pal ? 25 : 38;
+		uint8_t *hdr = sram + sramOffset(kCodePages[0]);
+		hdr[18] = 1;   // rnd_feed_on
+		std::vector<uint8_t> orig(0x4000);
+		const uint16_t busyAt = symbol(argv[2], "busy");
+		long compared = 0, bad = 0, busyFrames = 0, mid = 0, readsBad = 0, shown = 0;
+		std::map<std::string, long> diffCount;
+		for (long f = first + 1; f <= first + frames; f++) {
+			putInput(inputInHeader(hdr), inputs.count(f) ? inputs[f] : rr::Input());
+			hdr[19] = logicReads[f].empty() ? 0 : logicReads[f].front();
+			hdr[20] = 0;
+			runTo(frameHook);
+			if (hdr[20] != (readCount.count(f) ? readCount[f] : 0)) {
+				readsBad++;
+				if (shown < 10) { shown++; std::printf("frame %ld: RANDOM read %d times, the original %d\n", f, hdr[20], readCount[f]); }
+			}
+			std::fseek(ramf, (f - ramBase) * 0x4000L, SEEK_SET);
+			if (std::fread(orig.data(), 1, 0x4000, ramf) != 0x4000) { std::printf("the trace ends at frame %ld\n", f); break; }
+			if (readZ80(comp, busyAt)) busyFrames++;
+			else {
+				for (int a = 0; a < 0x4000; a++) ram[a] = readZ80(comp, uint16_t(a));
+				// the program keeps no display list (only the top line's address, $3F04): the
+				// river's 160 lines as the original's lists them, a screen address at the top
+				// and where screen memory goes on in the other block
+				{
+					uint16_t addr = uint16_t(ram[0x3F04] | (ram[0x3F05] << 8));
+					int pc = 0x3F03;
+					for (int k = 0; k < 160; k++) {
+						const bool lms = k == 0 || (addr & 0x0FFF) == 0;
+						ram[pc++] = lms ? 0x4E : 0x0E;
+						if (lms) {
+							ram[pc++] = uint8_t(addr);
+							ram[pc++] = uint8_t(addr >> 8);
+						}
+						addr = uint16_t(addr + 48);
+						if ((addr >> 8) == 0x2F) addr = uint16_t(addr + 0x0100);
+						else if ((addr >> 8) == 0x3F) addr = uint16_t(addr - 0x1F00);
+					}
+					ram[pc] = 0x41;   // (the end)
+				}
+				game.loadFromRam(ram);
+				const std::vector<std::string> diffs = game.diffWithRam(orig.data());
+				const bool waiting = !pcs.count(f) || pcs[f] == 0xAE99 || pcs[f] == 0xAE9C || pcs[f] == 0xAE9E;
+				if (!diffs.empty() && !waiting) mid++;
+				else {
+					compared++;
+					if (!diffs.empty()) {
+						bad++;
+						for (auto &d : diffs) diffCount[d.substr(0, d.find(':'))]++;
+						if (shown < 10) {
+							shown++;
+							std::printf("frame %ld:", f);
+							for (size_t i = 0; i < diffs.size() && i < 10; i++) std::printf("  %s", diffs[i].c_str());
+							std::printf("%s\n", diffs.size() > 10 ? "  ..." : "");
+						}
+						// on from the original's state (as game_check does from RAM): its RAM into
+						// the program's
+						for (int a = 0; a < 0x4000; a++) writeZ80(comp, uint16_t(a), orig[size_t(a)]);
+					}
+				}
+			}
+			runTo(applyHook);
+		}
+		std::printf("against the original (%s, %s): %ld frames compared, %ld with differences; %ld during resets and %ld "
+			"half-done snapshots not compared; %ld with a different number of RANDOM reads (the state taken from the original's RAM after each difference)\n", oracleDir, pal ? "PAL" : "NTSC",
+			compared, bad, busyFrames, mid, readsBad);
+		for (auto &d : diffCount) std::printf("  %s: %ld frames\n", d.first.c_str(), d.second);
+		return bad || readsBad ? 1 : 0;
+	}
+	int errors = 0;
 	long long lastApply = -1, longestFrame = 0, applyTick = -1, workMax = 0, workSum = 0;
 	int lateFrames = 0, workMaxFrame = 0, worked = 0;
 	for (int f = 1; f <= frames; f++) {
