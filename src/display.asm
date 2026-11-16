@@ -86,6 +86,35 @@ bm_events:
 	or a
 	jr nz,.next_line
 	inc (hl)			; drawn at 28 - IXH
+	call bm_draw
+	ld a,(bm_line)
+	ld l,a
+.after	ld h,high line_after_draw	; then refresh and screen data
+	ld a,ixh
+	add a,(hl)
+	dec a				; due again?
+	jp m,.again
+	pop hl
+	ret
+.next_line				; at 114 - IXH: the next line from its start cycles
+	ld (hl),0
+	ld hl,bm_line
+	inc (hl)
+	ld l,(hl)
+	ld h,high line_start
+	ld a,ixh
+	add a,DRAW_CYCLE
+	sub (hl)
+	dec a				; due again?
+	jp m,.again
+	pop hl
+	ret
+.again	inc a
+	jp .loop
+
+; The line bm_line drawn: player 3's position, size and colour where it is on the line, the
+; collisions where anything is. Keeps IX, IY.
+bm_draw:
 	ld a,(bm_line)
 	ld l,a
 	ld h,high scan_p3		; player 3 on the line: its position, size and colour
@@ -113,7 +142,7 @@ bm_events:
 	ld h,high cl_hi
 	ld a,(hl)
 	or a
-	jr z,.after
+	ret z
 	push bc
 	push de
 	ld (cl_line + 1),a
@@ -131,9 +160,7 @@ bm_events:
 	ld (hl),a
 	pop de
 	pop bc
-	ld a,(bm_line)
-	ld l,a
-	jr .after
+	ret
 .no_p3	ld h,high PM_MISSILES		; anything else: the collisions
 	ld a,(hl)
 	inc h
@@ -142,37 +169,14 @@ bm_events:
 	or (hl)
 	inc h
 	or (hl)
-	jr z,.after
+	ret z
 .collide
 	push bc
 	push de
 	call collide_line
 	pop de
 	pop bc
-	ld a,(bm_line)
-	ld l,a
-.after	ld h,high line_after_draw	; then refresh and screen data
-	ld a,ixh
-	add a,(hl)
-	dec a				; due again?
-	jp m,.again
-	pop hl
 	ret
-.next_line				; at 114 - IXH: the next line from its start cycles
-	ld (hl),0
-	ld hl,bm_line
-	inc (hl)
-	ld l,(hl)
-	ld h,high line_start
-	ld a,ixh
-	add a,DRAW_CYCLE
-	sub (hl)
-	dec a				; due again?
-	jp m,.again
-	pop hl
-	ret
-.again	inc a
-	jp .loop
 
 ; The line's players, missiles and playfield for collide
 collide_line:
@@ -497,15 +501,7 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ld a,e				; hpos B < end C
 	cp (hl)
 	jr nc,.no
-	push bc				; the spans meet: the masks
-	ld a,b
-	call .mask
-	pop bc
-	push bc
-	ld a,c
-	call .mask
-	pop bc
-	call sprites_overlap
+	call .overlap			; the spans meet: pixel by pixel
 	jr nc,.no
 	pop de
 	pop hl
@@ -585,32 +581,94 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ld h,a
 	ret
 
-; entry A's mask, once
-.mask	ld b,a
+; Do sprite B's pixels touch sprite C's? Carry: yes. Each colour clock B covers (its bits,
+; 1, 2 or 4 clocks each) is looked up in C's bits; only clocks over the playfield count
+; (32-223, as GTIA's masks are kept).
+.overlap
+	push bc
+	ld a,c
 	call .entry
-	push hl
-	inc hl
-	inc hl
-	inc hl
+	ld a,(hl)
+	ld (ov_bits),a
 	inc hl
 	ld a,(hl)
-	or a
-	pop hl
-	ret nz
-	push hl
+	ld (ov_hpos),a
 	inc hl
-	inc hl
-	inc hl
-	inc hl
-	ld (hl),1
-	pop hl
-	ld d,(hl)
+	ld a,(hl)
+	call .wlog
+	ld (ov_wlog),a
+	pop bc
+	ld a,b
+	call .entry
+	ld d,(hl)			; D: B's bits, E: the clock
 	inc hl
 	ld e,(hl)
 	inc hl
 	ld a,(hl)
-	jp sprite_mask
+	call .wlog
+	ld c,1				; C: clocks a bit
+	or a
+	jr z,.ob
+	ld c,2
+	dec a
+	jr z,.ob
+	ld c,4
+.ob	ld a,d
+	or a
+	ret z				; (carry clear)
+	sla d
+	ld b,c
+	jr c,.ock
+	ld a,e
+	add a,c
+	ld e,a
+	jr .ob
+.ock	ld a,e
+	cp 32
+	jr c,.on
+	cp 224
+	jr nc,.on
+	ld hl,ov_hpos
+	sub (hl)
+	jr c,.on
+	ld h,a				; the clock in C: its bit
+	ld a,(ov_wlog)
+	or a
+	ld a,h
+	jr z,.s
+	srl a
+	ld h,a
+	ld a,(ov_wlog)
+	dec a
+	ld a,h
+	jr z,.s
+	srl a
+.s	cp 8
+	jr nc,.on
+	add a,low .bitmask
+	ld l,a
+	ld a,high .bitmask
+	adc a,0
+	ld h,a
+	ld a,(ov_bits)
+	and (hl)
+	jr z,.on
+	scf
+	ret
+.on	inc e
+	djnz .ock
+	jr .ob
+.bitmask
+	db $80,$40,$20,$10,$08,$04,$02,$01
 
+; size bits A: 1, 2, 4 clocks a bit as 0, 1, 2
+.wlog	and 3
+	cp 3
+	jr z,.wl2
+	and 1
+	ret
+.wl2	ld a,2
+	ret
 ; The playfield colours (bits 1 bank, 2 edge, 4 water) under a sprite: bits D (the first at
 ; bit 7), position E, size A (each bit 1, 2 or 4 colour clocks). Its bits, doubled for the
 ; playfield's 2 bits a clock, give 1, 2 or 4 bytes q; each shifted right by the clock within
@@ -916,254 +974,6 @@ pf_under:
 	ld a,(pu_pf)
 	ret
 
-; Sprite B's mask: graphics bits D (first at bit 7), position E, size A (SIZEP/SIZEM bits).
-; Each bit covers 1, 2 or 4 colour clocks: the bits doubled (2 mask bits a clock) give 1, 2
-; or 4 bytes q (the bits; then each doubled again, once or twice), and each q doubled and
-; shifted right by the clock within the first byte is 3 bytes from dsh_tables, ORed in at
-; byte 2i: a mask of 3, 5 or 9 bytes.
-sprite_mask:
-	ld c,a
-	ld a,e
-	ld (sm_hpos),a
-	ld a,b
-	add a,a
-	add a,a
-	add a,a
-	add a,a
-	ld (sm_base),a
-	ld hl,sm_src			; q
-	ld a,c
-	and 3
-	cp 3
-	jr z,.w4
-	cp 1
-	jr z,.w2
-	ld (hl),d			; 1 clock a bit: q = the bits
-	ld b,1
-	jr .mask
-.w2	ld l,d				; 2 clocks: q = the bits doubled
-	ld h,high double_hi
-	ld a,(hl)
-	inc h
-	ld e,(hl)
-	ld hl,sm_src
-	ld (hl),a
-	inc l
-	ld (hl),e
-	ld b,2
-	jr .mask
-.w4	ld l,d				; 4 clocks: doubled twice
-	ld h,high double_hi
-	ld c,(hl)
-	inc h
-	ld e,(hl)
-	ld l,c
-	ld a,(hl)			; (double_lo of the first)
-	dec h
-	ld c,(hl)
-	ld hl,sm_src
-	ld (hl),c
-	inc l
-	ld (hl),a
-	ld l,e
-	ld h,high double_hi
-	ld c,(hl)
-	inc h
-	ld a,(hl)
-	ld hl,sm_src + 2
-	ld (hl),c
-	inc l
-	ld (hl),a
-	ld b,4
-.mask	ld a,b				; length: 2 * q + 1
-	add a,a
-	inc a
-	ld (sm_bytes),a
-	ld a,(sm_base)			; cleared
-	ld l,a
-	ld h,high sp_mask
-	ld a,(sm_bytes)
-	ld c,a
-	xor a
-.clr	ld (hl),a
-	inc l
-	dec c
-	jr nz,.clr
-	ld a,(sm_hpos)			; the tables of this shift
-	and 3
-	ld c,a
-	add a,a
-	add a,c
-	add a,high dsh_tables
-	ld (sm_shr),a
-	ld de,sm_src
-	ld a,(sm_base)
-	ld (sm_shl),a			; (where q's 3 bytes go)
-.q	ld a,(de)
-	inc e
-	push de
-	ld e,a
-	ld a,(sm_shr)
-	ld d,a
-	ld a,(sm_shl)
-	ld l,a
-	ld h,high sp_mask
-	ld a,(de)
-	or (hl)
-	ld (hl),a
-	inc l
-	inc d
-	ld a,(de)
-	ld (hl),a
-	inc l
-	inc d
-	ld a,(de)
-	ld (hl),a
-	ld a,(sm_shl)
-	add a,2
-	ld (sm_shl),a
-	pop de
-	djnz .q
-	ld a,(sm_base)			; its length and first byte
-	rrca
-	rrca
-	rrca
-	rrca
-	ld e,a
-	ld d,0
-	ld hl,sp_len
-	add hl,de
-	ld a,(sm_bytes)
-	ld (hl),a
-	ld hl,sp_u
-	add hl,de
-	ld a,(sm_hpos)
-	srl a
-	srl a
-	ld (hl),a
-	ret
-
-; Playfield colours under the sprite whose mask was just built: A bits 1 bank, 2 edge,
-; 4 water (pf_class gives them for a byte of covered pixels).
-sprite_playfield:
-	ld hl,(cl_line)
-	ld a,h
-	or a
-	ret z				; no playfield on this line (A = 0)
-	ld a,(sm_hpos)
-	srl a
-	srl a
-	sub 8				; the first screen byte (may be outside the line)
-	ld c,a
-	ld a,(sm_bytes)
-	ld b,a
-	ld a,(sm_base)
-	ld e,a
-	ld d,high sp_mask
-	xor a
-	ld (sp_pf),a
-.byte	ld a,c
-	cp 48
-	jr nc,.next			; outside the line (left of it as well: negative)
-	ld hl,(cl_line)
-	add a,l
-	ld l,a
-	adc a,h
-	sub l
-	ld h,a
-	ld a,(de)
-	and (hl)			; the covered pixels
-	jr z,.next
-	ld l,a
-	ld h,high pf_class
-	ld a,(sp_pf)
-	or (hl)
-	ld (sp_pf),a
-.next	inc e
-	inc c
-	djnz .byte
-	ld a,(sp_pf)
-	ret
-
-; Do sprites B and C overlap on the line? Carry: yes.
-sprites_overlap:
-	ld hl,sp_u
-	ld a,b
-	call .at
-	ld d,a				; u of B
-	ld a,c
-	call .at
-	ld e,a				; u of C
-	ld hl,sp_len
-	ld a,b
-	call .at
-	add a,d
-	ld (so_end_b),a
-	ld a,c
-	call .at
-	add a,e
-	ld (so_end_c),a
-	ld a,d				; from the larger start, but not left of the line
-	cp e
-	jr nc,.s1
-	ld a,e
-.s1	cp 8
-	jr nc,.s2
-	ld a,8
-.s2	ld (so_u),a
-.loop	ld a,(so_u)
-	cp 8 + 48			; not right of the line
-	jr nc,.no
-	ld hl,so_end_b
-	cp (hl)
-	jr nc,.no
-	ld hl,so_end_c
-	cp (hl)
-	jr nc,.no
-	push de
-	sub d				; B's byte
-	ld l,a
-	ld a,b
-	add a,a
-	add a,a
-	add a,a
-	add a,a
-	add a,l
-	ld l,a
-	ld h,high sp_mask
-	ld a,(hl)
-	ld (so_byte),a
-	ld a,(so_u)
-	sub e				; C's byte
-	ld l,a
-	ld a,c
-	add a,a
-	add a,a
-	add a,a
-	add a,a
-	add a,l
-	ld l,a
-	ld a,(so_byte)
-	and (hl)
-	pop de
-	jr nz,.yes
-	ld hl,so_u
-	inc (hl)
-	jr .loop
-.yes	scf
-	ret
-.no	or a
-	ret
-.at	push hl
-	add a,l
-	ld l,a
-	adc a,h
-	sub l
-	ld h,a
-	ld a,(hl)
-	pop hl
-	ret
-
 ; ------------------------------------------------------------------------------------------
 ; The DLI, frame by frame (B500-B6BC, B6C5-B727)
 
@@ -1341,6 +1151,7 @@ display:
 	ld a,3 + 4			; B565 STY $06; B567: STA WSYNC
 .wait	opa				; wait for the scanline where the slot's object starts
 	wsync
+.wait_check
 	call .slot_y			; TXA, CMP $0C,Y
 	ld b,a
 	ld a,(dl_counter)
@@ -1355,7 +1166,21 @@ display:
 .wait_on
 	call .count			; INX
 	ld a,6 + 2 + 2 + 3 + 4		; not yet: BNE B567, STA WSYNC
-	jr nz,.wait
+	jr z,.wait_end
+	ld a,(bm_line)			; STA WSYNC goes past the line's end: the next line starts
+	inc a				; and is drawn (WSYNC holds the CPU until then), the
+	cp RIVER_FIRST + RIVER_LINES	; count at 106 again: straight in the river
+	ld a,6 + 2 + 2 + 3 + 4
+	jr nc,.wait
+	ld a,(bm_line)
+	inc a
+	ld (bm_line),a
+	ld a,1
+	ld (bm_drawn),a
+	call bm_draw
+	ld ixh,LINE_CYCLES - WSYNC_CYCLE
+	jr .wait_check
+.wait_end
 	ld a,6 + 2 + 2 + 2 + 3 + 4 + 3	; the river's end: out through B5E3
 	opa
 	jp .end
@@ -1529,6 +1354,64 @@ display:
 1:
 	op 4
 	wsync
+	; From here on (just past STA WSYNC, cycle 106) each row goes the same way while the
+	; lines are the river's: the colour part starts the next line (ANTIC's cycles there),
+	; writes the bank (a bridge's road) and player 3's colour before the line is drawn,
+	; then the next row's shape part draws it, and STA WSYNC ends at 106 again. So the rows
+	; after the first go straight (.fast), with the beam's count only worked out where the
+	; loop is left.
+.fast	ld a,(bm_line)
+	inc a
+	cp RIVER_FIRST + RIVER_LINES
+	jr nc,.slow_colour
+	ld (bm_line),a			; the next line starts, not drawn
+	ld c,a
+	xor a
+	ld (bm_drawn),a
+	ld b,high line_start
+	ld a,(bc)
+	ld (f_ls),a
+	ld a,(dl_flags)
+	and $80
+	jr nz,.f_road
+	ld a,(dl_colours_hi)		; BIT, BPL, LDA colour (11 or 12 cycles)
+	cp h
+	ld a,3 + 3
+	adc a,5
+	jr .f_colour
+.f_road	push hl				; BIT, BPL, LDA road; STA COLBK; LDA colour
+	ld hl,ROM_ROAD_COLOURS
+	call .row_hl
+	ld a,high ROM_ROAD_COLOURS
+	cp h
+	ld a,3 + 2
+	adc a,4
+	ld c,a
+	ld a,(hl)
+	ld (beam_bank),a
+	push hl
+	ld hl,rec_bank
+	call rec_set
+	pop hl
+	pop hl
+	ld a,(dl_colours_hi)
+	cp h
+	ld a,c
+	adc a,4 + 5
+.f_colour				; A: the cycles up to STA COLPM3
+	ld c,a
+	ld a,(hl)
+	ld (colour_p3),a
+	ld a,LINE_CYCLES - WSYNC_CYCLE + DRAW_CYCLE - 4	; the count after STA COLPM3
+	sub c
+	ld c,a
+	ld a,(f_ls)
+	ld b,a
+	ld a,c
+	sub b
+	ld ixh,a
+	jr .row_tail
+.slow_colour
 	ld a,(dl_flags)			; BIT $07
 	and $80
 	jr nz,.road
@@ -1563,6 +1446,7 @@ display:
 	op 4
 	ld a,(hl)
 	ld (colour_p3),a
+.row_tail
 	inc iy				; INX
 	ld a,(dl_counter)
 	inc a
@@ -1579,7 +1463,31 @@ display:
 	ld b,2 + 2 + 2 + 2
 	jp m,.rows_end
 	ld b,2 + 2 + 2 + 3
-	jp .row
+	ld a,(bm_line)			; the next row's shape part, straight: the line drawn
+	cp RIVER_FIRST + RIVER_LINES	; (before or after player 3's row is written: it is
+	jp nc,.row			; latched already), STA WSYNC to cycle 106
+	ld a,(bm_drawn)
+	or a
+	jp nz,.row
+	ld a,(de)
+	ld (iy+0),a
+	ld c,a				; (p3_scan)
+	ld a,(bm_line)
+	cp iyl
+	jr nc,1F
+	ld a,c
+	ld c,iyl
+	ld b,high scan_p3
+	ld (bc),a
+1:	inc a
+	ld (bm_drawn),a
+	push de
+	push hl
+	call bm_draw
+	pop hl
+	pop de
+	ld ixh,LINE_CYCLES - WSYNC_CYCLE
+	jp .fast
 .rows_end
 	ld a,b				; B5E8: the collisions of this object
 	add a,3

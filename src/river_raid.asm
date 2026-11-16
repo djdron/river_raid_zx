@@ -42,7 +42,10 @@ TILE_256	equ $4000		; page 11 at $4000: the scrolling line's tile 256
 TILE_MAP	equ $4100		; and the map, 40 x 32 entries of 2 bytes
 NEEDLE_OFFSET	equ 4			; sprite palette offsets
 LOGO_OFFSET	equ 5
-PATTERN_CACHE	equ $4800		; page 7 at $4000: the rows of each sprite pattern (128 x 16)
+PATTERN_CACHE	equ $4800		; page 7 at $4000: the rows of each sprite pattern (128 x 16),
+PC_BUCKETS	equ $5000		; a hash of the rows -> pattern + 1, for each set (2 x 256),
+PC_HASH		equ $5200		; each pattern's hash,
+PC_USED		equ $5300		; which are used this frame
 
 	mmu 4,4
 	org $8000
@@ -439,10 +442,7 @@ scan_x:		ds 256			; its position,
 scan_size:	ds 256			; its size,
 scan_col:	ds 256			; its colour,
 scan_bank:	ds 256			; and the bank colour
-sp_mask:	ds 128			; collisions: the 8 sprites' masks, 16 bytes each
-sp_u:		ds 8
-sp_len:		ds 8
-		ds 256 - 128 - 16
+		ds 256
 double_hi:	ds 256			; a byte's bits doubled
 double_lo:	ds 256
 ch_bits:	ds 256			; one player's bytes for the sprites
@@ -511,7 +511,6 @@ bm_line:	ds 1
 bm_drawn:	ds 1
 bm_p:		ds 4			; the players' and missiles' data latched for the line
 bm_m:		ds 1
-bm_any:		ds 1
 lms_k1:		ds 2
 hpos_p:		ds 4			; registers
 hpos_m:		ds 4
@@ -534,18 +533,15 @@ cs_list:	ds 5 * 8		; collide: per sprite on the line: bits, position, size,
 pu_hpos:	ds 1			; pf_under
 pu_pf:		ds 1
 pu_q:		ds 3
+f_ls:		ds 1			; display: ANTIC's cycles at the line's start
+ov_bits:	ds 1			; collide.overlap: the other sprite
+ov_hpos:	ds 1
+ov_wlog:	ds 1
 	align 16
-es_key:		ds 16			; emit_sprite: a pattern's rows			; the bank colour's record (rec_set): value, from which line, scan page
-sm_hpos:	ds 1
-sm_base:	ds 1
-sm_bytes:	ds 1
-sm_shr:		ds 1
-sm_shl:		ds 1
+es_key:		ds 16			; emit_sprite: a pattern's rows
+es_hash:	ds 1
+pc_next:	ds 2			; the next pattern to take, in each set			; the bank colour's record (rec_set): value, from which line, scan page
 sp_pf:		ds 1
-so_end_b:	ds 1
-so_end_c:	ds 1
-so_u:		ds 1
-so_byte:	ds 1
 dl_counter:	ds 1
 dl_slot:	ds 1
 dl_current:	ds 1
@@ -573,7 +569,6 @@ sb_half:	ds 1
 sb_pattern:	ds 1
 sb_bits:	ds 1
 sb_off:		ds 1
-sb_const:	ds 1
 sb_const_x:	ds 1
 sb_mask:	ds 1
 sb_conv:	ds 1

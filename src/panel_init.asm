@@ -106,7 +106,7 @@ panel_init:
 	jr nz,.pc
 	ld hl,PATTERN_CACHE + $2000	; (page 7 at $6000 now)
 	ld de,PATTERN_CACHE + $2001
-	ld bc,128 * 16 - 1
+	ld bc,PC_USED + $100 - PATTERN_CACHE - 1
 	ld (hl),0
 	ldir
 	ld bc,$303B			; 124: the needle (2 dots x 10 lines)
@@ -211,6 +211,9 @@ panel_init:
 	nextreg $1B,PANEL_FIRST_LINE
 	nextreg $1B,PANEL_LAST_LINE
 	nextreg $6B,%10000010
+	xor a
+	ld (pc_next),a
+	ld (pc_next + 1),a
 	ld a,(palette + $06)		; the panel's background (COLBK $06) for the Copper
 	ld (copper_panel + 3),a
 	ret

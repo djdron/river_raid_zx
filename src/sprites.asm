@@ -24,7 +24,14 @@ build_sprites:
 	ld a,(sb_half)			; the set of patterns not shown now
 	xor PATTERNS_HALF
 	ld (sb_half),a
-	ld (sb_pattern),a
+	nextreg $52,INIT_PAGE		; its patterns not used yet (emit_sprite)
+	ld l,a
+	ld h,high PC_USED
+	ld b,SPRITES_MAX
+	xor a
+.unused	ld (hl),a
+	inc l
+	djnz .unused
 	; in the order drawRiver draws them, the last on top
 	ld a,high scan_p3		; player 3, from the DLI's record
 	ld (sb_bits),a
@@ -33,8 +40,6 @@ build_sprites:
 	ld a,P3_OFFSET
 	ld (sb_offset),a
 	call p3_channel
-	ld a,1				; the others: one position, normal width
-	ld (sb_const),a
 	ld a,(PLANE_X)			; the plane
 	ld hl,high PM_PLANE << 8 | $FF	; (page, mask)
 	ld bc,PLANE_OFFSET		; (no conversion)
@@ -249,28 +254,84 @@ emit_sprite:
 .k0	ld (de),a
 	inc e
 	djnz .k0
-.cache	nextreg $52,INIT_PAGE		; the same as this pattern had: no need to write it
-	ld a,(sb_pattern)		; (page 7 at $4000: PATTERN_CACHE, 16 bytes a pattern)
+.cache	ld hl,es_key			; a pattern of this set with these rows already: no need
+	xor a				; to write one (page 7 at $4000: the patterns' rows, a hash
+	ld b,16				; table, which are used this frame)
+.h	rlca
+	xor (hl)
+	inc l
+	djnz .h
+	ld (es_hash),a
 	ld l,a
-	ld h,0
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	ld de,PATTERN_CACHE
-	add hl,de
+	ld a,(sb_half)
+	rlca
+	rlca
+	add a,high PC_BUCKETS
+	ld h,a
+	ld a,(hl)
+	or a
+	jr z,.alloc
+	dec a
+	ld (sb_pattern),a
+	call .rows_of
 	ld de,es_key
 	ld b,16
 .cmp	ld a,(de)
 	cp (hl)
-	jr nz,.new
+	jr nz,.alloc
 	inc l
 	inc e
 	djnz .cmp
-	jp .attributes
-.new	ld a,l				; back to the pattern's first byte; the key is the new content
-	and $F0
+	ld a,(sb_pattern)		; used again
 	ld l,a
+	ld h,high PC_USED
+	ld (hl),1
+	jp .attributes
+.alloc	ld a,(sb_half)			; a pattern not used this frame, in turn
+	or a
+	ld hl,pc_next
+	jr z,.an
+	inc hl
+.an	ld a,(hl)
+	ld c,a
+	inc a
+	cp SPRITES_MAX
+	jr c,.an1
+	xor a
+.an1	ld (hl),a
+	ld a,(sb_half)
+	add a,c
+	ld e,a
+	ld d,high PC_USED
+	ld a,(de)
+	or a
+	jr nz,.an
+	ld a,1
+	ld (de),a
+	ld a,e
+	ld (sb_pattern),a
+	ld l,e				; its old rows out of the hash table
+	ld h,high PC_HASH
+	ld c,(hl)
+	ld a,(es_hash)
+	ld (hl),a
+	ld a,(sb_half)
+	rlca
+	rlca
+	add a,high PC_BUCKETS
+	ld h,a
+	ld l,c
+	ld a,(hl)
+	dec a
+	cp e
+	jr nz,.ev
+	ld (hl),0
+.ev	ld a,(es_hash)			; the new ones in
+	ld l,a
+	ld a,e
+	inc a
+	ld (hl),a
+	call .rows_of
 	ex de,hl
 	ld hl,es_key
 	ld bc,16
@@ -385,8 +446,19 @@ emit_sprite:
 	ld (hl),a
 	ld hl,sb_count
 	inc (hl)
-	ld hl,sb_pattern
-	inc (hl)
+	ret
+
+; HL = the rows kept for pattern sb_pattern
+.rows_of
+	ld a,(sb_pattern)
+	ld l,a
+	ld h,0
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	ld de,PATTERN_CACHE
+	add hl,de
 	ret
 
 ; The Copper's list for the frame: per river line, the bank colour and player 3's colour
@@ -399,11 +471,8 @@ build_copper:
 	ld a,$A0
 	ld (bc_select),a
 	ld ix,$FFFF			; IXH the bank colour, IXL player 3's set (none yet: no Atari
-	ld c,0				; colour is odd); C the line
-.line	ld a,c
-	add a,RIVER_FIRST
-	ld l,a
-	ld h,high scan_bank
+	ld l,RIVER_FIRST		; colour is odd); L the scanline
+.line	ld h,high scan_bank
 	ld a,(hl)
 	cp ixh
 	jr nz,.change
@@ -415,9 +484,9 @@ build_copper:
 	ld a,(hl)
 	cp ixl
 	jr nz,.change
-.next	inc c
-	ld a,c
-	cp RIVER_LINES
+.next	inc l
+	ld a,l
+	cp RIVER_FIRST + RIVER_LINES
 	jr c,.line
 	ld hl,copper_panel		; the panel and the scrolling line
 	ld bc,copper_panel_end - copper_panel
@@ -432,17 +501,13 @@ build_copper:
 	sbc hl,de
 	ld (copper_bytes),hl
 	ret
-.change	ex de,hl			; WAIT for the line before (ULA line 8 + k - 1)
-	ld (hl),COPPER_WAIT_H * 2 | $80
-	inc hl
-	ld a,c
-	add a,RIVER_TOP - 32 - 1
-	ld (hl),a
-	inc hl
-	ex de,hl
-	ld a,c
-	add a,RIVER_FIRST
-	ld l,a
+.change	ld a,COPPER_WAIT_H * 2 | $80	; WAIT for the line before (ULA line 8 + k - 1)
+	ld (de),a
+	inc de
+	ld a,l
+	add a,RIVER_TOP - 32 - 1 - RIVER_FIRST
+	ld (de),a
+	inc de
 	ld h,high scan_bank
 	ld a,(hl)
 	cp ixh
@@ -452,10 +517,7 @@ build_copper:
 	call .select
 	ld a,ixh
 	call .move41
-.colour	ld a,c
-	add a,RIVER_FIRST
-	ld l,a
-	ld h,high scan_p3
+.colour	ld h,high scan_p3
 	ld a,(hl)
 	or a
 	jr z,.next
@@ -483,9 +545,11 @@ build_copper:
 	ex de,hl
 	ret
 .move41					; MOVE $41, the Next colour of Atari colour A
+	push hl
 	ld l,a
 	ld h,high palette
 	ld a,(hl)
+	pop hl
 	ex de,hl
 	ld (hl),$41
 	inc hl
