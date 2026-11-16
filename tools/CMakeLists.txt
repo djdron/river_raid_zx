@@ -19,6 +19,8 @@ target_include_directories(rrcore PUBLIC ${RR_SRC} ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(mkpalette mkpalette.cpp)
 target_link_libraries(mkpalette rrcore)
+add_executable(mkfont mkfont.cpp)
+target_link_libraries(mkfont rrcore)
 add_executable(mkrandom mkrandom.cpp)
 
 # Xpeccy+'s core as its own quick tests build it (tests/CMakeLists.txt there)

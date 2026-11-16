@@ -27,6 +27,8 @@
 #include "cpu/Z80/z80.h"
 
 #include "game.h"
+#include "os_font.h"
+#include "status_bar.h"
 #include "next_palette.h"
 #include "pokey_counter.h"
 #include "pokey_random.h"
@@ -35,11 +37,13 @@ namespace {
 
 // The program's memory (src/river_raid.asm)
 constexpr int kAtariRamPage = 30;
-constexpr int kCodePages[2] = {4, 6};
+constexpr int kCodePages[3] = {4, 6, 7};
 constexpr int kRomPage = 5;
 constexpr uint16_t kScan = 0x6000; // scan_p3, scan_x, scan_size, scan_col, scan_bank: 256 each, by scanline
 constexpr int kWindowFirst = 20;   // first colour clock shown
 constexpr int kRiverLines = 160;
+constexpr int kPictureLines = 200;
+constexpr int kSpritesMax = 60;     // SPRITES_MAX (sprites.asm)   // the river, the panel, the scrolling line
 constexpr int kRiverFirstLine = 28;
 constexpr int kRiverTop = 40;      // Layer 2 row of the river's top line
 // Where Layer 2 (320x256) is in the core's picture (360 dots x 303 lines, 2 columns a dot)
@@ -47,6 +51,23 @@ constexpr int kL2Left = 8;
 constexpr int kL2Top = 24;
 
 int sramOffset(int page) { return 0x40000 + page * 0x2000; }
+
+// An address from the test build's symbols (build/test.sym, sjasmplus "name: EQU 0x...")
+uint16_t symbol(const std::string &dir, const char *name) {
+	FILE *f = std::fopen((dir + "/test.sym").c_str(), "r");
+	if (!f) return 0;
+	char line[256];
+	uint16_t at = 0;
+	const size_t n = std::strlen(name);
+	while (std::fgets(line, sizeof line, f))
+		if (!std::strncmp(line, name, n) && line[n] == ':') {
+			const char *x = std::strstr(line, "0x");
+			if (x) at = uint16_t(std::strtoul(x, nullptr, 16));
+			break;
+		}
+	std::fclose(f);
+	return at;
+}
 
 uint8_t readZ80(Computer *comp, uint16_t addr) {
 	const int page = comp->next->mmu[addr >> 13];
@@ -83,6 +104,7 @@ const struct { const char *name; uint16_t addr; } kGameFields[] = {
 	{"other.checkpoint0", 0x71}, {"other.checkpoint1", 0x72}, {"other.checkpoint2", 0x73},
 	{"other.checkpoint3", 0x74}, {"other.lives", 0x75}, {"respawned", 0x79}, {"powerOnDone", 0x28},
 	{"screenOn", 0xC7}, {"screenTop.lo", 0x3F04}, {"screenTop.hi", 0x3F05},
+	{"scroller.textLo", 0x3FB3}, {"scroller.fineScroll", 0x26}, {"scroller.logoX", 0x27},
 };
 const struct { const char *name; uint16_t addr; int size; } kGameArrays[] = {
 	{"highScore", 0x80, 16}, {"highScoreCheck", 0x90, 16}, {"panel", 0x1000, 60},
@@ -232,14 +254,15 @@ int main(int argc, char **argv) {
 		else if (!std::strcmp(argv[i], "-attract")) attractOnly = true;
 		else ppm = argv[i];
 	}
-	std::vector<uint8_t> romData, code[2];
+	std::vector<uint8_t> romData, code[3];
 	rr::Rom rom;
 	if (!rom.load(argv[1]) || !readFile(argv[1], romData)) { std::fprintf(stderr, "cannot read %s\n", argv[1]); return 2; }
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 3; i++) {
 		const std::string path = std::string(argv[2]) + "/test_page" + std::to_string(kCodePages[i]) + ".bin";
 		if (!readFile(path, code[i]) || code[i].size() != 0x2000) { std::fprintf(stderr, "cannot read %s\n", path.c_str()); return 2; }
 	}
 	const int frames = std::atoi(argv[3]);
+	const uint16_t sbCount = symbol(argv[2], "sb_count");
 	auto word = [&](int at) { return uint16_t(code[0][size_t(at)] | (code[0][size_t(at + 1)] << 8)); };
 	const uint16_t frameHook = word(5), applyHook = word(7);
 	const uint32_t first = rrzx::pokeyFirstRead(seed);   // POKEY's counter at the first read
@@ -266,7 +289,7 @@ int main(int argc, char **argv) {
 	sram[0] = 0xC3;   // jp $8000
 	sram[1] = 0x00;
 	sram[2] = 0x80;
-	for (int i = 0; i < 2; i++) std::memcpy(sram + sramOffset(kCodePages[i]), code[i].data(), 0x2000);
+	for (int i = 0; i < 3; i++) std::memcpy(sram + sramOffset(kCodePages[i]), code[i].data(), 0x2000);
 	std::memcpy(sram + sramOffset(kRomPage), romData.data(), 0x2000);
 
 	// The C++ port, from the attract mode's start
@@ -274,18 +297,26 @@ int main(int argc, char **argv) {
 	rr::PokeyRandom random(seed);
 	game.startAttract(false);
 	random.nextFrame();
-	static uint8_t picture[240][rr::kRowWidth];
-	std::vector<uint8_t> rows(size_t(kRiverLines) * 320);   // the last frame's river
+	static uint8_t picture[rr::kScreenHeight][rr::kScreenWidth];
+	std::vector<uint8_t> rows(size_t(kPictureLines) * 320);   // the last frame's river and panel
+	uint8_t osFont[rr::kOsFontBytes];
+	rr::builtinOsFont(osFont);
+	const rr::Charsets charsets = rr::buildCharsets(rom, osFont);
 	game.afterDisplay = [&] {
+		std::memset(picture, 0, sizeof picture);
 		game.drawRiver(picture);
-		for (int k = 0; k < kRiverLines; k++)
-			std::memcpy(&rows[size_t(k) * 320], &picture[kRiverFirstLine - 8 + k][2 * kWindowFirst], 320);
+	};
+	auto takePicture = [&] {   // as the C++ port's game shows the frame
+		const rr::GameState &g = game.g;
+		rr::drawStatusBar(rom, charsets, g.panel, g.fuel, g.scroller, g.logoShown, picture);
+		for (int k = 0; k < kPictureLines; k++)
+			std::memcpy(&rows[size_t(k) * 320], &picture[rr::kRiverTop + k][2 * kWindowFirst], 320);
 	};
 	Bot bot(botSeed);
 	rr::Input input = attractOnly ? rr::Input() : bot.next(game);
 	uint8_t *inputAt = sram + sramOffset(kCodePages[0]) + 12;
 	putInput(inputAt, input);
-	int gameNumbers = 0;
+	int gameNumbers = 0, maxSprites = 0;
 	long games = 0, crashes = 0, gameOvers = 0, pausedFrames = 0, busyFrames = 0, maxBridge = 0;
 	uint8_t lastState = 0xFF;
 
@@ -316,6 +347,11 @@ int main(int argc, char **argv) {
 		if (game.g.pauseState) pausedFrames++;
 		game.frame(input, [&] { return reads++ ? random.read(249, 13) : random.read(192, 13); });
 		random.nextFrame();
+		takePicture();
+		{
+			const uint8_t count = readZ80(comp, sbCount);
+			if (count > maxSprites) maxSprites = count;
+		}
 		{
 			const rr::GameState &g = game.g;
 			if (g.planeState == 0xFE && lastState != 0xFE) {
@@ -446,6 +482,7 @@ int main(int argc, char **argv) {
 		if (gameNumbers >> n & 1) numbers += (numbers.empty() ? "" : ",") + std::to_string(n + 1);
 	std::printf("played: %ld games started (games %s), %ld crashes, %ld games over, up to bridge %ld; %ld frames paused, %ld of resets\n",
 		games, numbers.empty() ? "-" : numbers.c_str(), crashes, gameOvers, maxBridge, pausedFrames, busyFrames);
+	std::printf("sprites: up to %d of the %d a frame can have\n", maxSprites, kSpritesMax);
 	std::printf("timing: %d frames late (the longest took %lld Next frames); a frame's work: %lld on average, "
 		"%lld at most (frame %d), in the core's ticks\n", lateFrames, longestFrame, worked ? workSum / worked : 0, workMax, workMaxFrame);
 
@@ -461,7 +498,7 @@ int main(int argc, char **argv) {
 		for (int x = 0; x < 320; x++) {
 			uint8_t want[3] = {0, 0, 0};
 			const int r = y - kRiverTop;
-			if (r >= 0 && r < kRiverLines) rrzx::nextRgb(rrzx::nextColour(rows[size_t(r) * 320 + size_t(x)]), want);
+			if (r >= 0 && r < kPictureLines) rrzx::nextRgb(rrzx::nextColour(rows[size_t(r) * 320 + size_t(x)]), want);
 			for (int h = 0; h < 2; h++) {
 				const uint8_t *p = pixel(2 * (kL2Left + x) + h, kL2Top + y);
 				if (p[0] != want[0] || p[1] != want[1] || p[2] != want[2])
@@ -480,7 +517,7 @@ int main(int argc, char **argv) {
 		const std::string refPath = std::string(ppm) + ".ref.ppm";   // and the C++ port's
 		f = std::fopen(refPath.c_str(), "wb");
 		if (f) {
-			std::fprintf(f, "P6\n320 %d\n255\n", kRiverLines);
+			std::fprintf(f, "P6\n320 %d\n255\n", kPictureLines);
 			for (size_t i = 0; i < rows.size(); i++) {
 				uint8_t rgb[3];
 				rrzx::nextRgb(rrzx::nextColour(rows[i]), rgb);

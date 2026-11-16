@@ -12,23 +12,23 @@ run time.
 
 ## State
 
-The game, without its panel and sound yet. The attract mode runs at start; START begins a
-game: the plane flies, steers, speeds up and slows down, fires, burns fuel and refuels over
-the depots; enemies, bridges and depots explode and score; tanks fire at the plane,
-helicopters fire missiles; crashes, new planes from the last bridge, extra planes every
-10 000 points, game over and the high score; SELECT changes the game (1-8: four starting
-bridges, one or two players taking turns), any key pauses. Every frame does what the
-original does (the game's logic, the river generator, and the display list interrupt that
-shows the objects and reads the collisions, with its cycle counts), and is checked against
-the C++ port frame by frame.
+The game, without sound yet. The attract mode runs at start; START begins a game: the plane
+flies, steers, speeds up and slows down, fires, burns fuel and refuels over the depots;
+enemies, bridges and depots explode and score; tanks fire at the plane, helicopters fire
+missiles; crashes, new planes from the last bridge, extra planes every 10 000 points, game
+over and the high score; SELECT changes the game (1-8: four starting bridges, one or two
+players taking turns), any key pauses. Below the river the panel (score, game number, fuel
+gauge, lives, high score or the other player's score, bridge) and the scrolling line with
+the rainbow logo, which scrolls the credits while no game is played. Every frame does what
+the original does (the game's logic, the river generator, and the display list interrupt
+that shows the objects and reads the collisions, with its cycle counts), and is checked
+against the C++ port frame by frame.
 
-Not there yet: the panel below the river (score, fuel gauge, lives, bridge; the game keeps
-its characters in memory as the original does, but does not show them) and the scrolling
-line, and the sound.
+Not there yet: the sound.
 
 Speed: not enough yet. At 28 MHz a frame's work takes about a 50 Hz frame on average, up
-to 1.6 frames when the most is on screen; such frames are shown twice, and the scrolling
-stutters. At 60 Hz it is too slow. Making it fit comes after the panel and the sound.
+to 1.8 frames when the most is on screen; such frames are shown twice, and the scrolling
+stutters. At 60 Hz it is too slow. Making it fit comes after the sound.
 
 ## Running it
 
@@ -60,7 +60,7 @@ make         # build/river_raid.nex
 ```
 
 `make` alone needs only sjasmplus (`make SJASMPLUS=...` for one installed elsewhere).
-`src/palette.inc` (the C++ port's palette model) and `src/random.inc` are made by
+`src/palette.inc` (the C++ port's palette model), `src/random.inc` and `src/font.inc` are made by
 `make palette`.
 
 ## Checks
@@ -77,10 +77,11 @@ controls come from a made-up player: it waits in the attract mode, sometimes sel
 game, presses START, flies towards the middle of the water, dodges enemies ahead, flies over
 depots when low on fuel, fires, pauses now and then (`-bot N` for other choices, `-seed N`
 for another POKEY counter, `-attract` for no player). After every frame it compares the
-river generator's state (`RiverGen::diffWithRam`), the game's state, the high scores and
-the panel's characters, player-missile memory, screen memory, and what the DLI left per
-line (player 3 and the bank colour, `Game::scan`); at the end the picture of the last frame,
-pixel by pixel (`Game::drawRiver` in the Next's colours). It also reports what was played and
+river generator's state (`RiverGen::diffWithRam`), the game's state (the scrolling line's
+too), the high scores and the panel's characters, player-missile memory, screen memory, and
+what the DLI left per line (player 3 and the bank colour, `Game::scan`); at the end the
+picture of the last frame, pixel by pixel, the river, the panel and the scrolling line
+(`Game::drawRiver` and `drawStatusBar` in the Next's colours). It also reports what was played and
 how long the frames take. 4 x 40 000 frames with different players (games 1-8, about 70 games
 and 300 crashes) are the same. A change that breaks it shows the first frame that differs
 and the fields.
@@ -94,7 +95,8 @@ and the fields.
 | $6000-$7FFF | 12 | the DLI's record per line, tables, the sprites' attributes, the Copper's list |
 | $8000-$9FFF | 4 | the program: the frame, the river generator, the game's main loop |
 | $A000-$BFFF | 5 | the cartridge image, at its own addresses: the tables are read where the original reads them |
-| $C000-$DFFF | 6 | the program: the game, the display, the sprites |
+| $C000-$DFFF | 6 | the program: the game, the display, the sprites, the panel |
+| ($6000-$7FFF) | 7 | at the start only: the character sets, the tiles, the needle's and the logo's sprites |
 | $E000-$FFFF | 1 | buffers, tables and the stack |
 
 Each frame (`src/river_raid.asm`):
@@ -122,8 +124,17 @@ Each frame (`src/river_raid.asm`):
 5. `src/game.asm`, `vbi`: the counters of the sound driver, the frame counter, the colours
    of the next frame (the water flashes red when a bridge is hit), POKEY's counter one frame
    on (a matrix, `src/random.inc`).
-6. At raster line 200 the new picture goes live: Layer 2's scroll and colours, the sprites'
-   attributes (their patterns were written into the set not shown), the Copper's list.
+6. Below the scrolling line (raster line 208) the new picture goes live: Layer 2's scroll and
+   colours, the sprites' attributes (their patterns were written into the set not shown),
+   the panel and the scrolling line, the Copper's list.
+
+The panel and the scrolling line are the tilemap (40 x 32, 8x8 tiles at 4 bits per pixel):
+each Atari character (8x8, a colour clock a pixel) is two tiles, made at the start from the
+character sets the game builds at power-on (the OS font's letters and digits, the
+cartridge's own symbols). The Copper moves the tilemap to each row of characters, and moves
+the scrolling line sideways by its fine scroll; the tile that is seen at both edges of the
+screen is made each frame. The panel's grey is the fallback colour, so the fuel needle (a
+sprite) is over it and under the characters, as on the Atari. The logo is five sprites.
 
 Layer 2 (320x256, 256 colours) holds the playfield's 2-bit colour indices; 160 of the
 line's 192 colour clocks are shown (from the 20th; the water never comes nearer to the
@@ -133,7 +144,10 @@ C++ port's PAL colours (Altirra's model) as the Next's 8-bit palette entries.
 ## Licence
 
 The project's own code and documentation are under the MIT licence, see [LICENSE](LICENSE).
-`src/palette.inc` is made from the palette model of the C++ port (MIT). The checks use
+`src/palette.inc` is made from the palette model of the C++ port (MIT). `src/font.inc` is the
+font of AltirraOS (Copyright (C) 2008-2018 Avery Lee; free to copy and distribute with its
+notice, which the file keeps), as the C++ port has it: the Atari OS ROM is not part of the
+cartridge. The checks use
 [Xpeccy+](https://github.com/dotkoval/xpeccy-plus) (MIT) and the assembler
 [sjasmplus](https://github.com/z00m128/sjasmplus) (BSD-3); neither is included, `make deps`
 fetches them. River Raid itself (the ROM, its code, graphics and sound) belongs to its right

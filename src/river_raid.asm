@@ -33,7 +33,15 @@ L2_FIRST_PAGE	equ L2_BANK * 2
 L2_PAGES	equ 10			; 320x256 bytes
 RIVER_LINES	equ 160
 RIVER_TOP	equ 40			; Layer 2 row (of 256) of the river's top line
-WAIT_LINE	equ 200			; raster line (ULA numbering) where a frame's work starts
+WAIT_LINE	equ 208			; raster line (ULA numbering) where a frame's work starts:
+					; below the scrolling line
+INIT_PAGE	equ 7			; panel_init.asm, at $6000 while it runs
+PANEL_FIRST_LINE equ 200		; the tilemap's lines: the panel and the scrolling line
+PANEL_LAST_LINE	equ 239
+TILE_256	equ $4000		; page 11 at $4000: the scrolling line's tile 256
+TILE_MAP	equ $4100		; and the map, 40 x 32 entries of 2 bytes
+NEEDLE_OFFSET	equ 4			; sprite palette offsets
+LOGO_OFFSET	equ 5
 
 	mmu 4,4
 	org $8000
@@ -68,6 +76,9 @@ start:
 	call init_tables
 	call init_line_tables
 	call init_video
+	nextreg $53,INIT_PAGE		; the panel's characters, tiles and sprites
+	call panel_init
+	nextreg $53,DATA_PAGE
 	ld hl,(rnd_init)
 	ld (rnd_state),hl
 	ld a,(rnd_init + 2)
@@ -84,8 +95,6 @@ main_frame:
 	ld (show_water),a
 	ld a,(PLAYER)
 	ld (show_player),a
-	ld a,(IDLE_TIME)
-	ld (show_idle),a
 	ifndef TEST
 	call read_input
 	endif
@@ -327,8 +336,9 @@ init_video:
 	nextreg $19,0
 	nextreg $19,159
 	nextreg $19,RIVER_TOP
-	nextreg $19,RIVER_TOP + RIVER_LINES - 1
-	nextreg $15,%00000011		; sprites over Layer 2, visible, also over the border
+	nextreg $19,PANEL_LAST_LINE	; (and the needle and the logo below)
+	nextreg $15,%00010011		; the tilemap over the sprites over Layer 2 (USL), sprites
+					; visible, also over the border
 	nextreg $43,%10010000		; Layer 2's palette: black, (the bank), the edge, the water
 	nextreg $40,0
 	nextreg $41,0
@@ -436,6 +446,12 @@ random_columns:
 	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full
 
+	mmu 3,INIT_PAGE
+	org $6000
+	include "panel_init.asm"
+	display "page 7 end: ",$
+	assert $ <= $8000
+
 ; ------------------------------------------------------------------------------------------
 ; Buffers (page 12)
 	mmu 3,12
@@ -494,7 +510,16 @@ colour_water:	ds 1
 show_edge:	ds 1			; and as this frame shows them
 show_water:	ds 1
 show_player:	ds 1
-show_idle:	ds 1
+pf_s:		ds 1			; panel_frame
+pf_h0:		ds 1
+pf_text:	ds 2
+pf_right:	ds 2
+pf_right_half:	ds 1
+pf_left_half:	ds 1
+pf_left_nibble:	ds 1
+pf_mask:	ds 1
+logo_shown:	ds 1			; the logo's position this frame (before the VBI moves it)
+game_over_text:	ds 1			; A3B4: "Game over" scrolls past
 busy:		ds 1			; frames of sub $B0F1 still to come
 resume:		ds 1			; what the main loop does after them
 l2_clear:	ds 1			; pages of Layer 2 still to clear
@@ -593,6 +618,8 @@ dsh_tables:	ds 12 * 256		; a byte's bits doubled and shifted right by 2s bits: 3
 	savebin "build/test_page4.bin",$8000,$2000
 	mmu 6,6
 	savebin "build/test_page6.bin",$C000,$2000
+	mmu 3,INIT_PAGE
+	savebin "build/test_page7.bin",$6000,$2000
 	else
 	savenex open "build/river_raid.nex",entry,0
 	savenex core 3,0,0

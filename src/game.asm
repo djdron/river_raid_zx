@@ -93,9 +93,14 @@ bank_colour:
 ; The state of the attract mode at the frame its river starts (Game::startAttract): game 1,
 ; no plane, the first river line.
 start_attract:
-	ld hl,0				; the Atari's RAM cleared
-	ld de,1
-	ld bc,$3FFF
+	ld hl,0				; the Atari's RAM cleared (but the character sets at
+	ld de,1				; $0600-$09FF)
+	ld bc,$05FF
+	ld (hl),l
+	ldir
+	ld hl,$0A00
+	ld de,$0A01
+	ld bc,$35FF
 	ld (hl),l
 	ldir
 	call start_game			; the river: game 1 reset
@@ -136,6 +141,14 @@ start_attract:
 	ld (PLANE_X),a
 	call bank_colour
 	ld (colour_bank),a
+	ld a,$4B			; the scrolling line has been moving since frame 11
+	ld (TEXT_LO),a
+	ld b,38 - 11 + 1
+.scroll	push bc
+	or 1
+	call scroller_step
+	pop bc
+	djnz .scroll
 	jp push_line
 
 ; sub $B0F1 leaves the rainbow under the logo and the fuel gauge's needle in player-missile
@@ -645,11 +658,62 @@ vbi:
 	ld (colour_bank),a
 	ld a,(SCREEN_ON)		; off while the screen is being cleared
 	or a
-	jp nz,random_step
+	jr nz,.scroll
 	ld (colour_bank),a
 	ld (colour_edge),a
 	ld (colour_water),a
+.scroll	ld a,(ATTRACT_TIMER)		; B44B: the scrolling line moves while no game is played
+	or a
+	call scroller_step
+	ld hl,game_over_text		; A3B4: "Game over" scrolls past first
+	ld a,(hl)
+	or a
+	jp z,random_step
+	ld (hl),0
+	ld a,$20
+	ld (TEXT_LO),a
 	jp random_step
+
+; B44B-B47F: the scrolling line, Z: during play (the logo text at $B8E7, still), NZ: it
+; scrolls a colour clock a frame, a character every 8; the logo moves with its text.
+scroller_step:
+	ld a,(LOGO_X)
+	ld (logo_shown),a
+	jr nz,.scroll
+	ld a,$44
+	ld (LOGO_X),a
+	ld a,$E7
+	ld (TEXT_LO),a
+	xor a
+	ld (FINE_SCROLL),a
+	ret
+.scroll	dec a
+	ld c,a
+	ld hl,FINE_SCROLL
+	ld a,(hl)
+	or a
+	jr z,.next
+	dec (hl)
+	jr .logo
+.next	ld (hl),7
+	ld hl,TEXT_LO			; the next character: $B84B-$B8D6, then from the start
+	ld a,(hl)
+	inc a
+	cp $D7
+	jr c,.t
+	ld a,$4B
+.t	ld (hl),a
+	cp $7E				; the logo only while its text passes, coming in at the right
+	jr c,.none
+	jr z,.enter
+	cp $9B
+	jr c,.logo
+.none	ld c,0
+	jr .logo
+.enter	ld c,$EC
+.logo	ld a,c
+	ld (LOGO_X),a
+	ret
 
 ; B2A5-B3D8: what the sound driver changes in the game's state.
 sound_counters:

@@ -21,7 +21,7 @@ build/test_page4.bin: $(SOURCES)
 	@mkdir -p build
 	$(SJASMPLUS) --nologo --msg=war -isrc -DTEST --sym=build/test.sym src/river_raid.asm
 
-build/tools/nxcheck build/tools/mkpalette build/tools/mkrandom: tools/*.cpp tools/*.h tools/CMakeLists.txt
+build/tools/nxcheck build/tools/mkpalette build/tools/mkrandom build/tools/mkfont: tools/*.cpp tools/*.h tools/CMakeLists.txt
 	cmake -S tools -B build/tools -DCMAKE_BUILD_TYPE=Release
 	cmake --build build/tools
 
@@ -33,9 +33,10 @@ profile: build/test_page4.bin build/tools/nxcheck
 	NXHIST=build/profile.txt build/tools/nxcheck $(ROM) build $(FRAMES) > /dev/null
 	python3 tools/prof.py build/test.sym build/profile.txt
 
-palette: build/tools/mkpalette build/tools/mkrandom
+palette: build/tools/mkpalette build/tools/mkrandom build/tools/mkfont
 	build/tools/mkpalette src/palette.inc
 	build/tools/mkrandom src/random.inc
+	build/tools/mkfont src/font.inc
 
 deps:
 	sh tools/get_deps.sh

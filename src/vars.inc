@@ -203,3 +203,15 @@ ROM_START_BRIDGES	equ $B4A8	; BCD
 ROM_POINTS		equ $BB0B
 ROM_PANEL_TEXT		equ $BB70
 ROM_PLAYER_TWO_TEXT	equ $BB8F
+
+; The scrolling line (VBI B44B-B47F)
+TEXT_LO			equ $3FB3	; its text: $B800 + this (the display list's LMS)
+FINE_SCROLL		equ $26		; HSCROL, 7-0
+LOGO_X			equ $27		; the rainbow logo's position, 0: none
+
+ROM_SCROLL_TEXT		equ $B800
+ROM_LOGO_COLOURS	equ $B48D	; 7 rows, the bottom one first
+ROM_LOGO_LETTERING	equ $BEEE
+ROM_PANEL_SYMBOLS	equ $BF2E
+ROM_PLAYER_LABELS	equ $BF9E
+ROM_YEAR_DIGITS		equ $BFB6

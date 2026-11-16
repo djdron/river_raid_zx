@@ -829,7 +829,9 @@ respawn_or_game_over:
 	ld (resume),a
 	scf
 	ret
-.over	ld hl,SCORE			; A37D: game over
+.over	ld a,1				; A3B4: after this frame's VBI
+	ld (game_over_text),a
+	ld hl,SCORE			; A37D: game over
 	call update_high_score
 	ld hl,OTHER_SCORE
 	call update_high_score
