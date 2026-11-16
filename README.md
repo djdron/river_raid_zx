@@ -12,13 +12,18 @@ run time.
 
 ## State
 
-The first step: a river viewer. The river of game 1 from the start, one line per frame,
-with the objects where the river generator places them (they do not move yet), as the C++
-port's river map draws it. The generator and the drawing of a line run on the Z80; the
-picture is on Layer 2, scrolled by the hardware.
+A river viewer: the attract mode, as the C++ port's river viewer shows it. The river of
+game 1 from the start, one line per frame; the enemies wake up and move (from bridge 2 on,
+as in the original), turn at the bank edge, tanks drive to the river and fire, helicopters
+fire missiles. Every frame does what the original does (the game's logic, the river
+generator, and the display list interrupt that shows the objects and reads the collisions,
+with its cycle counts), and is checked against the C++ port frame by frame.
 
-Next: the attract mode as the C++ viewer shows it (moving enemies, tanks, the panel and the
-scrolling line), then the game.
+Speed: not enough yet. At 28 MHz a frame's work takes about a 50 Hz frame on average (95%
+over the first bridges, 105% over the first 40), up to 1.5 frames when the most is on
+screen (tanks and their shells beside the enemies); such frames are shown twice. At 60 Hz
+it is too slow. Making it fit is the next step; then the panel and the scrolling line,
+then the game.
 
 ## Running it
 
@@ -28,10 +33,8 @@ the Browser. Without the ROM (or with a file that is not the cartridge) the bord
 and the program stops. The ROM is looked for by its long name, then by its short name
 `RIVER_~1.ROM`.
 
-The screen shows 160 of the line's 192 colour clocks (from the 20th): the water never comes
-nearer to the edges, and the C++ port shows 168 of them. A colour clock is two Layer 2
-dots, so the proportions are the Atari's, within 2%. The colours are the C++ port's PAL
-colours (Altirra's model) in the Next's 9 bits.
+POKEY's counter, which decides which enemy wakes when, starts from a different value at
+each run, as on the real machine.
 
 ## Building
 
@@ -41,40 +44,63 @@ make         # build/river_view.nex
 ```
 
 `make` alone needs only sjasmplus (`make SJASMPLUS=...` for one installed elsewhere).
-`src/palette.inc` is made from the C++ port's palette model by `make palette`.
+`src/palette.inc` (the C++ port's palette model) and `src/random.inc` are made by
+`make palette`.
 
 ## Checks
 
 ```
-make check   # LINES=... lines (3000 by default); your ROM at rom/River_Raid.rom
+make check     # FRAMES=... frames (3000 by default); your ROM at rom/River_Raid.rom
+make profile   # where the time of one frame goes (the frame after FRAMES)
 ```
 
 `tools/nxcheck` runs the viewer on the ZX Spectrum Next core of
-[Xpeccy+](https://github.com/dotkoval/xpeccy-plus) with no window and compares it with the
-C++ port as it goes: after every line, the generator's state in the Atari's RAM
-(`RiverGen::diffWithRam`), the 48 bytes of the line and the drawn row; at the end, the
-picture of the last whole frame, pixel by pixel, in the colours the Next shows. The whole
-river (121 000 lines, past bridge 100) is the same. A change that breaks it shows the
-first line that differs and the fields.
+[Xpeccy+](https://github.com/dotkoval/xpeccy-plus) with no window and runs the C++ port's
+attract mode beside it (`rr::Game`, with the same POKEY counter), comparing after every
+frame: the river generator's state (`RiverGen::diffWithRam`), the game's state the attract
+mode changes, player-missile memory, screen memory, and what the DLI left per line (player
+3 and the bank colour, `Game::scan`); at the end the picture of the last frame, pixel by
+pixel (`Game::drawRiver` in the Next's colours). It also reports how long the frames take.
+40 000 frames (past bridge 35) are the same. A change that breaks it shows the first frame
+that differs and the fields.
 
 ## How it works
 
 | Z80 | 8K page | What |
 |---|---|---|
-| $0000-$3FFF | 30, 31 | the Atari's RAM: the generator keeps its state at the original's addresses, so a dump compares byte for byte with the original and the C++ port |
-| $8000-$9FFF | 4 | the program |
+| $0000-$3FFF | 30, 31 | the Atari's RAM: the game's state at the original's addresses, player-missile memory, screen memory; a dump compares byte for byte with the original and the C++ port |
+| $4000-$5FFF | 18-27 | a window onto Layer 2 |
+| $6000-$7FFF | 12 | the DLI's record per line, tables, the sprites' attributes, the Copper's list |
+| $8000-$9FFF | 4 | the program: the river generator, the main loop |
 | $A000-$BFFF | 5 | the cartridge image, at its own addresses: the tables are read where the original reads them |
-| $C000-$DFFF | 18-27 | a window onto Layer 2 |
-| $E000-$FFFF | 1 | buffers and the stack |
+| $C000-$DFFF | 6 | the program: the game, the display, the sprites |
+| $E000-$FFFF | 1 | buffers, tables and the stack |
 
-- `src/river_gen.asm`: the river generator, `river_gen.cpp` of the C++ port line for line
-  (the original's $A711-$AE96), with the 6502's carries where the original chains them.
-- `src/render.asm`: a line as it enters the screen (`drawScreenLine`): the 2-bit pixels in
-  the colours of the playfield registers, the bank in its section's shade or the road next to
-  a bridge, and the row of the object the line crosses.
-- `src/viewer.asm`: Layer 2 at 320x256 with 256 colours, the palette indexed by the Atari's
-  colour code; the river's 160 rows in a clip window. Layer 2 is a ring of 256 rows: a new
-  line is written above the shown rows, then the vertical scroll moves by one.
+Each frame (`src/viewer.asm`):
+
+1. `src/game.asm`, `prepare`: the tank's, its shell's and the missile's shapes into
+   player-missile memory (`Game::prepare`).
+2. `src/display.asm`: the DLI (`Game::display`). It shows every object with player 3, row by
+   row, and reads the collision registers after each object; whether a collision on the
+   line being read counts depends on the cycle, so the DLI's instructions run with their
+   cycle counts and the scanlines are drawn in between, as the C++ port models the reference
+   emulator. Instructions with nothing the beam sees between them go as one.
+3. `src/sprites.asm`: what the Atari shows becomes Next hardware. The players and missiles
+   are cut into runs of up to 16 lines at one position, a sprite each with a 4-bit pattern
+   made from the lines' bytes (an Atari pixel is two sprite pixels; double and quadruple width
+   are the sprite's scale). Player 3's colour changes every line and the bank's next to a
+   bridge: the Copper sets them per line in the palettes.
+4. `src/game.asm`, `logic`, `vbi`: the attract mode's main loop (`Game::logic`): an enemy
+   woken every 16 frames by POKEY's RANDOM (its counter moved 16 frames on by a matrix,
+   `src/random.inc`), the tank, the objects, the missile, the shell, one river line
+   (`src/river_gen.asm`, `river_gen.cpp` line for line) written to Layer 2.
+5. At raster line 200 the new picture goes live: Layer 2's scroll, the sprites'
+   attributes (their patterns were written into the set not shown), the Copper's list.
+
+Layer 2 (320x256, 256 colours) holds the playfield's 2-bit colour indices; 160 of the
+line's 192 colour clocks are shown (from the 20th; the water never comes nearer to the
+edges), two dots each, so the proportions are the Atari's within 2%. The colours are the
+C++ port's PAL colours (Altirra's model) as the Next's 8-bit palette entries.
 
 ## Licence
 

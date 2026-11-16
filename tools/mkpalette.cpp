@@ -1,5 +1,4 @@
-// Writes src/palette.inc: Layer 2's palette, index = Atari colour code, as the two bytes
-// nextreg $44 takes (RRRGGGBB, then the low blue bit).
+// Writes src/palette.inc: Atari colour code -> the Next's colour as nextreg $41 takes it.
 //
 // usage: mkpalette <out.inc>
 #include <cstdio>
@@ -16,11 +15,12 @@ int main(int argc, char **argv) {
 		std::fprintf(stderr, "cannot write %s\n", argv[1]);
 		return 1;
 	}
-	std::fprintf(f, "; Layer 2 palette: index = Atari colour code (hue << 4 | luminance), PAL colours of\n"
-		"; the C++ port's Altirra model, as nextreg $44 takes them. Made by tools/mkpalette.\n");
-	for (int code = 0; code < 256; code++) {
-		const uint16_t c = rrzx::nextColour(uint8_t(code));
-		std::fprintf(f, "\tdb $%02X,$%02X\t; $%02X\n", c >> 1, c & 1, code);
+	std::fprintf(f, "; Atari colour code (hue << 4 | luminance) -> the Next's colour as nextreg $41 takes it\n"
+		"; (RRRGGGBB): PAL colours of the C++ port's Altirra model. Made by tools/mkpalette.\n");
+	for (int code = 0; code < 256; code += 8) {
+		std::fprintf(f, "\tdb ");
+		for (int i = 0; i < 8; i++) std::fprintf(f, "$%02X%s", rrzx::nextColour8(uint8_t(code + i)), i < 7 ? "," : "");
+		std::fprintf(f, "\t; $%02X\n", code);
 	}
 	std::fclose(f);
 	return 0;

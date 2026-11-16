@@ -85,3 +85,66 @@ ROM_DECO_ROWS		equ $BBEB
 ROM_DECO_BITMAP		equ $BBF0
 ROM_SHELL_SPEED		equ $B7F4
 ROM_TANK_START_X	equ $BFE4
+
+; The game's state (river_raid/port/src/game.h, GameState), at the original's addresses
+FRAME_COUNT		equ $18		; +1 per frame (VBI)
+JOYSTICK		equ $19
+HIT			equ $1A		; 9 collision results ($1A-$22), $FF = none
+HIT_BULLET_BANK		equ $1A
+HIT_PLANE_BANK		equ $1B
+HIT_BULLET_OBJECT	equ $1C
+HIT_PLANE_OBJECT	equ $1D
+HIT_PLANE_SHELL		equ $1E
+HIT_SHELL_OBJECT	equ $1F
+HIT_TANK_AT_EDGE	equ $20
+HIT_MISSILE_PLANE	equ $21
+HIT_MISSILE_BANK	equ $22
+PAUSE_STATE		equ $24
+SELECT_DELAY		equ $25
+POWER_ON_DONE		equ $28
+ATTRACT_FLAGS		equ $29		; bit 7: attract mode
+ATTRACT_TIMER		equ $2A
+PLANE_ACCEL		equ $2B
+SCROLL_FRAC		equ $30
+BRIDGE_FLASH		equ $31
+SHELL_FRAME		equ $3B
+SHELL_X			equ $3C
+SHELL_X_FRAC		equ $3D
+BULLET_Y		equ $56
+PLANE_X			equ $57
+SPEED			equ $59
+FUEL			equ $5B
+FUEL_FRAC		equ $5C
+PLANE_FRAME		equ $5E
+LIVES			equ $6A
+OTHER_LIVES		equ $75
+PLANE_STATE		equ $76		; $FF: no plane
+PLAYER			equ $77
+IDLE_TIME		equ $78
+RESPAWNED		equ $79
+SOUND_EXPLOSION		equ $7C
+SOUND_MISSILE		equ $7F
+JOYSTICK_PREV		equ $B9
+MISSILE_STEP		equ $C0
+SCREEN_ON		equ $C7
+CRASH_PITCH		equ $052C
+GAME_NUMBER		equ $09
+
+; Player-missile memory, one byte per scanline
+PM_MISSILES		equ $0B00
+PM_SHELL		equ $0C00	; player 0
+PM_TANK			equ $0D00	; player 1
+PM_PLANE		equ $0E00	; player 2 (the plane's rows from $AA)
+PM_P3			equ $0F00	; player 3: every object, row by row (the DLI)
+PM_P3_ROWS		equ $0EBC	; player 3 less $44: indexed by the DLI's scanline counter
+
+; Screen memory: a ring of two 80-line blocks, the address of the top line at $3F04
+SCREEN_TOP		equ $3F04
+
+ROM_NEXT_KIND		equ $BB24
+ROM_NEXT_TANK_KIND	equ $BAAF
+ROM_SHELL_COLOUR	equ $BAC5
+ROM_SHELL_RISE		equ $B4AF
+ROM_TANK_SHAPE		equ $B4D1	; pointers
+ROM_SHELL_SHAPE		equ $BAB7
+ROM_PLANE_SHAPE		equ $BACD
