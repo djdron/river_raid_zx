@@ -351,9 +351,10 @@ pokey_frame:
 .on	nextreg $53,INIT_PAGE		; the pure tones on the AY
 	call ay_frame
 	nextreg $53,12
-	ld bc,$243B			; the lines left before wait_line (past it: none, the frame
-					; is late already: the work starts after it, and is longer
-					; than the rest of the frame)
+	ld bc,$243B			; the lines left before wait_line (past it: the work, which
+					; starts at wait_line, has ended before the frame's last
+					; line: the rest of the frame and the next one's lines up
+					; to wait_line, as many as allowed; it is never a frame long)
 	ld a,$1E
 	out (c),a
 	inc b
@@ -371,7 +372,7 @@ pokey_frame:
 	ld a,0
 	sbc a,h
 	jr z,.left
-	ld c,0
+	ld c,255
 .left	ld a,c
 	ld (pk_left),a
 	ld bc,$6B
@@ -394,6 +395,13 @@ pokey_frame:
 	sbc hl,bc
 	pop hl
 	jr c,.ahead
+	ifdef TEST
+	push hl
+	ld hl,(snd_passed)		; (test builds: how often, for nxcheck)
+	inc hl
+	ld (snd_passed),hl
+	pop hl
+	endif
 	ld (snd_w),de			; from where the DMA is, as many as the time left allows
 	ld hl,0				; (too much work: the sound gives way)
 	ld (pk_must),hl

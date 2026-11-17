@@ -91,6 +91,7 @@ rnd_feed_reads:	db 0
 	ifdef TEST
 start_bridges_hi: db 0			; the starting bridge's hundreds and thousands, BCD (nxcheck
 					; NXBRIDGE patches the ROM's starts and this)
+snd_passed:	dw 0			; the frames whose samples the DMA had passed (sound.asm)
 test_ghost_on:	db 0			; nxcheck NXGHOST: after the display, the plane cannot crash
 test_ghost:				; and never runs out of fuel (as the C++ port's display_bench)
 	ld a,(test_ghost_on)

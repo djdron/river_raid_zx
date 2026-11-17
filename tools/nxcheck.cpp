@@ -887,6 +887,10 @@ int main(int argc, char **argv) {
 	}
 	std::printf("sound: %.1f samples a frame on average; making them (pokey_frame) %lld ticks on average, %lld at most (frame %d)\n",
 		sndFrames ? double(sndSamples) / double(sndFrames) : 0.0, worked ? sndSum / worked : 0, sndMax, sndMaxFrame);
+	{
+		const uint16_t passed = symbol(argv[2], "snd_passed");
+		if (passed) std::printf("sound: the DMA passed the samples made in %d frames\n", readZ80(comp, passed) | readZ80(comp, uint16_t(passed + 1)) << 8);
+	}
 	auto writeWav = [&](const char *path, const std::vector<int16_t> &v) {
 		FILE *wf = std::fopen(path, "wb");
 		if (!wf) return;
