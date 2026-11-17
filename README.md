@@ -22,8 +22,8 @@ over and the high score; SELECT changes the game (1-8: four starting bridges, on
 players taking turns), any key pauses. Below the river the panel (score, game number, fuel
 gauge, lives, high score or the other player's score, bridge) and the scrolling line with
 the rainbow logo, which scrolls the credits while no game is played. Every frame does what
-the original does (the game's logic, the river generator, and the display list interrupt
-that shows the objects and reads the collisions, with its cycle counts), and is checked
+the original does (the game's logic, the river generator, and what the display list
+interrupt shows and the collisions it reads, worked out without playing it), and is checked
 against the C++ port frame by frame.
 
 The sound: the original's sound driver sets POKEY's four channels every frame (checked
@@ -110,8 +110,9 @@ game, presses START, flies towards the middle of the water, dodges enemies ahead
 depots when low on fuel, fires, pauses now and then (`-bot N` for other choices, `-seed N`
 for another POKEY counter, `-attract` for no player). After every frame it compares the
 river generator's state (`RiverGen::diffWithRam`), the game's state (the scrolling line's
-too), the high scores and the panel's characters, player-missile memory, screen memory, and
-what the DLI left per line (player 3 and the bank colour, `Game::scan`); at the end the
+too), the high scores and the panel's characters, player-missile memory, screen memory, the
+bank colour per line (`Game::scan`) and the objects as drawn (`Game::drawn`), the Copper's
+memory and list; at the end the
 picture of the last frame, pixel by pixel, the river, the panel and the scrolling line
 (`Game::drawRiver` and `drawStatusBar` in the Next's colours). It also reports what was played and
 how long the frames take. 4 x 40 000 frames with different players (games 1-8, about 70 games
@@ -124,7 +125,7 @@ and the fields.
 |---|---|---|
 | $0000-$3FFF | 30, 31 | the Atari's RAM: the game's state at the original's addresses, player-missile memory, screen memory; a dump compares byte for byte with the original and the C++ port |
 | $4000-$5FFF | 18-27 | a window onto Layer 2 |
-| $6000-$7FFF | 12 | the DLI's record per line, tables, the sprites' attributes, the Copper's list |
+| $6000-$7FFF | 12 | the bank colour per line, the objects' rows (`ds_objs`), tables, the sprites' attributes, the Copper's list |
 | $8000-$9FFF | 4 | the program: the frame, the river generator, the game's main loop |
 | $A000-$BFFF | 5 | the cartridge image, at its own addresses: the tables are read where the original reads them |
 | $C000-$DFFF | 6 | the program: the game, the display, the sprites, the panel |
@@ -136,11 +137,12 @@ Each frame (`src/river_raid.asm`):
 1. `src/game.asm`, `prepare`: the shapes of the tank, its shell, the missile and the plane
    into player-missile memory, the lives, bridges and score into the panel's characters
    (`Game::prepare`).
-2. `src/display.asm`: the DLI (`Game::display`). It shows every object with player 3, row by
-   row, and reads the collision registers after each object; whether a collision on the
-   line being read counts depends on the cycle, so the DLI's instructions run with their
-   cycle counts and the scanlines are drawn in between, as the C++ port models the reference
-   emulator. Instructions with nothing the beam sees between them go as one.
+2. `src/display_simple.asm`, `src/display_hits.asm`: the DLI's work (`Game::displaySimple`
+   on the C++ port's `dli_removal` branch). Its loop is kept as a schedule: which rows of
+   each object the Atari shows and on which lines, where each collision read and the
+   clearing come (a few cycle rules move them). The objects' rows go to `ds_objs`; the
+   collisions the game reads are worked out from the sprites' rows (boxes, then dots) and
+   counted for the object whose reading window holds their line.
 3. `src/sprites.asm`: what the Atari shows becomes Next hardware. Each object (player 3,
    whose colour changes every line) is a ready-made sprite with its rows in their colours,
    an 8-bit pattern made the first time and kept, placed at the object's position. The other
