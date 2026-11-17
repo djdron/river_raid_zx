@@ -60,6 +60,7 @@ build_sprites:
 	call ob_list
 	ifdef OBJCHECK
 	call oc_check
+	call pc_check
 	endif
 	jr .others
 .scan	ld a,high scan_p3		; (the DLI fell behind: from the scanlines)
@@ -68,45 +69,114 @@ build_sprites:
 	ld (sb_off),a
 	call p3_channel
 .others
-	ld a,(PLANE_X)			; the plane
+	ld a,(PLANE_X)			; the plane: 14 rows from $AA
 	ld hl,high PM_PLANE << 8 | $FF	; (page, mask)
 	ld bc,PLANE_OFFSET		; (no conversion)
+	ld de,$AA << 8 | 14
 	call pm_channel
-	ld a,(PLANE_X)			; its bullet: missile 2, 1 clock a bit
+	ld a,(BULLET_Y)			; its bullet: missile 2, 1 clock a bit; 8 rows below
+	dec a				; bulletY (none at 1; not above $1C)
+	jr z,1F
+	cp $1B
+	jr nc,2F
+	ld a,$1B
+2:	inc a
+	ld d,a
+	ld e,8
+	ld a,(PLANE_X)
 	add a,4
 	ld hl,high PM_MISSILES << 8 | $30
 	ld bc,high mc_bullet << 8 | PLANE_OFFSET
 	call pm_channel
-	ld a,(TANK_X)			; the tank
+1:	ld a,(TANK_Y)			; the tank: 11 rows
+	ld d,a
+	ld e,11
+	ld a,(TANK_X)
 	ld hl,high PM_TANK << 8 | $FF
 	ld bc,TANK_OFFSET
 	call pm_channel
-	ld a,(MISSILE_X)		; the helicopter's missile: missile 0, 2 clocks a bit
+	ld a,(MISSILE_Y)		; the helicopter's missile: missile 0, 2 clocks a bit; its
+	cp $1C				; row (from $1C)
+	jr c,1F
+	ld d,a
+	ld e,1
+	ld a,(MISSILE_X)
 	ld hl,high PM_MISSILES << 8 | $03
 	ld bc,high mc_missile << 8 | SHELL_OFFSET
 	call pm_channel
-	ld a,(SHELL_X)			; the shell
+1:	ld a,(SHELL_Y)			; the shell: 16 rows
+	ld d,a
+	ld e,16
+	ld a,(SHELL_X)
 	ld hl,high PM_SHELL << 8 | $FF
 	ld bc,SHELL_OFFSET
 	call pm_channel
 	jp build_copper
 
-; A player's or a missile's lines from player-missile memory into sprites at one position
-; A, normal width: page H, the bits L of each byte (a missile's), palette offset C; B: a
-; table turning a missile's bits into a player's byte (0: none).
+; A player's or a missile's rows from player-missile memory as one sprite at position A,
+; normal width: page H, the bits L of each byte (a missile's), palette offset C; B: a table
+; turning a missile's bits into a player's byte (0: none). Its rows: E from line D (where the
+; game put it: nothing of it is anywhere else, as ds_cover_set has it), the river's lines of
+; them; none if they are empty.
 pm_channel:
-	ld (sb_const_x),a
-	ld a,h
+	ld (sb_run_x),a
+	ld a,d				; the lines on the river (above its top: the clip window)
+	cp RIVER_FIRST + RIVER_LINES
+	ret nc
+	ld a,RIVER_FIRST + RIVER_LINES
+	sub d
+	cp e
+	jr nc,1F
+	ld e,a
+1:	ld a,h
 	ld (sb_bits),a
-	ld a,l
-	ld (sb_mask),a
 	ld a,c
 	ld (sb_offset),a
-	ld a,b
-	ld (sb_conv),a
+	push bc
+	ld c,l
+	ld l,d
+	ld b,e
+	xor a
+.or	or (hl)
+	inc l
+	djnz .or
+	and c
+	pop hl				; (H the table)
+	ret z
+	ld a,d
+	sub RIVER_FIRST
+	ld (sb_start),a
+	ld a,e
+	ld (sb_lines),a
 	ld a,RIVER_FIRST
 	ld (sb_off),a
-	jp channel
+	xor a
+	ld (sb_run_size),a
+	ld a,h				; a missile: its bits as a player's bytes (ch_bits)
+	or a
+	jp z,emit_sprite
+	ld ixh,a			; (the table)
+	ld b,e
+	ld e,d
+	ld l,d
+	ld d,high ch_bits
+	ld a,(sb_bits)
+	ld h,a
+.conv	ld a,(hl)
+	and c
+	push hl
+	ld l,a
+	ld a,ixh
+	ld h,a
+	ld a,(hl)
+	pop hl
+	ld (de),a
+	inc l
+	inc e
+	djnz .conv
+	ld a,high ch_bits
+	ld (sb_bits),a
+	jp emit_sprite
 
 ; The objects' sprites, from what the display left (ds_objs): an object's rows go up in
 ; memory from the first (the bottom row is the first), a sprite for each 16 of them.
@@ -411,94 +481,6 @@ ob_write:
 	out (c),a
 	endr
 	ret
-
-; Another player's or missile's lines (at sb_bits, sb_off + line, the bits sb_mask) into
-; sprites, at one position (sb_const_x), normal width. Lines are looked at 8 at a time; a
-; missile's run is turned into a player's bytes in ch_bits (sb_conv) for emit_sprite.
-channel:
-	ld a,(sb_const_x)
-	ld (sb_run_x),a
-	xor a
-	ld (sb_run_size),a
-	ld a,(sb_off)
-	ld l,a
-	add a,RIVER_LINES
-	ld (ch_end),a
-	ld a,(sb_bits)
-	ld h,a
-	ld a,(sb_mask)
-	ld c,a
-.block	ld a,(ch_end)			; (may read up to 7 lines past the end: never used)
-	dec a
-	cp l
-	ret c
-	xor a
-	rept 8
-	or (hl)
-	inc l
-	endr
-	and c
-	jr z,.block
-	ld a,l
-	sub 8
-	ld l,a
-.find	ld a,(ch_end)
-	dec a
-	cp l
-	ret c
-	ld a,(hl)
-	and c
-	jr nz,.run
-	inc l
-	jr .find
-.run	ld a,(sb_off)
-	ld b,a
-	ld a,l
-	sub b
-	ld (sb_start),a
-	ld a,(ch_end)			; the run: 16 lines, or to the end
-	sub l
-	cp 16
-	jr c,.n
-	ld a,16
-.n	ld (sb_lines),a
-	ld b,a
-	push hl
-	ld a,(sb_conv)			; a missile: its bits as a player's byte
-	or a
-	jr z,.emit
-	ld d,high ch_bits
-	ld e,l
-.conv	push bc
-	ld a,(sb_conv)
-	ld b,a
-	ld a,(hl)
-	and c
-	ld c,a
-	ld a,(bc)
-	ld (de),a
-	pop bc
-	inc l
-	inc e
-	djnz .conv
-	ld a,(sb_bits)
-	push af
-	ld a,high ch_bits
-	ld (sb_bits),a
-	call emit_sprite
-	pop af
-	ld (sb_bits),a
-	jr .next
-.emit	call emit_sprite
-.next	pop hl
-	ld a,(sb_mask)
-	ld c,a
-	ld a,(sb_lines)
-	add a,l
-	ld l,a
-	ld a,(sb_bits)
-	ld h,a
-	jr .find
 
 ; A sprite for the run: its pattern now (into the set not shown), its attributes for apply.
 emit_sprite:

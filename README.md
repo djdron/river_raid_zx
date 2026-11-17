@@ -144,9 +144,9 @@ Each frame (`src/river_raid.asm`):
 3. `src/sprites.asm`: what the Atari shows becomes Next hardware. Each object (player 3,
    whose colour changes every line) is a ready-made sprite with its rows in their colours,
    an 8-bit pattern made the first time and kept, placed at the object's position. The other
-   players and missiles are cut into runs of up to 16 lines at one position, a sprite each
-   with a 4-bit pattern made from the lines' bytes (an Atari pixel is two sprite pixels;
-   double and quadruple width are the sprite's scale). The bank's colour changes next to a
+   players and missiles are a sprite each too, its rows taken where the game put it (no
+   search through their memory), with a 4-bit pattern made from the rows' bytes (an Atari
+   pixel is two sprite pixels; double and quadruple width are the sprite's scale). The bank's colour changes next to a
    bridge: the Copper sets it per line in Layer 2's palette.
 4. `src/play.asm`, `main_loop`: the main loop (`Game::mainLoop`): the controls (the keyboard
    and joysticks, read as the Atari's), pause, an enemy woken every 16 frames by POKEY's

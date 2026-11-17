@@ -461,6 +461,48 @@ random_columns:
 	include "sound_handlers.asm"
 	include "sprites_scan.asm"
 	ifdef OBJCHECK
+; (test) the other players' and missiles' rows on the river's lines outside their boxes
+; (ds_cover_set's: shell, tank, plane, helicopter missile, bullet): pc_bad
+pc_check:
+	call ds_cover_set
+	ld hl,.list
+	ld b,5
+.ch	push bc
+	ld d,(hl)			; page
+	inc hl
+	ld e,(hl)			; bits
+	inc hl
+	ld c,(hl)			; box bit
+	inc hl
+	push hl
+	ld l,RIVER_FIRST
+.ln	ld h,d
+	ld a,(hl)
+	and e
+	jr z,.ok
+	ld h,high ds_cover
+	ld a,(hl)
+	and c
+	jr nz,.ok
+	push hl
+	ld hl,(pc_bad)
+	inc hl
+	ld (pc_bad),hl
+	pop hl
+.ok	inc l
+	ld a,l
+	cp RIVER_FIRST + RIVER_LINES
+	jr c,.ln
+	pop hl
+	pop bc
+	djnz .ch
+	jp ds_cover_clear
+.list	db high PM_SHELL, $FF, $01
+	db high PM_TANK, $FF, $02
+	db high PM_PLANE, $FF, $04
+	db high PM_MISSILES, $03, $10
+	db high PM_MISSILES, $30, $20
+
 ; (test) the objects' sprites against the scanlines: each nonzero row of an object on the
 ; scanline it is drawn on, with its colour, position and scale there; nothing else on the
 ; scanlines. oc_bad counts what differs.
@@ -767,10 +809,6 @@ sb_half:	ds 1
 sb_pattern:	ds 1
 sb_bits:	ds 1
 sb_off:		ds 1
-sb_const_x:	ds 1
-sb_mask:	ds 1
-sb_conv:	ds 1
-ch_end:		ds 1
 sb_offset:	ds 1
 sb_start:	ds 1
 sb_lines:	ds 1
@@ -793,6 +831,7 @@ ob_nokey:	ds 1			; rows from the scanlines: never the same again
 	ifdef OBJCHECK
 oc_bad:		ds 2			; (test) the scanlines the objects' sprites do not show as they are
 oc_frames:	ds 2
+pc_bad:		ds 2
 	endif
 bc_bank:	ds 1
 bc_p3:		ds 1

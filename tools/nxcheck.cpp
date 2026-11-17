@@ -822,6 +822,8 @@ int main(int argc, char **argv) {
 		const uint16_t bad = symbol(argv[2], "oc_bad"), frames = symbol(argv[2], "oc_frames");
 		std::printf("objects' sprites: %d scanlines differ in %d frames checked\n",
 			readZ80(comp, bad) | readZ80(comp, uint16_t(bad + 1)) << 8, readZ80(comp, frames) | readZ80(comp, uint16_t(frames + 1)) << 8);
+		const uint16_t pc = symbol(argv[2], "pc_bad");
+		if (pc) std::printf("other sprites: %d rows outside their boxes\n", readZ80(comp, pc) | readZ80(comp, uint16_t(pc + 1)) << 8);
 	}
 	std::printf("sound: %.1f samples a frame on average; making them (pokey_frame) %lld ticks on average, %lld at most (frame %d)\n",
 		sndFrames ? double(sndSamples) / double(sndFrames) : 0.0, worked ? sndSum / worked : 0, sndMax, sndMaxFrame);
