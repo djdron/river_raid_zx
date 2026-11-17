@@ -475,6 +475,7 @@ pc_check:
 	include "display.asm"
 	include "sprites.asm"
 	include "sound_pulses.asm"
+	include "sound_ay_run.asm"
 	include "spans.asm"
 	include "display_hits.asm"
 

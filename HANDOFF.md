@@ -30,7 +30,7 @@ Controls, building, checks: [README.md](README.md).
 | `src/river_raid.asm` | the program: memory map, start and restart (PAL/NTSC), the frame loop, tables, the data pages; builds the .nex or the test pages |
 | `src/river_gen.asm` | the river generator (`river_gen.cpp` line for line) |
 | `src/game.asm` | attract mode start, `prepare`, the objects' movement, the VBI (colours, scrolling line, POKEY's counter) |
-| `src/sound.asm`, `src/sound_pulses.asm`, `src/sound_ay.asm` | the sound driver (POKEY's registers), pure tones on the AY, POKEY emulated into the DMA's ring, the DMA and DAC set up (the channels' pulses in page 6) |
+| `src/sound.asm`, `src/sound_pulses.asm`, `src/sound_ay.asm`, `src/sound_ay_run.asm` | the sound driver (POKEY's registers), pure tones on the AY, POKEY emulated into the DMA's ring, the DMA and DAC set up (the channels' pulses and the AY's per-frame code in page 6: the DMA reads the ring at $7C00 through the MMU, so nothing may map another page at $6000-$7FFF while the sound plays) |
 | `src/play.asm` | the main loop: controls, pause, the plane, explosions, crashes, resets, new games, the panel's characters |
 | `src/display_simple.asm` | the display (default): the DLI's loop as a schedule, each object's rows into `ds_objs`, a bridge's road colours, the edge test, the collision reads, the bank colours |
 | `src/display_hits.asm` | the collisions from the sprites' rows: the scanlines of each read's collision (`dh_lists`), an object's at its reads (`dh_obj`), the windows (`dh_seen`) |

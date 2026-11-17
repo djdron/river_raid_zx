@@ -16,7 +16,8 @@
 ; A sample is 4 ticks (the DMA's rate is 0.5% above POKEY's 15 834 PAL or 15 980 NTSC). The
 ; frame makes as many as the DMA has sent since the last one, SND_LEAD ahead of where it is,
 ; so the two never drift apart. The level is the sum of the channels' volumes that are on,
-; times 4 (0-240). Instead of counting each tick, each channel goes from pulse to pulse: the
+; times 8 (the game's never add up to more than 15 here: 0-120 x 8; past 31 times 4, as the
+; levels must not pass 255). Instead of counting each tick, each channel goes from pulse to pulse: the
 ; samples in between have its output as the pulse left it.
 
 SND_RING	equ $7C00		; page 12, 1024 bytes (1K-aligned)
@@ -319,6 +320,8 @@ sound_init:
 	nextreg $53,INIT_PAGE		; the AY, the tables, the DMA (sound_ay.asm)
 	call sound_init7
 	nextreg $53,12
+	ld a,$87			; the DMA going, now that it reads the ring
+	out ($6B),a
 	ld hl,SND_RING + SND_LEAD
 	ld (snd_w),hl
 	ret
@@ -337,9 +340,7 @@ pokey_frame:
 	ld a,(snd_clear)
 	or a
 	ret z
-	nextreg $53,INIT_PAGE
-	call ay_quiet
-	nextreg $53,12
+	call ay_quiet			; (page 6: $6000-$7FFF stays the ring's, see sound_ay_run.asm)
 	xor a
 	ld (snd_clear),a
 	ld hl,SND_RING
@@ -348,9 +349,7 @@ pokey_frame:
 	ld (hl),a
 	ldir
 	ret
-.on	nextreg $53,INIT_PAGE		; the pure tones on the AY
-	call ay_frame
-	nextreg $53,12
+.on	call ay_frame			; the pure tones on the AY
 	ld bc,$243B			; the lines left before wait_line (past it: the work, which
 					; starts at wait_line, has ended before the frame's last
 					; line: the rest of the frame and the next one's lines up
@@ -467,6 +466,23 @@ pokey_frame:
 	call snd_fill
 	ld a,(ay_mask)			; (those on the AY: not here)
 	ld (ay_skip),a
+	ld e,a				; the gain: 8 a volume unit while the channels here add
+	ld hl,pokey_audc		; up to 31 at most (a level of 248), else 4 (the game's
+	ld bc,4 << 8 | 0		; never pass 15; the levels wrap past 255)
+.gsum	rrc e
+	jr c,.gskip
+	ld a,(hl)
+	and $0F
+	add a,c
+	ld c,a
+.gskip	inc hl
+	djnz .gsum
+	ld a,c
+	cp 32
+	ld a,$87			; add a,a
+	jr c,.g8
+	xor a				; nop
+.g8	ld (.gain),a
 	ld ix,snd_ch			; the channels
 	ld iy,pokey_audf
 	ld b,4
@@ -479,6 +495,7 @@ pokey_frame:
 	and $0F
 	jr z,.next			; volume 0: nothing to hear
 	add a,a
+.gain	add a,a				; (or nop: the gain)
 	ld c,a
 	bit 4,(iy+4)
 	jr nz,.full			; volume only: the volume all the time

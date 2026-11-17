@@ -701,7 +701,7 @@ int main(int argc, char **argv) {
 				static uint8_t hist[3][8];   // [frames ago][audf 0-3, audc 0-3]
 				std::memmove(hist[1], hist[0], 2 * 8);
 				for (int c = 0; c < 4; c++) { hist[0][c] = p.audf[c]; hist[0][4 + c] = p.audc[c]; }
-				static const int vol[16] = {0, 6, 8, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15};
+				static const int vol[16] = {0, 8, 10, 12, 13, 13, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15};
 				const uint8_t *h = hist[2];
 				const int chans[3] = {0, 2, 3};
 				aymChip *ay = comp->ts->chipA;
@@ -730,7 +730,9 @@ int main(int argc, char **argv) {
 				if (getenv("NXSNDCHK")) {   // a sample above what the channels can add up to
 					static int prevMax = 0;
 					int mx = 0;
-					for (int c = 0; c < 4; c++) mx += (p.audc[c] & 15) * 4;
+					for (int c = 0; c < 4; c++)   // (the pure tones on the AY left out)
+						if (c == 1 || ((p.audc[c] & 0xF0) != 0xA0 && (p.audc[c] & 0xF0) != 0xE0)) mx += p.audc[c] & 15;
+					mx *= mx < 32 ? 8 : 4;   // the gain (pokey_frame)
 					const int lim = std::max(mx, prevMax);
 					prevMax = mx;
 					int worst = -1;
@@ -758,7 +760,9 @@ int main(int argc, char **argv) {
 			if (wavCppPath) {
 				for (int c = 0; c < 4; c++) {
 					cppPokey.write(2 * c, p.audf[c]);
-					cppPokey.write(2 * c + 1, p.audc[c]);
+					// NXCPPNOTONE: the pure tones left out, as the AY plays them on the Next
+					const bool tone = getenv("NXCPPNOTONE") && c != 1 && ((p.audc[c] & 0xF0) == 0xA0 || (p.audc[c] & 0xF0) == 0xE0);
+					cppPokey.write(2 * c + 1, tone ? uint8_t(p.audc[c] & 0xF0) : p.audc[c]);
 				}
 				cppPokey.run(pal ? 312L * 114 : 262L * 114, wavCpp);
 			}
