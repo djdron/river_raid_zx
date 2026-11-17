@@ -141,11 +141,13 @@ Each frame (`src/river_raid.asm`):
    line being read counts depends on the cycle, so the DLI's instructions run with their
    cycle counts and the scanlines are drawn in between, as the C++ port models the reference
    emulator. Instructions with nothing the beam sees between them go as one.
-3. `src/sprites.asm`: what the Atari shows becomes Next hardware. The players and missiles
-   are cut into runs of up to 16 lines at one position, a sprite each with a 4-bit pattern
-   made from the lines' bytes (an Atari pixel is two sprite pixels; double and quadruple width
-   are the sprite's scale). Player 3's colour changes every line and the bank's next to a
-   bridge: the Copper sets them per line in the palettes.
+3. `src/sprites.asm`: what the Atari shows becomes Next hardware. Each object (player 3,
+   whose colour changes every line) is a ready-made sprite with its rows in their colours,
+   an 8-bit pattern made the first time and kept, placed at the object's position. The other
+   players and missiles are cut into runs of up to 16 lines at one position, a sprite each
+   with a 4-bit pattern made from the lines' bytes (an Atari pixel is two sprite pixels;
+   double and quadruple width are the sprite's scale). The bank's colour changes next to a
+   bridge: the Copper sets it per line in Layer 2's palette.
 4. `src/play.asm`, `main_loop`: the main loop (`Game::mainLoop`): the controls (the keyboard
    and joysticks, read as the Atari's), pause, an enemy woken every 16 frames by POKEY's
    RANDOM, the tank, the objects, the plane (fuel, steering, speed, the bullet, what it hit),

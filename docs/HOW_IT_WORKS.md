@@ -38,7 +38,7 @@ To know what the Atari shows, the Next plays the Atari's DLI too: the same instr
 
 From that list the Next makes sprites. It goes down the screen and cuts player 3 into pieces of up to 16 lines that sit at one position: each piece becomes one Next sprite. A ship 8 lines tall is one sprite; a bridge or a long fuel depot may be two. The 8 dots of each Atari line become 16 dots of the sprite (each Atari dot is two Next dots), and double or quadruple width is simply the sprite drawn two or four times as wide.
 
-The Atari changes player 3's colour on every line (that is how enemies have stripes). A Next sprite has one set of colours, so here too the Copper helps: before each line, it changes the colour the sprites use, just as the Atari's DLI did.
+The Atari changes player 3's colour on every line (that is how enemies have stripes). A Next sprite can have a colour of its own in every dot, so each enemy is simply one ready-made sprite (two if it is taller than 16 lines) with its stripes drawn into it, placed where the enemy is. Such a picture is made once, the first time it is needed, and kept: the next frames only move the sprite. (The other players have one colour each, as the Atari has them.)
 
 The plane, its bullet, the tanks on the banks, the tank's shell and the helicopter's missile use the Atari's other players and missiles, which stay at one place all screen long. They are cut into sprites the same way.
 
@@ -88,7 +88,7 @@ Working the wave out tick by tick would be far too slow. Instead each channel ju
 
 ## Why not the Next's line interrupts
 
-The Next can also interrupt its processor at any chosen line of the screen. The port does not use that, because it does not need to keep up with the beam. The Atari's DLI is played ahead of time, as a calculation, while the previous picture is still showing. What has to change at a particular line of the real screen (the road's colour, player 3's colour) is written into the Copper's list, and the Copper, which never misses a line, does it. The processor only has to watch which line the beam is on, to switch to the new frame below the scrolling line, where nothing changes on the screen (interrupts stay off). The sound, played sample by sample through the Next's DAC, does not need them either: the Next's DMA does that without the processor (see Sound).
+The Next can also interrupt its processor at any chosen line of the screen. The port does not use that, because it does not need to keep up with the beam. The Atari's DLI is played ahead of time, as a calculation, while the previous picture is still showing. What has to change at a particular line of the real screen (the road's colour) is written into the Copper's list, and the Copper, which never misses a line, does it. The processor only has to watch which line the beam is on, to switch to the new frame below the scrolling line, where nothing changes on the screen (interrupts stay off). The sound, played sample by sample through the Next's DAC, does not need them either: the Next's DMA does that without the processor (see Sound).
 
 ## Time
 

@@ -66,7 +66,7 @@ Each step is ported from the C++ port (which is the spec, line for line, with th
 ## Decisions
 - The C++ port is the spec, not the 6502 listing: same speed on the Z80, readable, already checked.
 - Layer 2 at 320x256 holds the playfield's 2-bit colour indices, 160 of the 192 colour clocks, two dots each; the bank, edge and water colours are palette entries, the bank's per line by the Copper.
-- Players and missiles are 16-line runs as sprites with 4-bit patterns; player 3's colour per line by the Copper.
+- Each object (player 3) is a ready-made sprite with its rows in their colours (8-bit pattern, made once and kept); the other players and missiles are 16-line runs as sprites with 4-bit patterns.
 - The panel and scrolling line are the tilemap; the panel's grey is the fallback colour.
 - The frame goes live below the scrolling line (raster line 208 NTSC, 220 PAL).
 - PAL by default; CAPS + 1 switches and starts again as if the machine were switched on (P is "right" in Q A O P).

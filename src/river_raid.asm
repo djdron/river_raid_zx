@@ -46,7 +46,15 @@ LOGO_OFFSET	equ 5
 PATTERN_CACHE	equ $4800		; page 7 at $4000: the rows of each sprite pattern (128 x 16),
 PC_BUCKETS	equ $5000		; a hash of the rows -> pattern + 1, for each set (2 x 256),
 PC_HASH		equ $5200		; each pattern's hash,
-PC_USED		equ $5300		; which are used this frame
+PC_USED		equ $5300		; which are used this frame;
+OB_BUCKETS	equ $5400		; the objects' patterns (8-bit): a hash of the key -> pattern + 1,
+OB_SHL		equ $5500		; each pattern's key (by pattern, 64 each): its first row's
+OB_SHH		equ $5540		; address,
+OB_CLL		equ $5580		; its colour's,
+OB_CLH		equ $55C0
+OB_N		equ $5600		; its rows ($FF: none to match),
+OB_HASH		equ $5640		; the hash,
+OB_FRAME	equ $5680		; the frame it was last used in
 SPAN_PAGE	equ 28			; at $4000 (display, push_line): the river lines' runs of bank
 SPANS		equ $4000		; and edge pixels, 32 bytes a line, a ring of 256 (spans.asm)
 
@@ -356,8 +364,9 @@ init_video:
 	nextreg $18,159
 	nextreg $18,RIVER_TOP
 	nextreg $18,RIVER_TOP + RIVER_LINES - 1
-	nextreg $15,%00010011		; the tilemap over the sprites over Layer 2 (USL), sprites
-					; visible, also over the border
+	nextreg $15,%00110011		; the tilemap over the sprites over Layer 2 (USL), sprites
+					; visible, also over the border, in their clip window (from
+					; the river's top: an object's rows above it are not shown)
 	nextreg $43,%10010000		; Layer 2's palette: black, (the bank), the edge, the water
 	nextreg $40,0
 	nextreg $41,0
@@ -367,6 +376,15 @@ init_video:
 	nextreg $40,3
 	ld a,(palette + COLOUR_WATER)
 	nextreg $41,a
+	nextreg $43,%00100000		; the sprites' palette 128-255: the Atari's colours, 128 +
+	nextreg $40,128			; colour / 2 (the objects' patterns: sprites.asm)
+	ld hl,palette
+	ld b,128
+.sp	ld a,(hl)
+	nextreg $41,a
+	inc l
+	inc l
+	djnz .sp
 	ld bc,$123B			; Layer 2 on
 	ld a,$02
 	out (c),a
@@ -441,6 +459,105 @@ random_columns:
 	include "play.asm"
 	include "sound.asm"
 	include "sound_handlers.asm"
+	include "sprites_scan.asm"
+	ifdef OBJCHECK
+; (test) the objects' sprites against the scanlines: each nonzero row of an object on the
+; scanline it is drawn on, with its colour, position and scale there; nothing else on the
+; scanlines. oc_bad counts what differs.
+oc_check:
+	ld hl,(oc_frames)
+	inc hl
+	ld (oc_frames),hl
+	ld hl,ch_bits + RIVER_FIRST
+	ld b,RIVER_LINES
+.c	ld (hl),0
+	inc l
+	djnz .c
+	ld a,(ds_obj_n)
+	or a
+	jr z,.pass2
+	ld b,a
+	ld ix,ds_objs
+.o	push bc
+	ld a,(ix + 1)
+	or a
+	jr z,.on
+	ld b,a
+	ld c,(ix + 0)
+	ld l,(ix + 2)
+	ld h,(ix + 3)
+	ld e,(ix + 4)
+	ld d,(ix + 5)
+.r	push bc
+	push hl
+	ld b,(hl)
+	ld a,c
+	cp RIVER_FIRST
+	jr c,.rn
+	cp RIVER_FIRST + RIVER_LINES
+	call nc,.bad
+	jr nc,.rn
+	ld l,c
+	ld h,high ch_bits
+	ld a,(hl)
+	or a
+	call nz,.bad
+	ld (hl),b
+	ld a,b
+	or a
+	jr z,.rn
+	ld h,high scan_col
+	ld a,(de)
+	cp (hl)
+	call nz,.bad
+	ld h,high scan_x
+	ld a,(ix + 6)
+	cp (hl)
+	call nz,.bad
+	ld h,high scan_size
+	ld a,(hl)
+	call .scale
+	ld b,a
+	ld a,(ix + 7)
+	call .scale
+	cp b
+	call nz,.bad
+.rn	pop hl
+	pop bc
+	dec hl
+	dec de
+	inc c
+	djnz .r
+.on	ld bc,8
+	add ix,bc
+	pop bc
+	djnz .o
+.pass2	ld l,RIVER_FIRST
+.p	ld h,high ch_bits
+	ld a,(hl)
+	ld h,high scan_p3
+	cp (hl)
+	call nz,.bad
+	inc l
+	ld a,l
+	cp RIVER_FIRST + RIVER_LINES
+	jr c,.p
+	ret
+.scale	and 3
+	cp 1
+	ret z
+	cp 3
+	ld a,2
+	ret z
+	xor a
+	ret
+.bad	push hl
+	ld hl,(oc_bad)
+	inc hl
+	ld (oc_bad),hl
+	pop hl
+	ret
+	endif
 
 	display "page 4 end: ",$
 	assert $ <= $A000		; page 4 is full
@@ -477,6 +594,7 @@ ch_bits:	ds 256			; one player's bytes for the sprites
 ring_lo:	ds 256			; screen memory's 160 lines, in the order they follow
 ring_hi:	ds 256
 sprite_list:	ds 5 * SPRITES_MAX	; the sprites' attributes for apply
+ds_objs:	ds 8 * DS_OBJS		; display: the objects' rows (display_simple.asm)
 	align 256
 copper_list:	ds 2048
 exp8:		ds 8 * 256		; a byte as 8 bytes of 4-bit pixels, $11 a bit
@@ -640,6 +758,9 @@ ds_bridge:	ds 1
 ds_bullet:	ds 1
 ds_hits:	ds 1
 ds_edge:	ds 1
+ds_obj_n:	ds 1			; the objects drawn (ds_objs)
+ds_obj_over:	ds 1			; more than DS_OBJS of them
+ds_obj_t:	ds 1
 ; the sprites (sprites.asm)
 sb_count:	ds 1
 sb_half:	ds 1
@@ -657,7 +778,22 @@ sb_run_x:	ds 1
 sb_run_size:	ds 1
 cm_count:	ds 1
 cm_shift:	ds 1
-bc_select:	ds 1
+sb_bpage:	ds 1			; the hash table's page of the set (PC_BUCKETS)
+ob_frame:	ds 1			; frames, for the objects' patterns (OB_FRAME)
+ob_next:	ds 1			; the next object pattern to take
+ob_line:	ds 1			; ob_emit: the sprite's first line,
+ob_n:		ds 1			; its rows,
+ob_sh:		ds 2			; the address of its first row,
+ob_col:		ds 2			; and of its first row's colour
+ob_x:		ds 1
+ob_size:	ds 1
+ob_left:	ds 1
+ob_hash:	ds 1
+ob_nokey:	ds 1			; rows from the scanlines: never the same again
+	ifdef OBJCHECK
+oc_bad:		ds 2			; (test) the scanlines the objects' sprites do not show as they are
+oc_frames:	ds 2
+	endif
 bc_bank:	ds 1
 bc_p3:		ds 1
 copper_bytes:	ds 2

@@ -1,19 +1,27 @@
 ; The players and missiles of the river on the Next: river_raid/port/src/display.cpp
 ; (Game::drawRiver). On the Atari each player is one byte per scanline at one position; the
-; Next's sprites are 16x16. So each player is cut into runs of up to 16 lines at one
-; position, one sprite each, with a 4-bit pattern made from the lines' bytes (an Atari pixel
-; is 2 sprite pixels, so a byte is 16; double and quadruple width are the sprite's scale).
-; Player 3 changes colour every line (the DLI sets it per row of an object), and the bank
-; colour changes next to a bridge: the Copper sets both, per line, in the palettes.
+; Next's sprites are 16x16 (an Atari pixel is 2 sprite pixels, so a byte is 16; double and
+; quadruple width are the sprite's scale).
+; - The objects (player 3): each is a sprite (two when it has more than 16 rows) with its
+;   rows in their colours, an 8-bit pattern made once and kept while it is used: pixel
+;   128 + colour / 2, the sprites' palette 128-255 the Atari's colours (init_video). The
+;   display leaves the objects' rows (ds_objs); when the DLI fell behind, the rows on the
+;   scanlines are not all the objects' any more, and the sprites come from the scanlines.
+; - The others (one colour each) are cut into runs of up to 16 lines at one position, one
+;   sprite each, with a 4-bit pattern made from the lines' bytes.
+; The bank colour changes next to a bridge: the Copper sets it, per line, in Layer 2's palette.
 ;
-; Palette entries (4-bit patterns: offset * 16 + 1): player 3 1, the shell and the
-; helicopter missile 17, the tank 33, the plane and its bullet 49; Layer 2: 0 black, 1 the
-; bank, 2 the bank edge, 3 the water.
+; Palette entries (4-bit patterns: offset * 16 + 1): the shell and the helicopter missile 17,
+; the tank 33, the plane and its bullet 49; Layer 2: 0 black, 1 the bank, 2 the bank edge,
+; 3 the water.
+; Patterns (8-bit, 256 bytes): 0-11 the 4-bit ones, 12 a frame in turn (24 of 128 bytes);
+; 12-61 the objects'; 62-63 the needle and the logo (4-bit 124-127).
 
-PATTERNS_HALF	equ 64			; 4-bit patterns per frame: two sets in turn
-SPRITES_MAX	equ 60			; (4-bit patterns 124-127: the needle and the logo)
+PATTERNS_HALF	equ 12			; 4-bit patterns per frame: two sets in turn
+SPRITES_MAX	equ 60
+OB_FIRST	equ PATTERNS_HALF		; the objects' patterns
+OB_LAST		equ 61
 COPPER_WAIT_H	equ 40			; where in the line before a river line the Copper changes colours
-P3_OFFSET	equ 0
 SHELL_OFFSET	equ 1
 TANK_OFFSET	equ 2
 PLANE_OFFSET	equ 3
@@ -24,22 +32,42 @@ build_sprites:
 	ld a,(sb_half)			; the set of patterns not shown now
 	xor PATTERNS_HALF
 	ld (sb_half),a
+	ld b,high PC_BUCKETS		; (its hash table)
+	jr z,1F
+	inc b
+1:	ld c,a
+	ld a,b
+	ld (sb_bpage),a
+	ld a,c
 	nextreg $52,INIT_PAGE		; its patterns not used yet (emit_sprite)
 	ld l,a
 	ld h,high PC_USED
-	ld b,SPRITES_MAX
+	ld b,PATTERNS_HALF
 	xor a
 .unused	ld (hl),a
 	inc l
 	djnz .unused
+	ld hl,ob_frame
+	inc (hl)
 	; in the order drawRiver draws them, the last on top
-	ld a,high scan_p3		; player 3, from the DLI's record
+	ld a,(ds_slip)			; player 3: the objects
+	ld hl,ds_obj_over
+	or (hl)
+	ifdef FORCESCAN
+	or 1				; (test: always from the scanlines)
+	endif
+	jr nz,.scan
+	call ob_list
+	ifdef OBJCHECK
+	call oc_check
+	endif
+	jr .others
+.scan	ld a,high scan_p3		; (the DLI fell behind: from the scanlines)
 	ld (sb_bits),a
 	ld a,RIVER_FIRST
 	ld (sb_off),a
-	ld a,P3_OFFSET
-	ld (sb_offset),a
 	call p3_channel
+.others
 	ld a,(PLANE_X)			; the plane
 	ld hl,high PM_PLANE << 8 | $FF	; (page, mask)
 	ld bc,PLANE_OFFSET		; (no conversion)
@@ -80,61 +108,308 @@ pm_channel:
 	ld (sb_off),a
 	jp channel
 
-; Player 3's lines into sprites: runs of up to 16 lines at one position and size (lines
-; with nothing to draw fit any run), from the DLI's record.
-p3_channel:
-	ld l,RIVER_FIRST		; scanline
-.find	ld h,high scan_p3
-.scan	ld a,(hl)
+; The objects' sprites, from what the display left (ds_objs): an object's rows go up in
+; memory from the first (the bottom row is the first), a sprite for each 16 of them.
+ob_list:
+	xor a
+	ld (ob_nokey),a
+	ld a,$2B			; (DEC HL, DEC DE)
+	ld (ob_write.step_sh),a
+	ld a,$1B
+	ld (ob_write.step_col),a
+	ld a,(ds_obj_n)
 	or a
-	jr nz,.run
-	inc l
-	ld a,l
-	cp RIVER_FIRST + RIVER_LINES
-	jr c,.scan
-	ret
-.run	ld a,l
-	sub RIVER_FIRST
-	ld (sb_start),a
-	inc h
-	ld d,(hl)			; its position
-	inc h
-	ld e,(hl)			; and size
-	ld a,d
-	ld (sb_run_x),a
-	ld a,e
-	ld (sb_run_size),a
-	ld b,1				; lines in the run (the first fits)
-	inc l
-.line	ld a,b
-	cp 16
-	jr nc,.emit
-	ld a,l
-	cp RIVER_FIRST + RIVER_LINES
-	jr nc,.emit
-	ld h,high scan_p3
+	ret z
+	ld b,a
+	ld hl,ds_objs
+.obj	push bc
 	ld a,(hl)
-	or a
-	jr z,.fits
-	inc h
+	ld (ob_line),a
+	inc hl
 	ld a,(hl)
-	cp d
-	jr nz,.emit
-	inc h
+	ld (ob_left),a
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	ld (ob_sh),de
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	ld (ob_col),de
 	ld a,(hl)
-	cp e
-	jr nz,.emit
-.fits	inc l
-	inc b
-	jr .line
-.emit	ld a,b
-	ld (sb_lines),a
+	ld (ob_x),a
+	inc hl
+	ld a,(hl)
+	ld (ob_size),a
+	inc hl
 	push hl
-	call emit_sprite
-	pop hl
+.chunk	ld a,(ob_left)			; 16 rows a sprite
+	or a
+	jr z,.next
+	cp 17
+	jr c,1F
+	ld a,16
+1:	ld (ob_n),a
+	ld b,a
+	ld a,(ob_left)
+	sub b
+	ld (ob_left),a
+	call ob_emit
+	ld hl,(ob_sh)
+	ld de,-16
+	add hl,de
+	ld (ob_sh),hl
+	ld hl,(ob_col)
+	add hl,de
+	ld (ob_col),hl
+	ld a,(ob_line)
+	add a,16
+	ld (ob_line),a
+	jr .chunk
+.next	pop hl
+	pop bc
+	djnz .obj
+	ret
+
+; A sprite of ob_n rows (up to 16) from ob_sh, their colours from ob_col, at scanline
+; ob_line, position ob_x, size ob_size: its 8-bit pattern, kept (OB_*) and found again by
+; the rows' addresses and how many (unless ob_nokey), its attributes for apply.
+ob_emit:
+	ld a,(sb_count)
+	cp SPRITES_MAX
+	ret nc
+	ld a,(ob_nokey)
+	or a
+	jp nz,.alloc
+	ld a,(ob_sh)			; the hash
+	ld hl,ob_col
+	xor (hl)
+	rlca
+	ld hl,ob_sh + 1
+	add a,(hl)
+	ld hl,ob_n
+	add a,(hl)
+	ld (ob_hash),a
+	ld l,a
+	ld h,high OB_BUCKETS
+	ld a,(hl)
+	or a
+	jr z,.alloc
+	dec a
+	ld l,a				; the pattern there: the same key?
+	ld h,high OB_SHL
+	ld a,(ob_sh)
+	cp (hl)
+	jr nz,.alloc
 	ld a,l
-	cp RIVER_FIRST + RIVER_LINES
-	jr c,.find
+	add a,low (OB_SHH - OB_SHL)
+	ld l,a
+	ld a,(ob_sh + 1)
+	cp (hl)
+	jr nz,.alloc
+	ld a,l
+	add a,low (OB_CLL - OB_SHH)
+	ld l,a
+	ld a,(ob_col)
+	cp (hl)
+	jr nz,.alloc
+	ld a,l
+	add a,low (OB_CLH - OB_CLL)
+	ld l,a
+	ld a,(ob_col + 1)
+	cp (hl)
+	jr nz,.alloc
+	ld a,l				; (OB_N on the next page)
+	and $3F
+	ld l,a
+	inc h
+	ld a,(ob_n)
+	cp (hl)
+	jr nz,.alloc
+	ld a,l
+	jp .used
+.alloc	ld hl,ob_next			; a pattern not used this frame or the last one (shown
+	ld b,OB_LAST + 1 - OB_FIRST	; now), in turn
+.an	ld a,(hl)
+	ld c,a
+	inc a
+	cp OB_LAST + 1
+	jr c,.an1
+	ld a,OB_FIRST
+.an1	ld (hl),a
+	ld a,c
+	add a,low OB_FRAME
+	ld e,a
+	ld d,high OB_FRAME
+	ld a,(ob_frame)
+	ex de,hl
+	sub (hl)
+	ex de,hl
+	cp 2
+	jr nc,.free
+	djnz .an
+	ret				; (none: never so many)
+.free	ld a,c
+	ld (sb_pattern),a
+	ld l,a				; its old key out of the hash table
+	ld h,high OB_N
+	ld a,(hl)
+	inc a
+	jr z,.key
+	ld a,l
+	add a,low (OB_HASH - OB_N)
+	ld l,a
+	ld a,(hl)
+	ld l,a
+	ld h,high OB_BUCKETS
+	ld a,(hl)
+	dec a
+	cp c
+	jr nz,.key
+	ld (hl),0
+.key	ld a,(ob_nokey)			; the new one
+	or a
+	ld h,high OB_N
+	ld a,c
+	ld l,a
+	ld (hl),$FF
+	jr nz,.write
+	ld a,(ob_n)
+	ld (hl),a
+	ld a,c
+	add a,low OB_HASH
+	ld l,a
+	ld a,(ob_hash)
+	ld (hl),a
+	ld l,a
+	ld h,high OB_BUCKETS
+	ld a,c
+	inc a
+	ld (hl),a
+	ld h,high OB_SHL
+	ld l,c
+	ld a,(ob_sh)
+	ld (hl),a
+	ld a,l
+	add a,low (OB_SHH - OB_SHL)
+	ld l,a
+	ld a,(ob_sh + 1)
+	ld (hl),a
+	ld a,l
+	add a,low (OB_CLL - OB_SHH)
+	ld l,a
+	ld a,(ob_col)
+	ld (hl),a
+	ld a,l
+	add a,low (OB_CLH - OB_CLL)
+	ld l,a
+	ld a,(ob_col + 1)
+	ld (hl),a
+.write	ld a,c
+	call ob_write
+	ld a,(sb_pattern)
+.used	ld (sb_pattern),a		; A: the pattern, used this frame
+	add a,low OB_FRAME
+	ld l,a
+	ld h,high OB_FRAME
+	ld a,(ob_frame)
+	ld (hl),a
+	ld a,(sb_count)			; the attributes: X = 2 * (position - 32 - 20) (9 bits),
+	ld l,a				; Y = RIVER_TOP + the first line's place in the river
+	ld h,0
+	ld e,l
+	ld d,h
+	add hl,hl
+	add hl,hl
+	add hl,de
+	ld de,sprite_list
+	add hl,de
+	ld a,(ob_x)
+	sub 32 + WINDOW_FIRST
+	ld e,a
+	sbc a,a
+	ld d,a
+	ex de,hl
+	add hl,hl
+	ex de,hl
+	ld (hl),e			; X
+	inc hl
+	ld a,(ob_line)
+	add a,RIVER_TOP - RIVER_FIRST
+	ld (hl),a			; Y
+	inc hl
+	ld a,d
+	and 1
+	ld (hl),a			; palette offset 0, X bit 8
+	inc hl
+	ld a,(sb_pattern)
+	or $C0
+	ld (hl),a			; visible, 5 bytes, pattern
+	inc hl
+	ld a,(ob_size)			; an 8-bit pattern; scale: double 2x, quadruple 4x
+	and 3
+	cp 1
+	ld c,%00001000
+	jr z,1F
+	cp 3
+	ld c,%00010000
+	jr z,1F
+	ld c,0
+1:	ld (hl),c
+	ld hl,sb_count
+	inc (hl)
+	ret
+
+; Pattern A (8 bits): ob_n rows from ob_sh, colours from ob_col (step_*: the next row's
+; address), then empty rows to 16. A pixel of a row's byte is 2 of colour 128 + colour / 2.
+ob_write:
+	ld bc,$303B
+	out (c),a
+	ld c,$5B
+	ld hl,(ob_sh)
+	ld de,(ob_col)
+	ld a,(ob_n)
+	ld b,a
+.row	ld a,(de)
+	srl a
+	or $80
+	push de
+	ld e,a
+	ld a,(hl)
+	or a
+	jr z,.empty
+	ld d,a
+	rept 8
+	sla d
+	sbc a,a
+	and e
+	out (c),a
+	out (c),a
+	endr
+.stepped
+	pop de
+.step_sh
+	dec hl
+.step_col
+	dec de
+	djnz .row
+	ld a,(ob_n)
+	sub 16
+	ret z
+	neg
+	ld b,a
+	xor a
+.zero	call .row16
+	djnz .zero
+	ret
+.empty	call .row16
+	jr .stepped
+.row16	rept 16
+	out (c),a
+	endr
 	ret
 
 ; Another player's or missile's lines (at sb_bits, sb_off + line, the bits sb_mask) into
@@ -267,10 +542,7 @@ emit_sprite:
 	djnz .rot
 .hd	ld (es_hash),a			; a pattern of this set with these rows already: no need
 	ld l,a				; to write one (page 7 at $4000: the patterns' rows, a hash
-	ld a,(sb_half)			; table, which are used this frame)
-	rlca
-	rlca
-	add a,high PC_BUCKETS
+	ld a,(sb_bpage)			; table, which are used this frame)
 	ld h,a
 	ld a,(hl)
 	or a
@@ -329,12 +601,13 @@ emit_sprite:
 .ak	ld a,(sb_half)			; a pattern not used this frame, in turn
 	or a
 	ld hl,pc_next
-	jr z,.an
+	jr z,1F
 	inc hl
+1:	ld b,PATTERNS_HALF
 .an	ld a,(hl)
 	ld c,a
 	inc a
-	cp SPRITES_MAX
+	cp PATTERNS_HALF
 	jr c,.an1
 	xor a
 .an1	ld (hl),a
@@ -344,8 +617,10 @@ emit_sprite:
 	ld d,high PC_USED
 	ld a,(de)
 	or a
-	jr nz,.an
-	ld a,1
+	jr z,.an2
+	djnz .an
+	ret				; (none: never so many)
+.an2	ld a,1
 	ld (de),a
 	ld a,e
 	ld (sb_pattern),a
@@ -354,10 +629,7 @@ emit_sprite:
 	ld c,(hl)
 	ld a,(es_hash)
 	ld (hl),a
-	ld a,(sb_half)
-	rlca
-	rlca
-	add a,high PC_BUCKETS
+	ld a,(sb_bpage)
 	ld h,a
 	ld l,c
 	ld a,(hl)
@@ -500,33 +772,67 @@ emit_sprite:
 	add hl,de
 	ret
 
-; The Copper's list for the frame: per river line, the bank colour and player 3's colour
-; where they change, set in the line before.
+; The Copper's list for the frame: per river line, the bank colour where it changes, set in
+; the line before (Layer 2's palette, entry 1: copper_start). The changes are the display's
+; (ds_bank_ev, as ds_bank_fill goes through them): the VBI's colour from the river's first
+; line, then each from its line (one at or above the line reached: from there).
 build_copper:
 	ld de,copper_list
 	ld hl,copper_start
 	ld bc,copper_start_end - copper_start
 	ldir
-	ld a,$A0
-	ld (bc_select),a
-	ld bc,$FFFF			; B the bank colour, C player 3's set (none yet: no Atari
-	ld l,RIVER_FIRST		; colour is odd); L the scanline
-.line	ld h,high scan_bank
-	ld a,(hl)
-	cp b
-	jr nz,.change
-	ld h,high scan_p3
-	ld a,(hl)
+	push de
+	pop ix
+	ld a,(colour_bank)
+	ld c,a				; C the colour from line E, B the one set (none yet: no Atari
+	ld b,$FF			; colour is odd); D the changes left, HL the next
+	ld e,RIVER_FIRST
+	ld a,(ds_bank_n)
+	ld d,a
+	ld hl,ds_bank_ev
+.seg	ld a,d				; the next change's line (none: the river's end)
 	or a
-	jr z,.next
-	ld h,high scan_col
+	ld a,RIVER_FIRST + RIVER_LINES
+	jr z,1F
 	ld a,(hl)
-	cp c
-	jr nz,.change
-.next	inc l
-	ld a,l
 	cp RIVER_FIRST + RIVER_LINES
-	jp c,.line
+	jr c,1F
+	ld a,RIVER_FIRST + RIVER_LINES
+1:	cp e
+	jr c,.set
+	jr z,.set
+	push af
+	ld a,c				; the colour on lines E to there
+	cp b
+	jr z,.same
+	ld b,a
+	ld (ix + 0),COPPER_WAIT_H * 2 | $80	; WAIT for the line before (ULA line 8 + k - 1)
+	ld a,e
+	add a,RIVER_TOP - 32 - 1 - RIVER_FIRST
+	ld (ix + 1),a
+	ld (ix + 2),$41			; MOVE $41, the Next colour of Atari colour B
+	push hl
+	ld l,b
+	ld h,high palette
+	ld a,(hl)
+	pop hl
+	ld (ix + 3),a
+	ld a,b
+	ld bc,4
+	add ix,bc
+	ld b,a
+.same	pop af
+	ld e,a
+.set	ld a,d
+	or a
+	jr z,.end
+	inc hl
+	ld c,(hl)
+	inc hl
+	dec d
+	jr .seg
+.end	push ix
+	pop de
 	ld hl,copper_panel		; the panel and the scrolling line
 	ld bc,copper_panel_end - copper_panel
 	ldir
@@ -539,63 +845,6 @@ build_copper:
 	or a
 	sbc hl,de
 	ld (copper_bytes),hl
-	ret
-.change	ld a,COPPER_WAIT_H * 2 | $80	; WAIT for the line before (ULA line 8 + k - 1)
-	ld (de),a
-	inc de
-	ld a,l
-	add a,RIVER_TOP - 32 - 1 - RIVER_FIRST
-	ld (de),a
-	inc de
-	ld h,high scan_bank
-	ld a,(hl)
-	cp b
-	jr z,.colour
-	ld b,a				; the bank: Layer 2's palette
-	ld a,$90
-	call .select
-	ld a,b
-	call .move41
-.colour	ld h,high scan_p3
-	ld a,(hl)
-	or a
-	jr z,.next
-	ld h,high scan_col
-	ld a,(hl)
-	cp c
-	jr z,.next
-	ld c,a				; player 3: the sprites' palette
-	ld a,$A0
-	call .select
-	ld a,c
-	call .move41
-	jr .next
-.select					; MOVE $43,A unless it is already
-	push hl
-	ld hl,bc_select
-	cp (hl)
-	jr z,.sel
-	ld (hl),a
-	ex de,hl
-	ld (hl),$43
-	inc hl
-	ld (hl),a
-	inc hl
-	ex de,hl
-.sel	pop hl
-	ret
-.move41					; MOVE $41, the Next colour of Atari colour A
-	push hl
-	ld l,a
-	ld h,high palette
-	ld a,(hl)
-	ex de,hl
-	ld (hl),$41
-	inc hl
-	ld (hl),a
-	inc hl
-	ex de,hl
-	pop hl
 	ret
 
 ; The tilemap's rows (NTSC): the panel's at 202, 211 and 219 (map rows 20, 22, 23; buffer rows
@@ -630,8 +879,8 @@ copper_panel_pal:
 	db $31, 208 - 243
 	db $30, 0
 
-copper_start:				; the sprites' palette, index 1
-	db $43,$A0,$40,1
+copper_start:				; Layer 2's palette, index 1
+	db $43,$90,$40,1
 	db $4A,0			; the tilemap at the panel's first row, no X scroll
 	db $31,160 - 202
 	db $2F,0

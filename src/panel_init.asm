@@ -109,6 +109,23 @@ panel_init:
 	ld bc,PC_USED + $100 - PATTERN_CACHE - 1
 	ld (hl),0
 	ldir
+	ld hl,OB_BUCKETS + $2000	; the objects' patterns: none kept (OB_*)
+	ld de,OB_BUCKETS + $2001
+	ld bc,$FF
+	ld (hl),0
+	ldir
+	ld hl,OB_N + $2000
+	ld b,64
+.obn	ld (hl),$FF
+	inc l
+	djnz .obn
+	ld l,low OB_FRAME
+	ld b,64
+.obf	ld (hl),$80
+	inc l
+	djnz .obf
+	ld a,OB_FIRST
+	ld (ob_next),a
 	ld bc,$303B			; 124: the needle (2 dots x 10 lines)
 	ld a,62
 	out (c),a

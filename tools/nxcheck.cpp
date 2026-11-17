@@ -818,6 +818,11 @@ int main(int argc, char **argv) {
 	std::printf("played: %ld games started (games %s), %ld crashes, %ld games over, up to bridge %ld; %ld frames paused, %ld of resets\n",
 		games, numbers.empty() ? "-" : numbers.c_str(), crashes, gameOvers, maxBridge, pausedFrames, busyFrames);
 	std::printf("sprites: up to %d of the %d a frame can have\n", maxSprites, kSpritesMax);
+	if (getenv("NXOBJCHECK")) {   // (a build with -DOBJCHECK: the objects' sprites against the scanlines)
+		const uint16_t bad = symbol(argv[2], "oc_bad"), frames = symbol(argv[2], "oc_frames");
+		std::printf("objects' sprites: %d scanlines differ in %d frames checked\n",
+			readZ80(comp, bad) | readZ80(comp, uint16_t(bad + 1)) << 8, readZ80(comp, frames) | readZ80(comp, uint16_t(frames + 1)) << 8);
+	}
 	std::printf("sound: %.1f samples a frame on average; making them (pokey_frame) %lld ticks on average, %lld at most (frame %d)\n",
 		sndFrames ? double(sndSamples) / double(sndFrames) : 0.0, worked ? sndSum / worked : 0, sndMax, sndMaxFrame);
 	auto writeWav = [&](const char *path, const std::vector<int16_t> &v) {
