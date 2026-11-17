@@ -614,6 +614,10 @@ ds_cur_col:	ds 1
 ds_latch:	ds 1
 ds_rows:	ds 1
 ds_bank_last:	ds 1
+ds_cmask:	ds 2			; ds_cover_do
+ds_slow:	ds 1			; display: the DLI fell behind this frame
+dl_deco_n:	ds 1			; draw_line: the decoration's rows on the line
+dl_deco:	ds 2 * 4		; (where, bytes)
 ds_ev_next:	ds 1
 DS_BANKS	equ 48
 ds_bank_n:	ds 1

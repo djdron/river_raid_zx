@@ -221,9 +221,6 @@ line_done:				; the checks look at the generator here
 	ld h,$2E
 .h2	ld (SCREEN_TOP),hl
 	ex de,hl
-	push de
-	call span_line
-	pop de
 	ld hl,line_buf
 	ld bc,48
 	ldir
@@ -231,7 +228,9 @@ line_done:				; the checks look at the generator here
 	dec a
 	ld (scroll),a
 	add a,RIVER_TOP
-	jp render_line
+	call render_line
+	call plain_line			; the collisions' runs: from the line without decoration
+	jp span_line
 
 ; ------------------------------------------------------------------------------------------
 ; AE99-AF38, at the top of the frame: the shapes of the tank, the helicopter missile, the

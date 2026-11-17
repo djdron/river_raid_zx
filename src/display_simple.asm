@@ -23,11 +23,6 @@ display:
 	ld de,scan_p3 + 24		; writes in time change it)
 	ld bc,192 - 24
 	ldir
-	ld hl,scan_col + 24		; colours not set on any line yet ($FF: no Atari colour is odd)
-	ld de,scan_col + 25
-	ld bc,192 - 25
-	ld (hl),$FF
-	ldir
 	call ds_lms			; the rows with a screen address: their start cycles
 	call ds_cover_set
 	ld hl,hpos_p			; registers cleared, then as B527-B55C set them
@@ -68,6 +63,7 @@ display:
 	ld (ds_ev_n),a
 	ld (ds_ev_rd),a
 	ld (ds_bank_n),a
+	ld (ds_slow),a
 	ld (ds_ended),a
 	ld a,(SLOT_SIZE + SLOTS - 1)
 	ld (ds_cur_size),a
@@ -179,20 +175,94 @@ display:
 	ld l,a
 	ld h,high PM_P3
 	ld b,high scan_col
-	ld a,(ds_flags)
-	and $80
-	jr nz,.bridge_rows
+	ld a,(ds_row)			; (a bridge: the road's colour of the row)
+	ld (ds_l1),a
 	ld a,(ds_slip)			; GTIA fetches the rows this frame if the DLI is not behind
 	or a
-	jr nz,.late_rows
-.row	ld a,(de)			; the row, and as the scanline fetches it
-	ld (hl),a
+	jp nz,.late_rows
+	push bc
+	ld a,(ds_x)			; (then HPOSP3 and SIZEP3 are this object's on its rows)
+	ld (.row_x + 1),a
+	ld (.pv_x + 1),a
+	ld a,(ds_size)
+	ld (.row_size + 1),a
+	and 3				; the edge test's variant for its size (pf_size)
+	cp 3
+	ld de,pf_v4
+	ld hl,pf_v4_bits + 1
+	ld c,32
+	jr z,1F
+	dec a
+	ld de,pf_v2
+	ld hl,pf_v2_bits + 1
+	ld c,16
+	jr z,1F
+	ld de,pf_v1
+	ld hl,pf_v1_bits + 1
+	ld c,8
+1:	ld (.pv + 1),de
+	ld (.pv_bits + 1),hl
+	ld a,(ds_x)
+	add a,c
+	ld (.pv_end + 1),a
+	ld hl,(ds_shapes)		; (DE, HL as the loop wants them again)
+	call ds_row_hl
+	ex de,hl
+	ld a,(ds_counter)
+	sub $44
+	ld l,a
+	ld h,high PM_P3
+	pop bc
+.row	ld a,(de)			; the row, and as the scanline fetches it, with player 3's
+	ld (hl),a			; position and size there
 	ld h,high scan_p3
 	ld (hl),a
+	inc h
+.row_x
+	ld (hl),0			; (the object's: set below)
+	inc h
+.row_size
+	ld (hl),0
 	ld h,high PM_P3
-	inc l
-	ld a,(iy + 0)			; its colour
+	ld a,(iy + 0)			; its colour (a bridge: the road's too)
 	ld (bc),a
+	ld a,(ds_flags)
+	and $80
+	call nz,.road
+	ld a,(coll_ppf + 3)		; P3PF: only the edge is read, once set it stays
+	and $02
+	jr nz,.row_on
+	ld a,l				; (a river scanline)
+	sub RIVER_FIRST
+	cp RIVER_LINES
+	jr nc,.row_on
+	push bc
+	push de
+	push hl
+	ld b,a
+	ld a,(de)			; the row's bits into the size's variant (pf_v*)
+	or a
+	jr z,.row_off
+.pv_bits
+	ld (0),a
+	ld a,b				; the scanline's runs of edge pixels (pf_line, pf_edge)
+	ld hl,span_top
+	add a,(hl)
+	span_rec
+	add a,(hl)
+	ld l,a
+.pv_end	ld b,0				; the object's end and first clocks (pf_size)
+.pv_x	ld c,0
+	ld d,high span_masks
+.pv	call 0
+	jr z,.row_off
+	ld hl,coll_ppf + 3
+	set 1,(hl)
+.row_off
+	pop hl
+	pop de
+	pop bc
+.row_on	inc l
 	inc c
 	dec de
 	dec iy
@@ -200,8 +270,12 @@ display:
 	jp nz,.row
 	jr .rows_done
 .late_rows
+	ld a,(ds_flags)
+	and $80
+	call nz,.road
 	ld a,(de)
 	ld (hl),a
+	ld h,high PM_P3
 	inc l
 	ld a,(iy + 0)
 	ld (bc),a
@@ -211,43 +285,9 @@ display:
 	dec ixl
 	jp nz,.late_rows
 	jr .rows_done
-.bridge_rows				; a bridge: the road's colour too (row D in the table)
-	ld a,(ds_row)
-	ld (ds_l1),a
-.brow	ld a,(de)
-	ld (hl),a
-	ld a,(ds_slip)
-	or a
-	jr nz,1F
-	ld a,(de)
-	ld h,high scan_p3
-	ld (hl),a
-	ld h,high PM_P3
-1:	push hl
-	push de
-	ld a,(ds_l1)
-	add a,low ROM_ROAD_COLOURS
-	ld l,a
-	ld a,high ROM_ROAD_COLOURS
-	adc a,0
-	ld h,a
-	ld e,(hl)
-	ld a,c
-	call ds_bank
-	pop de
-	pop hl
-	ld a,(iy + 0)
-	ld (bc),a
-	inc l
-	inc c
-	dec de
-	dec iy
-	ld a,(ds_l1)
-	dec a
-	ld (ds_l1),a
-	dec ixl
-	jp nz,.brow
 .rows_done
+	ld a,(iy + 1)			; (the last row's colour)
+	ld (ds_cur_col),a
 	ld a,(ds_rows)			; X after them: wrapped, or the object's collisions
 	ld hl,ds_counter
 	add a,(hl)
@@ -478,6 +518,23 @@ display:
 	ld a,(ds_current)
 	ld (de),a
 	ret
+.road					; a bridge's row: the bank the road's colour from scanline C
+	push de
+	push hl
+	ld hl,ds_l1
+	ld a,(hl)
+	dec (hl)
+	add a,low ROM_ROAD_COLOURS
+	ld l,a
+	ld a,high ROM_ROAD_COLOURS
+	adc a,0
+	ld h,a
+	ld e,(hl)
+	ld a,c
+	call ds_bank
+	pop hl
+	pop de
+	ret
 
 ; INX: Z when X wraps to 0
 ds_inx:
@@ -626,6 +683,20 @@ ds_chunk_at:
 	ret c
 	ld hl,ds_slip
 	inc (hl)
+	ld a,(ds_slow)			; from here on the scanlines' registers by events, the
+	or a				; colours set on them ($FF: none; no Atari colour is odd)
+	ret nz
+	inc a
+	ld (ds_slow),a
+	ld a,b
+	inc a
+	ld l,a
+	ld h,high scan_col
+1:	ld (hl),$FF
+	inc l
+	ld a,l
+	cp 192
+	jr c,1B
 	ret
 .no	ret
 
@@ -705,6 +776,46 @@ ds_advance:
 	cp b
 	ret nc
 	ld l,a
+	ld a,(ds_slow)
+	or a
+	jr nz,.next
+	; Player 3's rows are done (the rows' loop): only the other sprites' boxes from the last
+	; HITCLR's scanline on
+	ld h,high ds_cover
+.fnext	inc l
+	ld a,(hl)
+	or a
+	jr nz,.fbusy
+.fskip	ld a,l
+	cp b
+	jr c,.fnext
+	ld (ds_adv),a
+	ret
+.fbusy	ld a,(ds_cleared)
+	dec a
+	cp l
+	jr nc,.fskip
+	push bc
+	push hl
+	ld a,l
+	ld (bm_line),a
+	ld c,a
+	ld h,high scan_x		; player 3's registers there: its row's (if any)
+	ld a,(hl)
+	ld (hpos_p + 3),a
+	inc h
+	ld a,(hl)
+	ld (size_p + 3),a
+	inc h
+	ld a,(hl)
+	ld (colour_p3),a
+	call ds_panel
+	call bm_draw
+	pop hl
+	pop bc
+	ld h,high ds_cover
+	jr .fskip
+	; the DLI fell behind: every scanline
 .next	inc l
 	ld h,high scan_p3		; anything on the scanline? (player 3; the others' boxes)
 	ld a,(hl)
@@ -748,24 +859,15 @@ ds_advance:
 	ld (hpos_p + 3),a
 	ld a,(ds_cur_size)
 	ld (size_p + 3),a
-	ld a,c				; the panel: the shell, the tank, the missile at x 0
-	cp RIVER_FIRST + RIVER_LINES
-	jr c,1F
-	ld a,(ds_end_line)
-	cp c
-	jr nc,1F
-	xor a
-	ld (hpos_p),a
-	ld (hpos_p + 1),a
-	ld (hpos_m),a
-1:	ld a,(ds_cleared)		; the collisions from the last HITCLR's scanline on
+	call ds_panel
+	ld a,(ds_cleared)		; the collisions from the last HITCLR's scanline on
 	dec a
 	cp c
-	jr nc,.no_coll
-	call bm_draw
-	jr .done
-.no_coll
-	ld l,c				; (player 3's registers where it is: bm_draw's part)
+	jr nc,1F
+	push bc
+	call bm_draw			; (collide: only what the DLI reads, spans first)
+	pop bc
+1:	ld l,c				; player 3's registers where it is
 	ld h,high scan_p3
 	ld a,(hl)
 	or a
@@ -780,6 +882,34 @@ ds_advance:
 	pop bc
 	jp .skip
 .p3_only
+	ld l,c				; a row written this frame with the DLI not behind: its
+	ld h,high scan_col		; colour, position and size are there already
+	ld a,(hl)
+	cp $FF
+	jr z,.p3_slow
+	ld (ds_cur_col),a
+	ld a,(ds_slow)
+	or a
+	jr nz,.p3_slow
+	ld a,(ds_cleared)		; P3PF from the last HITCLR's scanline on: only the edge
+	dec a				; is read, once set it stays
+	cp c
+	jr nc,.done
+	ld a,(coll_ppf + 3)
+	and $02
+	jr nz,.done
+	ld h,high scan_p3
+	ld d,(hl)
+	inc h
+	ld e,(hl)
+	inc h
+	ld a,(hl)
+	call pf_edge
+	ld hl,coll_ppf + 3
+	or (hl)
+	ld (hl),a
+	jp .done
+.p3_slow
 	ld a,(ds_ev_next)		; HPOSP3, SIZEP3 written up to this scanline
 	cp c
 	call z,ds_events
@@ -802,7 +932,7 @@ ds_advance:
 	ld (hl),a
 	ld b,a
 	ld a,(ds_cleared)		; P3PF from the last HITCLR's scanline on: only the edge
-	dec a				; is read, once set it stays
+	dec a				; is read, once set it stays; only on its box
 	cp c
 	jr nc,.done
 	ld a,(coll_ppf + 3)
@@ -816,6 +946,20 @@ ds_advance:
 	or (hl)
 	ld (hl),a
 	jr .done
+
+; Scanline C in the panel: the shell, the tank, the missile at x 0
+ds_panel:
+	ld a,c
+	cp RIVER_FIRST + RIVER_LINES
+	ret c
+	ld a,(ds_end_line)
+	cp c
+	ret nc
+	xor a
+	ld (hpos_p),a
+	ld (hpos_p + 1),a
+	ld (hpos_m),a
+	ret
 
 ; The HPOSP3 and SIZEP3 writes up to scanline C; ds_ev_next: the next one's ($FF none)
 ds_events:
@@ -853,28 +997,38 @@ ds_events:
 	ld (ds_ev_next),a
 	ret
 
-; The other sprites' boxes (where the game put them) marked on ds_cover (bit = sprite), or
-; cleared again (ds_cover_clear): the shell 16 rows from shellY, the tank 11 from tankY, the
-; plane 14 from $AA, the missile row missileY, the bullet 8 rows below bulletY
+; The other sprites' boxes by scanline (ds_cover, a bit a sprite: 0 the shell, 1 the tank,
+; 2 the plane, 4 missile 0, 5 missile 2), where the game put them: the shell 16 rows from
+; shellY, the tank 11 from tankY, the plane 14 from $AA, the missile the row missileY, the
+; bullet 8 rows below bulletY. (Player 3: where its rows are.) Cleared again at the end.
 ds_cover_set:
-	ld c,$FF
+	ld de,$0102
+	ld hl,$1020
 	jr ds_cover_do
 ds_cover_clear:
-	ld c,0
+	ld de,0
+	ld hl,0
 ds_cover_do:
+	ld (ds_cmask),hl		; (the bullet, missile 0)
 	ld a,(SHELL_Y)
 	ld b,16
+	ld c,d
 	call .mark
 	ld a,(TANK_Y)
 	ld b,11
+	ld c,e
 	call .mark
 	ld a,$AA
 	ld b,14
+	ld c,e
+	sla c
 	call .mark
 	ld a,(MISSILE_Y)
 	cp $1C
 	jr c,1F
 	ld b,1
+	ld hl,ds_cmask + 1
+	ld c,(hl)
 	call .mark
 1:	ld a,(BULLET_Y)
 	dec a
@@ -884,13 +1038,24 @@ ds_cover_do:
 	ld a,$1B
 2:	inc a
 	ld b,8
+	ld hl,ds_cmask
+	ld c,(hl)
 .mark	ld l,a
 	ld h,high ds_cover
 	ld a,c
-.m	ld (hl),a
+	or a
+	jr z,.clr
+.m	ld a,(hl)
+	or c
+	ld (hl),a
 	inc l
 	ret z
 	djnz .m
+	ret
+.clr	ld (hl),a
+	inc l
+	ret z
+	djnz .clr
 	ret
 
 ; The bank colour E from scanline A on (a bridge's road, and back)

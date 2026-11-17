@@ -644,12 +644,25 @@ dl_bank_edge:
 	add a,$10
 	jr dl_edge
 
-; sub $B01A: a row of the decoration bitmap
+; sub $B01A: a row of the decoration bitmap (where: kept for the line without it, plain_line)
 dl_deco_row:
 	ld a,(DECO_WIDTH)
 	or a
 	ret z
 	ld b,a
+	ld hl,dl_deco_n
+	ld a,(hl)
+	inc (hl)
+	add a,a
+	add a,low dl_deco
+	ld l,a
+	adc a,high dl_deco
+	sub l
+	ld h,a
+	ld a,(DRAW_POS)
+	ld (hl),a
+	inc hl
+	ld (hl),b
 	ld de,(DECO_BITMAP)
 	ld a,(DRAW_POS)
 	ld l,a
@@ -664,6 +677,30 @@ dl_deco_row:
 	ld (DRAW_POS),a
 	ret
 
+; line_buf without its decoration (houses, roads): the bank's bytes where it was drawn. The
+; collisions with the bank look at the line this way (the C++ port's bankRuns): without
+; decoration a line is bank, edge, water, edge, bank (an island: twice).
+plain_line:
+	ld a,(dl_deco_n)
+	or a
+	ret z
+	ld b,a
+	ld de,dl_deco
+.deco	ld a,(de)			; from
+	ld l,a
+	inc de
+	ld a,(de)			; bytes
+	inc de
+	ld c,a
+	ld h,high line_buf
+	ld a,(dl_bank_fill)
+.fill	ld (hl),a
+	inc l
+	dec c
+	jr nz,.fill
+	djnz .deco
+	ret
+
 ; the pixel within the byte of x (A), as an edge piece index
 edge_index:	macro
 	and 3
@@ -672,6 +709,8 @@ edge_index:	macro
 	endm
 
 draw_line:
+	xor a				; no decoration on it yet
+	ld (dl_deco_n),a
 	ld hl,line_buf			; the buffer starts blank
 	ld b,48
 .clear	ld (hl),0
