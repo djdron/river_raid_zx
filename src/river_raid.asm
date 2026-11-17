@@ -510,8 +510,9 @@ random_columns:
 	mmu 3,INIT_PAGE
 	org $6000
 	include "panel_init.asm"
+	include "sound_ay.asm"
 	display "page 7 end: ",$
-	assert $ <= $8000
+	assert $ <= $6800		; (the pattern cache from $6800: PATTERN_CACHE in slot 2)
 
 ; ------------------------------------------------------------------------------------------
 ; Buffers (page 12)
@@ -709,6 +710,10 @@ snd_ticks:	ds 2			; the frame's ticks (4 a sample)
 snd_level:	ds 1			; the level at its start
 pk_d:		ds 1
 pk_k:		ds 1
+ay_q:		ds 3 * 9		; the tones 2 frames ago, 1, now: period, volume x 3
+ay_mask:	ds 1			; the POKEY channels on the AY (bits 0-3)
+ay_skip:	ds 1			; (pokey_frame's copy)
+ay_ch:		ds 1			; the POKEY channel in .one
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------

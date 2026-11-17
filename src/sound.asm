@@ -316,53 +316,12 @@ sound_init:
 	xor a
 	ld (snd_off),a
 	ld (snd_keys),a
-	ld hl,snd_tables_init
-	ld de,snd_tables
-	ld bc,$88
-	ldir
+	nextreg $53,INIT_PAGE		; the AY, the tables, the DMA (sound_ay.asm)
+	call sound_init7
+	nextreg $53,12
 	ld hl,SND_RING + SND_LEAD
 	ld (snd_w),hl
-	ld hl,snd_mod15			; (AUDF + 1) mod 15 and mod 31 by AUDF
-	ld bc,15 << 8 | 31
-	ld de,1 << 8 | 1
-.mod	ld (hl),d
-	inc h
-	ld (hl),e
-	dec h
-	inc d
-	ld a,d
-	cp b
-	jr c,.m15
-	ld d,0
-.m15	inc e
-	ld a,e
-	cp c
-	jr c,.m31
-	ld e,0
-.m31	inc l
-	jr nz,.mod
-	ld hl,dma_program
-	ld bc,(dma_program_end - dma_program) << 8 | $6B
-	otir
 	ret
-
-snd_tables_init:
-	include "poly.inc"
-	db 1,2,4,8,16,32,64,128
-
-dma_program:
-	db $83, $C3			; disable, reset
-	db $7D				; WR0: A -> B; A's address and the length follow
-	dw SND_RING, 1024
-	db $54, $02			; WR1: A memory, incrementing, 2 cycles
-	db $68, $22, SND_PRESCALER	; WR2: B i/o, fixed, 2 cycles, the prescaler
-	db $CD				; WR4: burst; B's address follows
-	dw DAC_PORT
-	db $A2				; WR5: again from the start at the end
-	db $CF				; load
-	db $BB, $18			; read mask: A's address
-	db $87				; enable
-dma_program_end:
 
 ; ------------------------------------------------------------------------------------------
 ; This frame's samples: from snd_w up to SND_LEAD past where the DMA is, SND_CAP at most (a
@@ -372,12 +331,15 @@ dma_program_end:
 ; output turns on or off), then a running sum from the frame's first level makes them the
 ; levels.
 pokey_frame:
-	ld a,(snd_off)			; the sound off (CAPS + 2): the ring quiet once
+	ld a,(snd_off)			; the sound off (CAPS + 2): the ring and the AY quiet once
 	or a
 	jr z,.on
 	ld a,(snd_clear)
 	or a
 	ret z
+	nextreg $53,INIT_PAGE
+	call ay_quiet
+	nextreg $53,12
 	xor a
 	ld (snd_clear),a
 	ld hl,SND_RING
@@ -386,7 +348,9 @@ pokey_frame:
 	ld (hl),a
 	ldir
 	ret
-.on
+.on	nextreg $53,INIT_PAGE		; the pure tones on the AY
+	call ay_frame
+	nextreg $53,12
 	ld bc,$243B			; the lines left before wait_line (past it: none, the frame
 					; is late already: the work starts after it, and is longer
 					; than the rest of the frame)
@@ -493,10 +457,16 @@ pokey_frame:
 	ld de,(snd_n)
 	inc de
 	call snd_fill
+	ld a,(ay_mask)			; (those on the AY: not here)
+	ld (ay_skip),a
 	ld ix,snd_ch			; the channels
 	ld iy,pokey_audf
 	ld b,4
 .ch	push bc
+	ld a,(ay_skip)
+	rrca
+	ld (ay_skip),a
+	jr c,.next
 	ld a,(iy+4)			; AUDC
 	and $0F
 	jr z,.next			; volume 0: nothing to hear

@@ -642,6 +642,29 @@ int main(int argc, char **argv) {
 					diffs.push_back(b);
 				}
 			}
+			{   // the pure tones on the first AY: the registers as they were 2 frames ago
+				static uint8_t hist[3][8];   // [frames ago][audf 0-3, audc 0-3]
+				std::memmove(hist[1], hist[0], 2 * 8);
+				for (int c = 0; c < 4; c++) { hist[0][c] = p.audf[c]; hist[0][4 + c] = p.audc[c]; }
+				static const int vol[16] = {0, 6, 8, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15};
+				const uint8_t *h = hist[2];
+				const int chans[3] = {0, 2, 3};
+				aymChip *ay = comp->ts->chipA;
+				for (int k = 0; k < 3; k++) {
+					const int c = chans[k];
+					int n = 0, v = 0;
+					if (f > 2 && ((h[4 + c] & 0xF0) == 0xA0 || (h[4 + c] & 0xF0) == 0xE0) && (h[4 + c] & 15)) {
+						const int a = h[c] + 1;
+						n = a == 256 ? (pal ? 884 : 876) : 3 * a + ((a * (pal ? 116 : 108) + 128) >> 8);
+						v = vol[h[4 + c] & 15];
+					}
+					const int zn = ay->reg[2 * k] | ((ay->reg[2 * k + 1] & 15) << 8), zv = ay->reg[8 + k] & 15;
+					if (zv != v || (v && zn != n)) {
+						std::snprintf(b, sizeof b, "ay %c: period %d volume %d, expected %d %d", 'A' + k, zn, zv, n, v);
+						diffs.push_back(b);
+					}
+				}
+			}
 			const uint16_t w = uint16_t(readZ80(comp, sndW) | (readZ80(comp, uint16_t(sndW + 1)) << 8));
 			if (f > 1) {
 				for (uint16_t a = lastW; a != w; a = uint16_t(0x7C00 | ((a + 1) & 0x3FF))) {
