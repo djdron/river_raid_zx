@@ -16,8 +16,8 @@
 ; A sample is 4 ticks (the DMA's rate is 0.5% above POKEY's 15 834 PAL or 15 980 NTSC). The
 ; frame makes as many as the DMA has sent since the last one, SND_LEAD ahead of where it is,
 ; so the two never drift apart. The level is the sum of the channels' volumes that are on,
-; times 8 (the game's never add up to more than 15 here: 0-120 x 8; past 31 times 4, as the
-; levels must not pass 255). Instead of counting each tick, each channel goes from pulse to pulse: the
+; times 12 (8 past 21, 4 past 31: the levels must not pass 255; the game's add up to 30 at
+; most here, past 21 in 1.5% of the frames). Instead of counting each tick, each channel goes from pulse to pulse: the
 ; samples in between have its output as the pulse left it.
 
 SND_RING	equ $7C00		; page 12, 1024 bytes (1K-aligned)
@@ -466,10 +466,10 @@ pokey_frame:
 	call snd_fill
 	ld a,(ay_mask)			; (those on the AY: not here)
 	ld (ay_skip),a
-	ld e,a				; the gain: 8 a volume unit while the channels here add
-	ld hl,pokey_audc		; up to 31 at most (a level of 248), else 4 (the game's
-	ld bc,4 << 8 | 0		; never pass 15; the levels wrap past 255)
-.gsum	rrc e
+	ld e,a				; the gain: 12 a volume unit while the channels here add
+	ld hl,pokey_audc		; up to 21 at most (a level of 252), 8 up to 31, else 4
+	ld bc,4 << 8 | 0		; (the levels wrap past 255; the game's reach 30, past 21
+.gsum	rrc e				; in 1.5% of the frames)
 	jr c,.gskip
 	ld a,(hl)
 	and $0F
@@ -477,12 +477,19 @@ pokey_frame:
 	ld c,a
 .gskip	inc hl
 	djnz .gsum
+	ld hl,$874F			; x 12: ld c,a / add a,a / add a,c
+	ld e,$81
 	ld a,c
-	cp 32
-	ld a,$87			; add a,a
+	cp 22
 	jr c,.g8
-	xor a				; nop
-.g8	ld (.gain),a
+	ld hl,$0087			; x 8: add a,a / nop / nop
+	ld e,h
+	cp 32
+	jr c,.g8
+	ld l,h				; x 4: nops
+.g8	ld (.gain),hl
+	ld a,e
+	ld (.gain + 2),a
 	ld ix,snd_ch			; the channels
 	ld iy,pokey_audf
 	ld b,4
@@ -495,7 +502,9 @@ pokey_frame:
 	and $0F
 	jr z,.next			; volume 0: nothing to hear
 	add a,a
-.gain	add a,a				; (or nop: the gain)
+.gain	ld c,a				; (the gain: x 3, x 2 or x 1)
+	add a,a
+	add a,c
 	ld c,a
 	bit 4,(iy+4)
 	jr nz,.full			; volume only: the volume all the time

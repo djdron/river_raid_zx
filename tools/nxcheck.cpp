@@ -732,7 +732,7 @@ int main(int argc, char **argv) {
 					int mx = 0;
 					for (int c = 0; c < 4; c++)   // (the pure tones on the AY left out)
 						if (c == 1 || ((p.audc[c] & 0xF0) != 0xA0 && (p.audc[c] & 0xF0) != 0xE0)) mx += p.audc[c] & 15;
-					mx *= mx < 32 ? 8 : 4;   // the gain (pokey_frame)
+					mx *= mx < 22 ? 12 : mx < 32 ? 8 : 4;   // the gain (pokey_frame)
 					const int lim = std::max(mx, prevMax);
 					prevMax = mx;
 					int worst = -1;
