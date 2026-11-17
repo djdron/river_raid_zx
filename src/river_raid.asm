@@ -91,6 +91,7 @@ rnd_feed_reads:	db 0
 
 start:
 	ifndef TEST
+	nextreg $53,INIT_PAGE		; (load_rom is there)
 	call load_rom
 	ld a,r				; a different moment of power-on every time
 	ld hl,rnd_init
@@ -397,64 +398,11 @@ init_video:
 COLOUR_BANK_EDGE	equ $20
 COLOUR_WATER		equ $84
 
-	ifndef TEST
-; River_Raid.rom (the cartridge image, 8192 bytes) from the program's folder into $A000,
-; through esxDOS; where long names are not seen, by its short name. Without it: a red
-; border, and the program stops.
-F_OPEN		equ $9A
-F_CLOSE		equ $9B
-F_READ		equ $9D
-FA_READ		equ $01
-
-load_rom:
-	ld ix,rom_name
-	call .open
-	jr nc,.opened
-	ld ix,rom_short_name
-	call .open
-	jr c,.fail
-.opened
-	ld (rom_handle),a
-	ld ix,$A000
-	ld bc,$2000
-	rst $08
-	db F_READ
-	push af
-	push bc
-	ld a,(rom_handle)
-	rst $08
-	db F_CLOSE
-	pop bc
-	pop af
-	jr c,.fail
-	ld a,b				; all 8192 bytes
-	cp $20
-	jr nz,.fail
-	ld a,c
-	or a
-	jr nz,.fail
-	ld hl,($BFFA)			; the cartridge starts at $A000
-	ld de,$A000
-	or a
-	sbc hl,de
-	ret z
-.fail	di
-	ld a,2
-	out ($FE),a
-	halt
-.open	ld a,'*'
-	ld b,FA_READ
-	rst $08
-	db F_OPEN
-	ret
-
-rom_name:	db "River_Raid.rom",0
-rom_short_name:	db "RIVER_~1.ROM",0
-	endif
 
 	include "river_gen.asm"
 	include "render.asm"
 	include "display_objs.asm"	; (before the palette's alignment: room there)
+	include "display_plane.asm"
 	assert $ <= $9000
 
 	align 256
@@ -625,6 +573,7 @@ oc_check:
 	org $6000
 	include "panel_init.asm"
 	include "sound_ay.asm"
+	include "load_rom.asm"
 	display "page 7 end: ",$
 	assert $ <= $6800		; (the pattern cache from $6800: PATTERN_CACHE in slot 2)
 
@@ -809,6 +758,8 @@ ds_edge:	ds 1
 ds_obj_n:	ds 1			; the objects drawn (ds_objs)
 ds_obj_over:	ds 1			; more than DS_OBJS of them
 ds_obj_t:	ds 1
+ds_obj_slot:	ds 1			; the slot of the last object in ds_objs ($FF: none),
+ds_obj_last:	ds 2			; its entry
 ds_edge_kind:	ds 1			; the object is tested against the edge ($FF) or not (0)
 ds_edge_skip:	ds 1			; display's rows: no edge test (none, or P3PF set already)
 ; the sprites (sprites.asm)

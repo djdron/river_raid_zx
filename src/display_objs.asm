@@ -11,6 +11,9 @@ ds_obj:
 	ret
 1:	inc a
 	ld (ds_obj_n),a
+	ld a,(ds_current)
+	ld (ds_obj_slot),a
+	ld a,(ds_obj_n)
 	dec a
 	push de
 	add a,a
@@ -21,6 +24,7 @@ ds_obj:
 	adc a,high ds_objs
 	sub l
 	ld h,a
+	ld (ds_obj_last),hl
 	push bc
 	push iy
 	pop bc				; (BC: the colour's address)
@@ -75,4 +79,3 @@ ds_obj:
 	ld (hl),a
 	pop de
 	ret
-

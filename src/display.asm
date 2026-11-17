@@ -357,7 +357,7 @@ SPRITES	equ 8				; players 0-3, missiles 0-3
 collide:					; (line bm_line)
 .all	; more than player 3. Only what the DLI reads (B5E8-B664, B6BC on): with the
 	; playfield P1PF, P2PF, P3PF, M0PF, M2PF; with each other M0PL (the plane), M2PL (player
-	; 3), P2PL (the shell, player 3), P3PL (the shell). The others are never read.
+	; 3), P2PL (the shell; player 3: pl_touch), P3PL (the shell). The others are never read.
 	xor a				; none yet, no masks made
 	ld (cs_present),a
 	ld (cs_list + 0 * 5),a
@@ -458,22 +458,14 @@ collide:					; (line bm_line)
 	ld e,$01
 	call .pair
 .pr3	ld a,d
-	and $05				; P2PL: the shell, player 3
+	and $05				; P2PL: the shell
 	cp $05
 	jr nz,.pr4
 	ld bc,2 << 8 | 0
 	ld hl,coll_ppl + 2
 	ld e,$01
 	call .pair
-.pr4	ld a,d
-	and $0C
-	cp $0C
-	jr nz,.pr5
-	ld bc,2 << 8 | 3
-	ld hl,coll_ppl + 2
-	ld e,$08
-	call .pair
-.pr5	ld a,d
+.pr4	ld a,d				; (P2PL's bit for player 3: pl_touch)
 	and $14				; M0PL: the plane
 	cp $14
 	ret nz

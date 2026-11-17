@@ -69,6 +69,9 @@ display:
 	ld (ds_ended),a
 	ld (ds_obj_n),a
 	ld (ds_obj_over),a
+	dec a
+	ld (ds_obj_slot),a
+	inc a
 	ld a,(SLOT_SIZE + SLOTS - 1)
 	ld (ds_cur_size),a
 	ld a,23				; (the DLI starts on 23, past its draw)
@@ -417,16 +420,14 @@ display:
 	dec a				; P2PL: the plane touched the shell, the object
 	call ds_advance
 	ld a,(coll_ppl + 2)
-	ld b,a
 	and $01
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_PLANE_SHELL),a
 	ld hl,ds_hits
 	inc (hl)
-1:	ld a,b
-	and $08
-	jr z,1F
+1:	call pl_touch			; the plane touched the object: by its rows (P2PL's bit for
+	jr z,1F				; player 3 sees only them)
 	ld a,(ds_current)
 	ld (HIT_PLANE_OBJECT),a
 	ld hl,ds_hits
@@ -558,8 +559,7 @@ display:
 	and $01
 	ld de,HIT_PLANE_SHELL
 	call nz,.hit_current
-	ld a,(coll_ppl + 2)
-	and $08
+	call pl_touch
 	ld de,HIT_PLANE_OBJECT
 	call nz,.hit_current
 	ld a,(coll_ppl + 3)
