@@ -462,6 +462,9 @@ display:
 	ld de,HIT_BULLET_OBJECT
 	call .end_obj
 .no_reads
+	ifdef TEST
+	call test_ghost
+	endif
 	jp ds_bank_fill
 .end_seen
 	push de

@@ -88,6 +88,22 @@ tv_init:	db 1			; 1 PAL (50 Hz), 0 NTSC (60 Hz); CAPS + 1 changes it
 rnd_feed_on:	db 0			; test builds: RANDOM as the checks give it (random_read)
 rnd_feed:	db 0
 rnd_feed_reads:	db 0
+	ifdef TEST
+start_bridges_hi: db 0			; the starting bridge's hundreds and thousands, BCD (nxcheck
+					; NXBRIDGE patches the ROM's starts and this)
+test_ghost_on:	db 0			; nxcheck NXGHOST: after the display, the plane cannot crash
+test_ghost:				; and never runs out of fuel (as the C++ port's display_bench)
+	ld a,(test_ghost_on)
+	or a
+	ret z
+	ld a,$FF
+	ld (HIT_PLANE_BANK),a
+	ld (HIT_PLANE_OBJECT),a
+	ld (HIT_PLANE_SHELL),a
+	ld (HIT_MISSILE_PLANE),a
+	ld (FUEL),a
+	ret
+	endif
 
 start:
 	ifndef TEST

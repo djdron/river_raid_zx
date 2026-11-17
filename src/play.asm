@@ -988,7 +988,11 @@ set_up_game:
 	ld a,(hl)
 	ld (BRIDGES + 1),a
 	ld (OTHER_BRIDGES + 1),a
+	ifdef TEST
+	ld a,(start_bridges_hi)		; (test builds: nxcheck's NXBRIDGE, the hundreds)
+	else
 	xor a
+	endif
 	ld (BRIDGES),a
 	ld (OTHER_BRIDGES),a
 	ret

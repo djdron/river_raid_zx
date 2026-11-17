@@ -12,6 +12,7 @@
 // It also reports whether every frame was ready in time on the Next.
 //
 // usage: nxcheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-bot N] [-attract] [-pal | -ntsc]
+//   NXBRIDGE=n: every game starts at bridge n; NXGHOST=1: the plane cannot crash, the fuel stays full
 //   -pal (the default) or -ntsc: the standard, the Next at 50 or 60 Hz
 //   -seed: POKEY's counter at power-on; -bot: the made-up player's choices; -attract: no
 //   player, the attract mode only
@@ -330,8 +331,27 @@ int main(int argc, char **argv) {
 	std::memcpy(sram + sramOffset(kRomPage), romData.data(), 0x2000);
 	std::memcpy(sram + sramOffset(14), poly.data(), 0x4000);
 
+	// NXBRIDGE=n: every game starts at bridge n (as river_raid -bridge): the C++ port's starts
+	// (RiverGen::setRiver), the program's from the ROM's tables ($B494 checkpoints, $B4A4
+	// levels, $B4A8 bridges, BCD) and start_bridges_hi (the hundreds, test builds)
+	const int startBridge = getenv("NXBRIDGE") ? std::atoi(getenv("NXBRIDGE")) : 0;
+	auto setStarts = [&](rr::Game &g) {
+		if (startBridge < 1) return;
+		g.gen.setRiver(0, startBridge);
+		uint8_t *romCopy = sram + sramOffset(kRomPage);
+		const int b = startBridge % 10000;
+		for (int n = 0; n < 4; n++) {
+			const rr::RiverGen::Start &st = g.gen.start(n);
+			for (int i = 0; i < 4; i++) romCopy[0xB494 + 4 * i + n - 0xA000] = st.checkpoint[i];
+			romCopy[0xB4A4 + n - 0xA000] = st.level;
+			romCopy[0xB4A8 + n - 0xA000] = uint8_t((b / 10 % 10) << 4 | b % 10);
+		}
+		const uint16_t hi = symbol(argv[2], "start_bridges_hi");
+		if (hi >= 0x8000 && hi < 0xA000) sram[sramOffset(kCodePages[0]) + (hi - 0x8000)] = uint8_t((b / 1000) << 4 | b / 100 % 10);
+	};
 	// The C++ port, from the attract mode's start
 	rr::Game game(rom);
+	setStarts(game);
 	rr::PokeyRandom random(seed, rr::tvSystem(pal));
 	game.startAttract(pal);
 	random.nextFrame();
@@ -340,9 +360,20 @@ int main(int argc, char **argv) {
 	uint8_t osFont[rr::kOsFontBytes];
 	rr::builtinOsFont(osFont);
 	const rr::Charsets charsets = rr::buildCharsets(rom, osFont);
+	// NXGHOST=1: after the display the plane's crashes are dropped and the fuel is full, on
+	// both sides (the program's test_ghost), so a game goes on for long (with NXBRIDGE)
+	const bool ghost = getenv("NXGHOST") != nullptr;
+	if (ghost) {
+		const uint16_t on = symbol(argv[2], "test_ghost_on");
+		if (on >= 0x8000 && on < 0xA000) sram[sramOffset(kCodePages[0]) + (on - 0x8000)] = 1;
+	}
 	auto afterDisplay = [&] {
 		std::memset(picture, 0, sizeof picture);
 		game.drawRiver(picture);
+		if (ghost) {
+			game.g.hit.planeHitBank = game.g.hit.planeHitObject = game.g.hit.planeHitShell = game.g.hit.missileHitPlane = 0xFF;
+			game.g.fuel = 0xFF;
+		}
 	};
 	game.afterDisplay = afterDisplay;
 	auto takePicture = [&] {   // as the C++ port's game shows the frame
@@ -522,6 +553,7 @@ int main(int argc, char **argv) {
 			writeZ80(comp, uint16_t(rndState + 2), uint8_t(first >> 16));
 			game.~Game();
 			new (&game) rr::Game(rom);
+			setStarts(game);
 			game.afterDisplay = afterDisplay;
 			game.startAttract(pal);
 			random = rr::PokeyRandom(seed + 1, rr::tvSystem(pal));
