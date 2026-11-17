@@ -412,7 +412,6 @@ random_columns:
 	include "play.asm"
 	include "sound.asm"
 	include "sound_handlers.asm"
-	include "sprites_scan.asm"
 	ifdef OBJCHECK
 ; (test) the other players' and missiles' rows on the river's lines outside their boxes
 ; (dh_desc: shell, tank, plane, helicopter missile, bullet): pc_bad
@@ -448,102 +447,6 @@ pc_check:
 	djnz .ch
 	ret
 
-; (test) the objects' sprites against the scanlines: each nonzero row of an object on the
-; scanline it is drawn on, with its colour, position and scale there; nothing else on the
-; scanlines. oc_bad counts what differs.
-oc_check:
-	ld hl,(oc_frames)
-	inc hl
-	ld (oc_frames),hl
-	ld hl,ch_bits + RIVER_FIRST
-	ld b,RIVER_LINES
-.c	ld (hl),0
-	inc l
-	djnz .c
-	ld a,(ds_obj_n)
-	or a
-	jr z,.pass2
-	ld b,a
-	ld ix,ds_objs
-.o	push bc
-	ld a,(ix + 1)
-	or a
-	jr z,.on
-	ld b,a
-	ld c,(ix + 0)
-	ld l,(ix + 2)
-	ld h,(ix + 3)
-	ld e,(ix + 4)
-	ld d,(ix + 5)
-.r	push bc
-	push hl
-	ld b,(hl)
-	ld a,c
-	cp RIVER_FIRST
-	jr c,.rn
-	cp RIVER_FIRST + RIVER_LINES
-	call nc,.bad
-	jr nc,.rn
-	ld l,c
-	ld h,high ch_bits
-	ld a,(hl)
-	or a
-	call nz,.bad
-	ld (hl),b
-	ld a,b
-	or a
-	jr z,.rn
-	ld h,high scan_col
-	ld a,(de)
-	cp (hl)
-	call nz,.bad
-	ld h,high scan_x
-	ld a,(ix + 6)
-	cp (hl)
-	call nz,.bad
-	ld h,high scan_size
-	ld a,(hl)
-	call .scale
-	ld b,a
-	ld a,(ix + 7)
-	call .scale
-	cp b
-	call nz,.bad
-.rn	pop hl
-	pop bc
-	dec hl
-	dec de
-	inc c
-	djnz .r
-.on	ld bc,8
-	add ix,bc
-	pop bc
-	djnz .o
-.pass2	ld l,RIVER_FIRST
-.p	ld h,high ch_bits
-	ld a,(hl)
-	ld h,high scan_p3
-	cp (hl)
-	call nz,.bad
-	inc l
-	ld a,l
-	cp RIVER_FIRST + RIVER_LINES
-	jr c,.p
-	ret
-.scale	and 3
-	cp 1
-	ret z
-	cp 3
-	ld a,2
-	ret z
-	xor a
-	ret
-.bad	push hl
-	ld hl,(oc_bad)
-	inc hl
-	ld (oc_bad),hl
-	pop hl
-	ret
 	endif
 
 	display "page 4 end: ",$

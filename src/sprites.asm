@@ -50,25 +50,10 @@ build_sprites:
 	ld hl,ob_frame
 	inc (hl)
 	; in the order drawRiver draws them, the last on top
-	ld a,(ds_slip)			; player 3: the objects
-	ld hl,ds_obj_over
-	or (hl)
-	ifdef FORCESCAN
-	or 1				; (test: always from the scanlines)
-	endif
-	jr nz,.scan
-	call ob_list
+	call ob_list			; player 3: the objects, from their rows
 	ifdef OBJCHECK
-	call oc_check
 	call pc_check
 	endif
-	jr .others
-.scan	ld a,high scan_p3		; (the DLI fell behind: from the scanlines)
-	ld (sb_bits),a
-	ld a,RIVER_FIRST
-	ld (sb_off),a
-	call p3_channel
-.others
 	ld a,(PLANE_X)			; the plane: 14 rows from $AA
 	ld hl,high PM_PLANE << 8 | $FF	; (page, mask)
 	ld bc,PLANE_OFFSET		; (no conversion)

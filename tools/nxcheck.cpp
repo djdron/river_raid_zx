@@ -5,8 +5,8 @@
 // now and then; it crashes often enough to lose its planes and start again.
 //   - after every frame: the river generator's state (RiverGen::diffWithRam), the game's
 //     state (the fields of game_ram.cpp but the scrolling line's), the high scores and the
-//     panel's characters, player-missile memory, screen memory, and what the DLI left per
-//     river line (player 3 and the bank colour, Game::scan);
+//     panel's characters, player-missile memory, screen memory, the bank colour per river
+//     line (Game::scan) and the objects as drawn (Game::drawn);
 //   - at the end, the picture of the last frame, pixel by pixel: Game::drawRiver in the
 //     Next's colours, black around the river.
 // It also reports whether every frame was ready in time on the Next.
@@ -295,6 +295,7 @@ int main(int argc, char **argv) {
 	const int frames = std::atoi(argv[3]);
 	const uint16_t sbCount = symbol(argv[2], "sb_count");
 	const uint16_t copperBytes = symbol(argv[2], "copper_bytes"), copperList = symbol(argv[2], "copper_list");
+	const uint16_t objN = symbol(argv[2], "ds_obj_n"), objList = symbol(argv[2], "ds_objs");
 	long copperBad = 0, copperListBad = 0;
 	const uint16_t paletteAt = symbol(argv[2], "palette");
 	const uint16_t tvToggle = symbol(argv[2], "tv_toggle"), rndState = symbol(argv[2], "rnd_state");
@@ -615,18 +616,38 @@ int main(int argc, char **argv) {
 			if ((addr >> 8) == 0x2F) addr = 0x3000;
 			if ((addr >> 8) == 0x3F) addr = 0x2000;
 		}
-		for (int k = 0; k < kRiverLines; k++) {
-			const rr::Game::Scanline &sc = game.scan[size_t(kRiverFirstLine + k)];
-			const uint8_t want[5] = {sc.p3, sc.p3x, sc.p3size, sc.p3colour, sc.bankColour};
-			static const char *names[5] = {"p3", "p3x", "p3size", "p3colour", "bankColour"};
-			for (int i = 0; i < 5; i++) {
-				if (i >= 1 && i <= 3 && !want[0]) continue;   // player 3's position, size, colour: where it is
-				const uint8_t z = readZ80(comp, uint16_t(kScan + 0x100 * i + kRiverFirstLine + k));
-				if (z != want[i]) {
-					std::snprintf(b, sizeof b, "scan line %d %s: z80=%02X c++=%02X", k, names[i], z, want[i]);
-					diffs.push_back(b);
-				}
+		for (int k = 0; k < kRiverLines; k++) {   // the bank's colour by river line (scan_bank)
+			const uint8_t want = game.scan[size_t(kRiverFirstLine + k)].bankColour;
+			const uint8_t z = readZ80(comp, uint16_t(kScan + 0x400 + kRiverFirstLine + k));
+			if (z != want) {
+				std::snprintf(b, sizeof b, "scan line %d bankColour: z80=%02X c++=%02X", k, z, want);
+				diffs.push_back(b);
 			}
+		}
+		{   // the objects as drawn (ds_objs: first scanline, rows, the first row's and colour's
+			// addresses, X, size; an object partly above the river may start higher, with its
+			// rows above it: compared from the C++ port's first)
+			const int n = readZ80(comp, objN);
+			const uint8_t *objs = &comp->mem->ramData[sramOffset(12) + (objList - 0x6000)];
+			if (n != int(game.drawn.size())) {
+				std::snprintf(b, sizeof b, "objects: z80 %d, c++ %zu", n, game.drawn.size());
+				diffs.push_back(b);
+			} else
+				for (int i = 0; i < n; i++) {
+					const uint8_t *e = objs + 8 * i;
+					const rr::Game::DrawnObject &o = game.drawn[size_t(i)];
+					const int skip = o.first - e[0], rows = int(o.rows.size());
+					bool same = skip >= 0 && e[1] == skip + rows && e[6] == o.x && e[7] == o.size;
+					const uint16_t sh = uint16_t(e[2] | e[3] << 8), col = uint16_t(e[4] | e[5] << 8);
+					for (int r = 0; same && r < rows; r++)
+						same = readZ80(comp, uint16_t(sh - skip - r)) == o.rows[size_t(r)] && readZ80(comp, uint16_t(col - skip - r)) == o.colours[size_t(r)];
+					if (!same) {
+						std::snprintf(b, sizeof b, "object %d (slot %d): z80 first %d rows %d x %02X size %02X, c++ first %d rows %d x %02X size %02X", i, o.slot,
+							e[0], e[1], e[6], e[7], o.first, rows, o.x, o.size);
+						diffs.push_back(b);
+						break;
+					}
+				}
 		}
 		{
 			const rr::PokeyRegs &p = game.g.pokey;
@@ -836,7 +857,7 @@ int main(int argc, char **argv) {
 			if (histAll[a]) std::fprintf(hf, "%04X %lld\n", a, histAll[a]);
 		std::fclose(hf);
 	}
-	std::printf("%d frames: state, screen and the DLI's lines the same\n", frames);
+	std::printf("%d frames: state, screen, bank colours and objects the same\n", frames);
 	std::string numbers;
 	for (int n = 0; n < 8; n++)
 		if (gameNumbers >> n & 1) numbers += (numbers.empty() ? "" : ",") + std::to_string(n + 1);
@@ -844,10 +865,7 @@ int main(int argc, char **argv) {
 		games, numbers.empty() ? "-" : numbers.c_str(), crashes, gameOvers, maxBridge, pausedFrames, busyFrames);
 	std::printf("sprites: up to %d of the %d a frame can have\n", maxSprites, kSpritesMax);
 	std::printf("Copper: %ld frames with its memory not the list, %ld with the list not the bank's colours\n", copperBad, copperListBad);
-	if (getenv("NXOBJCHECK")) {   // (a build with -DOBJCHECK: the objects' sprites against the scanlines)
-		const uint16_t bad = symbol(argv[2], "oc_bad"), frames = symbol(argv[2], "oc_frames");
-		std::printf("objects' sprites: %d scanlines differ in %d frames checked\n",
-			readZ80(comp, bad) | readZ80(comp, uint16_t(bad + 1)) << 8, readZ80(comp, frames) | readZ80(comp, uint16_t(frames + 1)) << 8);
+	if (getenv("NXOBJCHECK")) {   // (a build with -DOBJCHECK: the other sprites' rows outside their boxes)
 		const uint16_t pc = symbol(argv[2], "pc_bad");
 		if (pc) std::printf("other sprites: %d rows outside their boxes\n", readZ80(comp, pc) | readZ80(comp, uint16_t(pc + 1)) << 8);
 	}
