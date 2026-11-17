@@ -210,6 +210,44 @@ display:
 	ld a,(ds_x)
 	add a,c
 	ld (.pv_end + 1),a
+	ld a,(ds_x)			; the row's first and last dots (edge_lo, edge_hi) + X
+	ld (.ex1 + 1),a
+	ld (.ex2 + 1),a
+	ld a,(ds_x)			; (past clock 255: no edge there, none looked at)
+	add a,c
+	ld b,1
+	jr c,2F
+	jr z,2F
+	ld a,(coll_ppf + 3)		; (once set it stays)
+	and $02
+	ld b,a
+	ld a,(ds_edge_kind)		; only the kinds that turn at the edge are tested
+	cpl
+	or b
+	ld b,a
+2:	ld a,b
+	ld (ds_edge_skip),a
+	ld a,(ds_size)			; their dots' clocks: 1, 2 or 4 a dot (sizes 0 and 2, 1, 3)
+	and 3
+	ld hl,0				; (NOP NOP)
+	rra				; (bit 0: at least double)
+	jr nc,2F
+	ld l,$87			; (ADD A,A)
+	or a				; (and bit 1: quadruple)
+	jr z,2F
+	ld h,$87
+2:	ld (.s1),hl
+	ld (.s2),hl
+	ld a,(ds_flags)			; a bridge: the road's colour on each row
+	and $80
+	ld hl,.road
+	ld a,$CD			; (CALL .road)
+	jr nz,2F
+	xor a				; (NOP NOP NOP)
+	ld h,a
+	ld l,a
+2:	ld (.road_call),a
+	ld (.road_call + 1),hl
 	ld hl,(ds_shapes)		; (DE, HL as the loop wants them again)
 	call ds_row_hl
 	ex de,hl
@@ -231,31 +269,54 @@ display:
 	ld h,high PM_P3
 	ld a,(iy + 0)			; its colour (a bridge: the road's too)
 	ld (bc),a
-	ld a,(ds_flags)
-	and $80
-	call nz,.road
-	ld a,(coll_ppf + 3)		; P3PF: only the edge is read, once set it stays
-	and $02
+.road_call
+	call .road			; (a bridge only)
+	ld a,(ds_edge_skip)		; P3PF: only the edge is read, once set it stays
+	or a
 	jr nz,.row_on
-	ld a,l				; (a river scanline)
-	sub RIVER_FIRST
-	cp RIVER_LINES
-	jr nc,.row_on
+	ld a,(de)			; the row's first and last dots (edge_lo, edge_hi), the
+	or a				; clocks from X
+	jr z,.row_on
 	push bc
 	push de
 	push hl
-	ld b,a
-	ld a,(de)			; the row's bits into the size's variant (pf_v*)
-	or a
-	jr z,.row_off
-.pv_bits
-	ld (0),a
-	ld a,b				; the scanline's runs of edge pixels (pf_line, pf_edge)
-	ld hl,span_top
+	ld b,l
+	ld l,a
+	ld h,high edge_lo
+	ld a,(hl)
+.s1	nop
+	nop
+.ex1	add a,0
+	ld c,a
+	inc h
+	ld a,(hl)
+.s2	nop
+	nop
+.ex2	add a,0
+	ld h,b
+	ld b,a				; (B: past the last dot)
+	ld a,h				; (a river scanline)
+	sub RIVER_FIRST
+	cp RIVER_LINES
+	jr nc,.row_off
+	ld hl,span_top			; the scanline's runs of edge pixels (pf_line, pf_edge)
 	add a,(hl)
 	span_rec
 	add a,(hl)
 	ld l,a
+.run	ld a,(hl)			; a run past the row's last dot: none touched (the runs go
+	cp b				; left to right, $FF at the end)
+	jr nc,.row_off
+	inc l
+	ld a,c				; one that ends before its first dot: the next
+	cp (hl)
+	inc l
+	jr nc,.run
+	dec l				; one between: the dots themselves (the rows have gaps)
+	dec l
+	ld a,(de)			; the row's bits into the size's variant (pf_v*)
+.pv_bits
+	ld (0),a
 .pv_end	ld b,0				; the object's end and first clocks (pf_size)
 .pv_x	ld c,0
 	ld d,high span_masks
@@ -263,6 +324,8 @@ display:
 	jr z,.row_off
 	ld hl,coll_ppf + 3
 	set 1,(hl)
+	ld a,1
+	ld (ds_edge_skip),a
 .row_off
 	pop hl
 	pop de
@@ -372,6 +435,7 @@ display:
 	call ds_advance
 	ld a,(coll_ppf + 3)
 	and $02
+	call ds_edge_only
 	ld (ds_edge),a
 	ld a,(ds_hits)			; B5F3-B61F: 44 cycles (a bridge 43), 2 more a hit stored
 	add a,a
@@ -469,6 +533,7 @@ display:
 	call ds_advance
 	ld a,(coll_ppf + 3)
 	and $02
+	call ds_edge_only
 	call ds_set_flags
 	ld a,(ds_end_line)
 	add a,2
@@ -541,82 +606,6 @@ display:
 	pop de
 	ret
 
-; The object's rows for the sprites (build_sprites): the scanline of its first row, how many,
-; the address of the first row's byte (DE) and colour (IY), its position and size. 8 bytes
-; in ds_objs. DE, BC, IY kept.
-ds_obj:
-	ld a,(ds_obj_n)
-	cp DS_OBJS
-	jr c,1F
-	ld (ds_obj_over),a		; (too many: the sprites from the scanlines)
-	ret
-1:	inc a
-	ld (ds_obj_n),a
-	dec a
-	push de
-	add a,a
-	add a,a
-	add a,a
-	add a,low ds_objs
-	ld l,a
-	adc a,high ds_objs
-	sub l
-	ld h,a
-	push bc
-	push iy
-	pop bc				; (BC: the colour's address)
-	ld a,(ds_counter)
-	sub $44
-	cp RIVER_FIRST + 1		; its first row on the river's first line or above: the rows
-	jr nc,2F			; the DLI did not get to (start - y) on the lines above, as
-	push hl				; the sprite's rows too, from the object's top row (the clip
-	ld hl,ds_start			; window hides them): the same pattern while it comes in
-	ld a,(ds_y)
-	sub (hl)
-	neg				; (k = start - y)
-	ld l,a
-	ld h,0
-	add hl,de
-	ex de,hl
-	ld l,a
-	ld h,0
-	add hl,bc
-	ld b,h
-	ld c,l
-	ld l,a
-	ld a,(ds_rows)
-	add a,l
-	ld (ds_obj_t),a
-	ld a,(ds_counter)
-	sub $44
-	sub l
-	pop hl
-	ld (hl),a
-	inc hl
-	ld a,(ds_obj_t)
-	jr 3F
-2:	ld (hl),a
-	inc hl
-	ld a,(ds_rows)
-3:	ld (hl),a
-	inc hl
-	ld (hl),e
-	inc hl
-	ld (hl),d
-	inc hl
-	ld (hl),c
-	inc hl
-	ld (hl),b
-	inc hl
-	pop bc
-	ld a,(ds_x)
-	ld (hl),a
-	inc hl
-	ld a,(ds_size)
-	ld (hl),a
-	pop de
-	ret
-
 ; INX: Z when X wraps to 0
 ds_inx:
 	ld hl,ds_counter
@@ -676,7 +665,12 @@ ds_fields:
 	ld (ds_kind),a
 	ld (ds_type),a
 	ld (ds_size),a
-.addr	ld a,(ds_flags)			; the shape's address (mirrored frames + 16)
+.addr	ld a,(ds_kind)			; tested against the edge: kinds 8-$0D ($FF, or 0)
+	sub 8
+	cp 6
+	sbc a,a
+	ld (ds_edge_kind),a
+	ld a,(ds_flags)			; the shape's address (mirrored frames + 16)
 	and $08
 	add a,a
 	ld hl,ds_kind
@@ -706,6 +700,15 @@ ds_fields:
 	sub l
 	ld h,a
 	ld (ds_colours),hl
+	ret
+
+; P3PF (A) as the object's: only the kinds that turn at the edge are tested (moveObjects
+; reads the bit for helicopters, balloons and ships only)
+ds_edge_only:
+	push hl
+	ld hl,ds_edge_kind
+	and (hl)
+	pop hl
 	ret
 
 ; HL += ds_row

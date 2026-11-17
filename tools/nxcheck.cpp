@@ -294,6 +294,9 @@ int main(int argc, char **argv) {
 	if (!readFile(std::string(argv[2]) + "/test_poly.bin", poly) || poly.size() != 0x4000) { std::fprintf(stderr, "cannot read test_poly.bin\n"); return 2; }
 	const int frames = std::atoi(argv[3]);
 	const uint16_t sbCount = symbol(argv[2], "sb_count");
+	const uint16_t copperBytes = symbol(argv[2], "copper_bytes"), copperList = symbol(argv[2], "copper_list");
+	long copperBad = 0, copperListBad = 0;
+	const uint16_t paletteAt = symbol(argv[2], "palette");
 	const uint16_t tvToggle = symbol(argv[2], "tv_toggle"), rndState = symbol(argv[2], "rnd_state");
 	auto word = [&](int at) { return uint16_t(code[0][size_t(at)] | (code[0][size_t(at + 1)] << 8)); };
 	const uint16_t frameHook = word(5), applyHook = word(7);
@@ -770,6 +773,28 @@ int main(int argc, char **argv) {
 			if (a > 60000) std::printf("frame %d: apply %lld\n", f, a);
 		} else
 			runTo(applyHook);
+		{   // the Copper's memory as apply left it: the list the program made (the parts it sends)
+			const int n = readZ80(comp, copperBytes) | readZ80(comp, uint16_t(copperBytes + 1)) << 8;
+			const uint8_t *list = &comp->mem->ramData[sramOffset(12) + (copperList - 0x6000)];
+			// and the list's bank colours (after its first 12 bytes: WAIT, MOVE $41 pairs) the
+			// changes of scan_bank, each set on the line before
+			{
+				const uint8_t *bank = &comp->mem->ramData[sramOffset(12) + (kScan + 4 * 256 - 0x6000)];
+				std::vector<std::pair<int, int>> want, have;
+				int prev = -1;
+				for (int l = 28; l < 28 + kRiverLines; l++)
+					if (bank[l] != prev) { prev = bank[l]; want.push_back({l + 40 - 32 - 1 - 28, readZ80(comp, uint16_t(paletteAt + bank[l]))}); }
+				for (int i = 12; i + 3 < n && (list[i] & 0x80) && list[i + 2] == 0x41; i += 4) have.push_back({list[i + 1], list[i + 3]});
+				if (want != have && copperListBad++ < 3) std::printf("frame %d: the Copper's list has not the bank's colours\n", f);
+			}
+			if (n > 0 && n <= 2048 && std::memcmp(comp->next->coppMem, list, size_t(n))) {
+				if (copperBad++ < 3) {
+					int i = 0;
+					while (comp->next->coppMem[i] == list[i]) i++;
+					std::printf("frame %d: the Copper's memory differs from the list (%d bytes) at %d: %02X, not %02X\n", f, n, i, comp->next->coppMem[i], list[i]);
+				}
+			}
+		}
 		input = attractOnly ? rr::Input() : bot.next(game);   // the next frame's controls
 		// NXSOLO=1 (for the time only): once a game has started, the program's plane cannot
 		// crash (crash: RET), the made-up player flies it by its state, nothing is compared
@@ -818,6 +843,7 @@ int main(int argc, char **argv) {
 	std::printf("played: %ld games started (games %s), %ld crashes, %ld games over, up to bridge %ld; %ld frames paused, %ld of resets\n",
 		games, numbers.empty() ? "-" : numbers.c_str(), crashes, gameOvers, maxBridge, pausedFrames, busyFrames);
 	std::printf("sprites: up to %d of the %d a frame can have\n", maxSprites, kSpritesMax);
+	std::printf("Copper: %ld frames with its memory not the list, %ld with the list not the bank's colours\n", copperBad, copperListBad);
 	if (getenv("NXOBJCHECK")) {   // (a build with -DOBJCHECK: the objects' sprites against the scanlines)
 		const uint16_t bad = symbol(argv[2], "oc_bad"), frames = symbol(argv[2], "oc_frames");
 		std::printf("objects' sprites: %d scanlines differ in %d frames checked\n",

@@ -759,6 +759,17 @@ emit_sprite:
 ; (ds_bank_ev, as ds_bank_fill goes through them): the VBI's colour from the river's first
 ; line, then each from its line (one at or above the line reached: from there).
 build_copper:
+	ld hl,cp_colour			; one colour all the way, as the list has it: only the X scroll
+	ld a,(ds_bank_n)		; changes (panel_frame, apply)
+	or a
+	ld a,$FF
+	jr nz,1F
+	ld a,(colour_bank)
+	cp (hl)
+	ret z
+1:	ld (hl),a
+	ld a,1
+	ld (cp_full),a
 	ld de,copper_list
 	ld hl,copper_start
 	ld bc,copper_start_end - copper_start
@@ -929,8 +940,13 @@ apply:
 	call .colour
 	nextreg $41,a
 	call panel_frame
-	nextreg $62,0			; the Copper: stopped, the new list, started for each frame
-	nextreg $61,0
+	nextreg $62,0			; the Copper: stopped, the list (when it changed, or only the
+	nextreg $61,0			; X scroll: its last MOVE's value), started for each frame
+	ld a,(cp_full)
+	or a
+	jr z,.xs
+	xor a
+	ld (cp_full),a
 	ld bc,$243B
 	ld a,$60
 	out (c),a
@@ -944,7 +960,21 @@ apply:
 	ld a,d
 	or e
 	jr nz,.cop
-	nextreg $61,0
+	jr .cs
+.xs	ld hl,(copper_bytes)
+	dec hl
+	dec hl
+	dec hl
+	ld a,l
+	nextreg $61,a
+	ld a,h
+	and 7
+	nextreg $62,a
+	ld de,copper_list
+	add hl,de
+	ld a,(hl)
+	nextreg $60,a
+.cs	nextreg $61,0
 	nextreg $62,%11000000
 	ld a,(IDLE_TIME)		; A1F5: the screen off after a long time without input
 	rla

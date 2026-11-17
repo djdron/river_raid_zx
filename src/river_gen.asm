@@ -677,30 +677,6 @@ dl_deco_row:
 	ld (DRAW_POS),a
 	ret
 
-; line_buf without its decoration (houses, roads): the bank's bytes where it was drawn. The
-; collisions with the bank look at the line this way (the C++ port's bankRuns): without
-; decoration a line is bank, edge, water, edge, bank (an island: twice).
-plain_line:
-	ld a,(dl_deco_n)
-	or a
-	ret z
-	ld b,a
-	ld de,dl_deco
-.deco	ld a,(de)			; from
-	ld l,a
-	inc de
-	ld a,(de)			; bytes
-	inc de
-	ld c,a
-	ld h,high line_buf
-	ld a,(dl_bank_fill)
-.fill	ld (hl),a
-	inc l
-	dec c
-	jr nz,.fill
-	djnz .deco
-	ret
-
 ; the pixel within the byte of x (A), as an edge piece index
 edge_index:	macro
 	and 3

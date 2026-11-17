@@ -126,6 +126,28 @@ panel_init:
 	djnz .obf
 	ld a,OB_FIRST
 	ld (ob_next),a
+	ld l,0				; each byte's first and last dots (edge_lo, edge_hi; display)
+.eb	ld b,l
+	ld c,0				; C the dot (bit 7 first), D the first ($FF none yet), E the
+	ld de,$FF00			; last + 1
+.ebb	sla b
+	jr nc,.ebn
+	ld e,c
+	inc e
+	inc d
+	jr z,.ebf
+	dec d
+	jr .ebn
+.ebf	ld d,c
+.ebn	inc c
+	bit 3,c
+	jr z,.ebb
+	ld h,high edge_lo
+	ld (hl),d
+	inc h
+	ld (hl),e
+	inc l
+	jr nz,.eb
 	ld bc,$303B			; 124: the needle (2 dots x 10 lines)
 	ld a,62
 	out (c),a

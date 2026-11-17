@@ -293,6 +293,8 @@ init_tables:
 	ld (hl),$FF
 	ld hl,2
 	ld (copper_bytes),hl
+	ld a,1				; (all of it to the Copper)
+	ld (cp_full),a
 	ret
 
 ; The standard's settings (tv_pal): 50 or 60 Hz, ANTIC's cycles at the panel's first line,
@@ -335,6 +337,8 @@ tv_setup:
 	pop bc
 	ld a,(palette + $06)		; the panel's background (COLBK $06)
 	ld (copper_panel + 3),a
+	ld a,$FF			; the Copper's list made again (no Atari colour is odd)
+	ld (cp_colour),a
 	nextreg $1C,%00001010		; clip windows: the sprites and the tilemap to the last line
 	nextreg $19,0
 	nextreg $19,159
@@ -450,6 +454,8 @@ rom_short_name:	db "RIVER_~1.ROM",0
 
 	include "river_gen.asm"
 	include "render.asm"
+	include "display_objs.asm"	; (before the palette's alignment: room there)
+	assert $ <= $9000
 
 	align 256
 palette:				; Atari colour code -> the Next's colour (nextreg $41)
@@ -803,6 +809,8 @@ ds_edge:	ds 1
 ds_obj_n:	ds 1			; the objects drawn (ds_objs)
 ds_obj_over:	ds 1			; more than DS_OBJS of them
 ds_obj_t:	ds 1
+ds_edge_kind:	ds 1			; the object is tested against the edge ($FF) or not (0)
+ds_edge_skip:	ds 1			; display's rows: no edge test (none, or P3PF set already)
 ; the sprites (sprites.asm)
 sb_count:	ds 1
 sb_half:	ds 1
@@ -836,6 +844,9 @@ pc_bad:		ds 2
 bc_bank:	ds 1
 bc_p3:		ds 1
 copper_bytes:	ds 2
+cp_full:	ds 1			; the list changed: all of it to the Copper (apply)
+cp_colour:	ds 1			; the bank's colour of the list, when it has no changes ($FF:
+					; it has, or none made yet)
 ap_shown:	ds 1
 	align 256
 pix_tab:	ds 4 * 256		; render_line: pixel k (bits 7-6 first) of a line byte
@@ -876,6 +887,9 @@ ay_q:		ds 3 * 9		; the tones 2 frames ago, 1, now: period, volume x 3
 ay_mask:	ds 1			; the POKEY channels on the AY (bits 0-3)
 ay_skip:	ds 1			; (pokey_frame's copy)
 ay_ch:		ds 1			; the POKEY channel in .one
+	align 256
+edge_lo:	ds 256			; a player's byte: its first dot (bit 7 dot 0; panel_init),
+edge_hi:	ds 256			; its last dot + 1
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------
