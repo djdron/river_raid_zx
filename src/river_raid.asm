@@ -47,6 +47,22 @@ PATTERN_CACHE	equ $4800		; page 7 at $4000: the rows of each sprite pattern (128
 PC_BUCKETS	equ $5000		; a hash of the rows -> pattern + 1, for each set (2 x 256),
 PC_HASH		equ $5200		; each pattern's hash,
 PC_USED		equ $5300		; which are used this frame
+SPAN_PAGE	equ 28			; at $4000 (display, push_line): the river lines' runs of bank
+SPANS		equ $4000		; and edge pixels, 32 bytes a line, a ring of 256 (spans.asm)
+
+; HL = the record of slot A
+span_rec	macro
+	rrca
+	rrca
+	rrca
+	ld l,a
+	and $1F
+	add a,high SPANS
+	ld h,a
+	ld a,l
+	and $E0
+	ld l,a
+	endm
 
 	mmu 4,4
 	org $8000
@@ -214,21 +230,6 @@ init_tables:
 	ld h,c
 	inc l
 	jr nz,.pix
-	ld hl,0				; double_hi/lo: each bit of a byte doubled
-.dbl	ld a,l
-	rrca
-	rrca
-	rrca
-	rrca
-	call .nibble
-	ld h,high double_hi
-	ld (hl),a
-	ld a,l
-	call .nibble
-	ld h,high double_lo
-	ld (hl),a
-	inc l
-	jr nz,.dbl
 	ld hl,$2000			; ring_lo/hi: screen memory's lines, 80 in each block
 	ld de,ring_lo
 .ring	ld a,l
@@ -258,59 +259,22 @@ init_tables:
 	djnz .e8b
 	inc c
 	jr nz,.e8
-	ld l,0				; dsh_tables: for shift s, byte k of (bits doubled, 24 bits) >> 2s
-.dsh	ld h,high double_hi
-	ld d,(hl)
-	inc h
-	ld e,(hl)
-	xor a				; D E A: the 24 bits
-	ld c,0				; shift
-.ds	ld b,a
-	ld a,c
-	add a,a
-	add a,c
-	add a,high dsh_tables
-	ld h,a
-	ld (hl),d
-	inc h
-	ld (hl),e
-	inc h
-	ld (hl),b
-	ld a,b
-	srl d				; 2 bits further right
-	rr e
-	rra
-	srl d
-	rr e
-	rra
-	inc c
-	ld b,a
-	ld a,c
-	cp 4
-	ld a,b
-	jr c,.ds
-	inc l
-	jr nz,.dsh
-	ld hl,pf_class			; pf_class: 1, 2, 4 for pixels 1, 2, 3 of a byte
-.pfc	ld a,l
-	ld c,0
-	ld b,4
-.px	ld e,a
+	ld hl,span_class		; span_class: a byte's colour if its 4 pixels are one
+.sc	ld a,l				; (water and background: 0), $FF if not
+	rlca
+	rlca
+	cp l
+	ld a,$FF
+	jr nz,.sc1
+	ld a,l
 	and 3
-	jr z,.p0
 	cp 3
-	jr nz,.p12
-	set 2,c
-	jr .p0
-.p12	or c
-	ld c,a
-.p0	ld a,e
-	rrca
-	rrca
-	djnz .px
-	ld (hl),c
+	jr nz,.sc1
+	xor a
+.sc1	ld (hl),a
 	inc l
-	jr nz,.pfc
+	jr nz,.sc
+	call span_init
 	xor a
 	ld (sb_count),a
 	ld (sb_half),a
@@ -321,22 +285,6 @@ init_tables:
 	ld (hl),$FF
 	ld hl,2
 	ld (copper_bytes),hl
-	ret
-.nibble					; A's low 4 bits, each doubled: 8 bits
-	and $0F
-	rlca
-	rlca
-	rlca
-	rlca
-	ld e,a
-	xor a
-	ld b,4
-.n	add a,a
-	add a,a
-	sla e
-	jr nc,.n0
-	or 3
-.n0	djnz .n
 	ret
 
 ; The standard's settings (tv_pal): 50 or 60 Hz, ANTIC's cycles at the panel's first line,
@@ -503,6 +451,7 @@ random_columns:
 	include "display.asm"
 	include "sprites.asm"
 	include "sound_pulses.asm"
+	include "spans.asm"
 
 	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full
@@ -523,8 +472,7 @@ scan_x:		ds 256			; its position,
 scan_size:	ds 256			; its size,
 scan_col:	ds 256			; its colour,
 scan_bank:	ds 256			; and the bank colour
-double_hi:	ds 256			; a byte's bits doubled
-double_lo:	ds 256
+ds_cover:	ds 256			; display: the other sprites' boxes by scanline
 ch_bits:	ds 256			; one player's bytes for the sprites
 ring_lo:	ds 256			; screen memory's 160 lines, in the order they follow
 ring_hi:	ds 256
@@ -614,15 +562,12 @@ coll_mpl:	ds 4
 coll_ppl:	ds 4
 sp_active:	ds 1
 cl_size_m:	ds 1
-cl_line:	ds 2
-cl_slot:	ds 1			; cl_get: the river's top in the ring
+span_top:	ds 1			; the river's top line in the ring of runs (spans.asm)
 rec_bank:	ds 3
 cs_present:	ds 1			; collide: the sprites on the line (bit n)
 cs_list:	ds 5 * 8		; collide: per sprite on the line: bits, position, size,
 					; end, mask made
-pu_hpos:	ds 1			; pf_under
-pu_pf:		ds 1
-pu_q:		ds 3
+pu_pf:		ds 1			; pf_under
 f_ls:		ds 1			; display: ANTIC's cycles at the line's start
 ov_bits:	ds 1			; collide.overlap: the other sprite
 ov_hpos:	ds 1
@@ -649,11 +594,48 @@ dl_sl_size:	ds 1
 dl_touched:	ds 1
 dl_ended_b664:	ds 1
 dl_sp:		ds 2
-cl_q:		ds 4
-cl_tables:	ds 1
-cl_byte:	ds 1
 dl_shapes_hi:	ds 1
 dl_colours_hi:	ds 1
+; the display without the DLI's cycles (display_simple.asm)
+DS_EVENTS	equ 32
+ds_counter:	ds 1
+ds_slot:	ds 1
+ds_current:	ds 1
+ds_start:	ds 1
+ds_ended:	ds 1
+ds_slip:	ds 1
+ds_adv:		ds 1
+ds_to:		ds 1
+ds_cleared:	ds 1
+ds_end_line:	ds 1
+ds_cur_x:	ds 1
+ds_cur_size:	ds 1
+ds_cur_col:	ds 1
+ds_latch:	ds 1
+ds_rows:	ds 1
+ds_bank_last:	ds 1
+ds_ev_next:	ds 1
+DS_BANKS	equ 48
+ds_bank_n:	ds 1
+ds_bank_ev:	ds 2 * DS_BANKS		; bank colour changes: scanline, colour
+ds_ev_n:	ds 1
+ds_ev_rd:	ds 1
+ds_ev:		ds 3 * DS_EVENTS		; HPOSP3 / SIZEP3 writes: scanline, which, value
+ds_y:		ds 1
+ds_x:		ds 1
+ds_flags:	ds 1
+ds_kind:	ds 1
+ds_type:	ds 1
+ds_size:	ds 1
+ds_shapes:	ds 2
+ds_colours:	ds 2
+ds_row:		ds 1
+ds_l1:		ds 1
+ds_le:		ds 1
+ds_bridge:	ds 1
+ds_bullet:	ds 1
+ds_hits:	ds 1
+ds_edge:	ds 1
 ; the sprites (sprites.asm)
 sb_count:	ds 1
 sb_half:	ds 1
@@ -680,12 +662,13 @@ ap_shown:	ds 1
 pix_tab:	ds 4 * 256		; render_line: pixel k (bits 7-6 first) of a line byte
 mc_bullet:	ds 256			; missile 2's bits ($30) as a player's byte (1 clock a bit)
 mc_missile:	ds 256			; missile 0's bits ($03) as a player's byte (2 clocks a bit)
-pf_class:	ds 256			; the playfield colours of a byte's pixels: 1 bank, 2 edge, 4 water
 sm_src:		ds 16			; a sprite's bits doubled, before the shift
 	align 256
 line_start:	ds 256			; per scanline: ANTIC's cycles at its start
 line_after_draw: ds 256			; and the cycles left after it is drawn
-dsh_tables:	ds 12 * 256		; a byte's bits doubled and shifted right by 2s bits: 3 bytes
+span_class:	ds 256			; span_line: a byte's colour if its pixels are one, $FF if not
+span_masks:	ds 64			; pf_find: bits i..j of a sprite's byte at 8i + j
+span_tmp:	ds 32			; span_line: the edge's runs
 	align 256
 snd_tables:	ds 256			; the sound (sound.asm): POKEY's 5-bit counter at the ticks,
 					; its 4-bit one at +$40, a bit's mask at +$80 (sound_init),

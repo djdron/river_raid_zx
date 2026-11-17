@@ -114,6 +114,7 @@ start_attract:
 	ld bc,$35FF
 	ld (hl),l
 	ldir
+	call spans_clear
 	call start_game			; the river: game 1 reset
 	ld a,$0F			; GameState()
 	ld (JOYSTICK),a
@@ -220,6 +221,9 @@ line_done:				; the checks look at the generator here
 	ld h,$2E
 .h2	ld (SCREEN_TOP),hl
 	ex de,hl
+	push de
+	call span_line
+	pop de
 	ld hl,line_buf
 	ld bc,48
 	ldir

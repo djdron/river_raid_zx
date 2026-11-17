@@ -157,11 +157,6 @@ bm_draw:
 	ld a,(coll_ppf + 3)		; P3PF: only the edge is read, once set it stays
 	and $02
 	ret nz
-	push hl
-	ld a,l
-	call cl_get
-	pop hl
-	ret z
 	push bc
 	push de
 	ld h,high scan_p3
@@ -169,7 +164,7 @@ bm_draw:
 	ld a,(hpos_p + 3)
 	ld e,a
 	ld a,(size_p + 3)
-	call pf_under
+	call pf_edge
 	ld hl,coll_ppf + 3
 	or (hl)
 	ld (hl),a
@@ -212,36 +207,7 @@ collide_line:
 	ld h,high scan_p3
 	ld a,(hl)
 	ld (bm_p + 3),a
-	ld a,l
-	call cl_get
 	jp collide
-
-; cl_line = the screen memory of line A (Z, 0: not in the river). Screen memory is a ring
-; of 160 lines (80 in each block, ring_lo/ring_hi); the river's top is at cl_slot.
-cl_get:	sub RIVER_FIRST
-	jr c,.none
-	cp RIVER_LINES
-	jr nc,.none
-	ld hl,cl_slot
-	add a,(hl)
-	jr c,.wrap
-	cp RIVER_LINES
-	jr c,.at
-.wrap	sub RIVER_LINES
-.at	ld l,a
-	ld h,high ring_lo
-	ld a,(hl)
-	inc h
-	ld h,(hl)
-	ld l,a
-	ld (cl_line),hl
-	ld a,h
-	or a
-	ret
-.none	ld hl,0
-	ld (cl_line),hl
-	xor a
-	ret
 
 ; A register shown per line changes to A (HL: its record: value, from which line, the
 ; scan_* page): the lines since the last change get the old value. A is kept.
@@ -388,7 +354,7 @@ bm_hitclr:
 
 SPRITES	equ 8				; players 0-3, missiles 0-3
 
-collide:					; (cl_line: the playfield of the line, 0 outside the river)
+collide:					; (line bm_line)
 .all	; more than player 3. Only what the DLI reads (B5E8-B664, B6BC on): with the
 	; playfield P1PF, P2PF, P3PF, M0PF, M2PF; with each other M0PL (the plane), M2PL (player
 	; 3), P2PL (the shell, player 3), P3PL (the shell). The others are never read.
@@ -432,7 +398,7 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ld b,2
 	call .add
 	ld hl,coll_ppf + 2
-	call .pf_entry
+	call .pf_bank
 .p3	ld a,(bm_p + 3)
 	or a
 	jr z,.m0
@@ -443,7 +409,7 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ld b,3
 	call .add
 	ld hl,coll_ppf + 3
-	call .pf_entry
+	call .pf
 .m0	ld a,(bm_m)			; missiles: 2 bits each, at the top like a player's first two
 	and $03
 	jr z,.m2
@@ -597,6 +563,7 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ret
 
 ; its playfield colours into (HL) (A = size)
+; (only the bits the DLI reads: P1PF, P3PF the edge, P2PF the bank, M0PF, M2PF both)
 .pf_entry
 	push hl
 	call pf_under
@@ -604,8 +571,15 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	or (hl)
 	ld (hl),a
 	ret
+.pf_bank
+	push hl
+	call pf_bank
+	pop hl
+	or (hl)
+	ld (hl),a
+	ret
 .pf	push hl
-	call pf_under
+	call pf_edge
 	pop hl
 	or (hl)
 	ld (hl),a
@@ -711,360 +685,149 @@ collide:					; (cl_line: the playfield of the line, 0 outside the river)
 	ret
 .wl2	ld a,2
 	ret
-; The playfield colours (bits 1 bank, 2 edge, 4 water) under a sprite: bits D (the first at
-; bit 7), position E, size A (each bit 1, 2 or 4 colour clocks). Its bits, doubled for the
-; playfield's 2 bits a clock, give 1, 2 or 4 bytes q; each shifted right by the clock within
-; the first screen byte is 3 bytes from dsh_tables (t0, t1, t2), at byte 2i: a mask of 3, 5
-; or 9 bytes, ANDed with the screen; pf_class gives the colours of each byte (accumulated in
-; the other registers: H' pf_class, B' the colours).
-pf_acc:	macro			; A: covered pixels of a screen byte
-	exx
+; The playfield under a sprite: bits D (the first at bit 7), position E, size A (each bit 1,
+; 2 or 4 colour clocks), on line bm_line. pf_under: 1 if a bit covers the bank, 2 the
+; edge (both); pf_bank, pf_edge: only that one. The line's runs of bank and of edge pixels are
+; kept from when it was generated (span_line, spans.asm), as the clocks they start and end at; a run that
+; meets the sprite's clocks is looked at bit by bit: the sprite's bits over it (SPAN_MASKS:
+; bits i_lo..i_hi) ANDed with its bits.
+pf_under:
+	push af
+	push de
+	call pf_bank
+	ld (pu_pf),a
+	pop de
+	pop af
+	call pf_edge
+	ld hl,pu_pf
+	or (hl)
+	ret
+
+pf_bank:
+	call pf_line
+	jr nc,pf_none
+	inc l
+	call pf_size
+	ret z
+	ld a,1
+	ret
+
+pf_edge:
+	call pf_line
+	jr nc,pf_none
+	add a,(hl)
 	ld l,a
-	ld a,(hl)
-	or b
+	call pf_size
+	ret z
+	ld a,2
+	ret
+
+pf_none:
+	xor a
+	ret
+
+; HL, A = L: the record of line bm_line (carry; no carry: not a river line), C = A
+pf_line:
+	ld c,a
+	ld a,(bm_line)			; river line k is at span_top + k
+	sub RIVER_FIRST
+	cp RIVER_LINES
+	ret nc
+	ld hl,span_top
+	add a,(hl)
+	span_rec
+	scf
+	ret
+
+; The runs at HL under the sprite (bits D, position E, size C): NZ if a bit is over one.
+; The variant for the size gets B: the sprite's end clock, C: its first, D: the masks' page,
+; and its bits. (A sprite past clock 255 is past the runs too: its end wraps to below its
+; first, and none is looked at.)
+pf_size:
+	ld a,c
+	and 3
+	cp 3
+	jr z,.w4
+	dec a
+	jr z,.w2
+	ld a,d
+	ld (pf_v1_bits + 1),a
+	ld a,e
+	add a,8
 	ld b,a
-	exx
+	ld c,e
+	ld d,high span_masks
+	jp pf_v1
+.w2	ld a,d
+	ld (pf_v2_bits + 1),a
+	ld a,e
+	add a,16
+	ld b,a
+	ld c,e
+	ld d,high span_masks
+	jp pf_v2
+.w4	ld a,d
+	ld (pf_v4_bits + 1),a
+	ld a,e
+	add a,32
+	ld b,a
+	ld c,e
+	ld d,high span_masks
+	jp pf_v4
+
+; One variant per size: N shifts make a clock offset a bit's index.
+pf_v	macro N, BITS
+.l	ld a,(hl)			; the run's first clock: past the sprite, the end
+	cp b
+	jr nc,.end
+	ex af,af'
+	inc hl
+	ld e,(hl)			; its end: the sprite starts after it, the next
+	inc hl
+	ld a,c
+	cp e
+	jr nc,.l
+	ld a,e				; the last bit over it
+	cp b
+	jr c,.h
+	ld a,b
+.h	dec a
+	sub c
+	rept N
+	srl a
+	endr
+	ld e,a
+	ex af,af'			; the first bit over it
+	sub c
+	jr nc,.p
+	xor a
+.p
+	rept N
+	srl a
+	endr
+	add a,a
+	add a,a
+	add a,a
+	or e
+	ld e,a
+	ld a,(de)
+BITS	and 0
+	jr z,.l
+	ret
+.end	xor a
+	ret
 	endm
 
-pf_under:
-	ld c,a
-	ld hl,(cl_line)
-	ld a,h
-	or a
-	ret z				; no playfield on this line
-	ld a,e				; the first screen byte
-	srl a
-	srl a
-	sub 8
-	ld b,a
-	ld a,c
-	and 3
-	cp 1
-	jr z,.double
-	cp 3
-	jp z,.quad
-	ld a,b				; normal width: 3 bytes
-	cp 48 - 2
-	jp nc,.general_n
-	call .start
-	push hl				; all water under it (the only colour never looked at): none
-	ld a,(hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	pop hl
-	inc a
-	jp z,.water
-	ld e,d				; (D: the bits)
-	ld d,c
-	ld a,(de)
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)
-	and (hl)
-	pf_acc
-	jp .done
-.double	ld a,b				; 5 bytes
-	cp 48 - 4
-	jp nc,.general_n
-	call .start
-	push hl				; all water under it (the only colour never looked at): none
-	ld a,(hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	pop hl
-	inc a
-	jp z,.water
-	push hl
-	ld l,d
-	ld h,high double_hi
-	ld e,(hl)			; q0
-	inc h
-	ld b,(hl)			; q1
-	pop hl
-	ld d,c
-	ld a,(de)			; t0[q0]
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)			; t1[q0]
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)			; t2[q0] | t0[q1]
-	ld e,b
-	ld d,c
-	ld b,a
-	ld a,(de)
-	or b
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)			; t1[q1]
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)			; t2[q1]
-	and (hl)
-	pf_acc
-	jp .done
-.quad	ld a,b				; 9 bytes
-	cp 48 - 8
-	jp nc,.general_n
-	call .start
-	push hl				; all water under it (the only colour never looked at): none
-	ld a,(hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	inc hl
-	and (hl)
-	pop hl
-	inc a
-	jp z,.water
-	push hl
-	ld l,d				; q0-q3: the bits doubled twice
-	ld h,high double_hi
-	ld e,(hl)
-	inc h
-	ld b,(hl)
-	ld l,e
-	ld a,(hl)			; double_lo of the first: q1
-	dec h
-	ld e,(hl)			; q0
-	ld (pu_q),a
-	ld l,b
-	ld a,(hl)
-	ld (pu_q + 1),a			; q2
-	inc h
-	ld a,(hl)
-	ld (pu_q + 2),a			; q3
-	pop hl
-	ld d,c
-	ld a,(de)			; t0[q0]
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)			; t1[q0]
-	and (hl)
-	pf_acc
-	inc hl
-	inc d				; t2[q0] | t0[q1], then t1[q1]
-	ld a,(de)
-	ld b,a
-	ld a,(pu_q + 0)
-	ld e,a
-	ld d,c
-	ld a,(de)
-	or b
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)
-	and (hl)
-	pf_acc
-	inc hl
-	inc d				; t2[q1] | t0[q2], then t1[q2]
-	ld a,(de)
-	ld b,a
-	ld a,(pu_q + 1)
-	ld e,a
-	ld d,c
-	ld a,(de)
-	or b
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)
-	and (hl)
-	pf_acc
-	inc hl
-	inc d				; t2[q2] | t0[q3], then t1[q3]
-	ld a,(de)
-	ld b,a
-	ld a,(pu_q + 2)
-	ld e,a
-	ld d,c
-	ld a,(de)
-	or b
-	and (hl)
-	pf_acc
-	inc hl
-	inc d
-	ld a,(de)
-	and (hl)
-	pf_acc
-	inc hl
-
-	inc d
-	ld a,(de)			; t2[q3]
-	and (hl)
-	pf_acc
-.done	exx
-	ld a,b
-	exx
-	ret
-.water	xor a
-	ret
-
-; HL = the screen's byte B, C = the shift's tables, B' = 0, H' = pf_class
-.start	ld a,e
-	and 3
-	ld c,a
-	add a,a
-	add a,c
-	add a,high dsh_tables
-	ld c,a
-	ld a,b
-	add a,l
-	ld l,a
-	adc a,h
-	sub l
-	ld h,a
-	exx
-	ld b,0
-	ld h,high pf_class
-	exx
-	ret
-
-; near the line's ends: byte by byte, those on the line
-.general_n
-	ld a,c
-	ld c,a
-	ld a,e
-	ld (pu_hpos),a
-	ld hl,cl_q
-	ld (hl),d
-	ld b,1
-	ld a,c
-	and 3
-	cp 1
-	jr z,.q2
-	cp 3
-	jr nz,.qs
-	ld l,d				; quadruple: 4 bytes
-	ld h,high double_hi
-	ld e,(hl)
-	inc h
-	ld d,(hl)
-	ld l,e
-	ld a,(hl)
-	dec h
-	ld c,(hl)
-	ld (cl_q),bc			; (C, then A below)
-	ld (cl_q + 1),a
-	ld l,d
-	ld a,(hl)
-	ld (cl_q + 2),a
-	inc h
-	ld a,(hl)
-	ld (cl_q + 3),a
-	ld b,4
-	jr .qs
-.q2	ld l,d				; double: 2 bytes
-	ld h,high double_hi
-	ld a,(hl)
-	inc h
-	ld c,(hl)
-	ld (cl_q),a
-	ld a,c
-	ld (cl_q + 1),a
-	ld b,2
-.qs	ld a,(pu_hpos)			; the tables of the shift; the first screen byte
-	ld c,a
-	and 3
-	ld e,a
-	add a,a
-	add a,e
-	add a,high dsh_tables
-	ld (cl_tables),a
-	ld a,c
-	srl a
-	srl a
-	sub 8
-	ld c,a				; C: the screen byte
-	ld e,a				; HL: the line's byte C (C may be off the line: then not read)
-	add a,a
-	sbc a,a
-	ld d,a
-	ld hl,(cl_line)
-	add hl,de
-	xor a
-	ld (pu_pf),a			; the colours under it
-	ld de,cl_q
-.qb	push bc				; each q: its 3 mask bytes from byte 2i
-	push de
-	push hl
-	ld a,(de)
-	ld e,a
-	ld a,(cl_tables)
-	ld d,a
-	ld b,3
-.fb	ld a,c
-	cp 48
-	jr nc,.fn
-	ld a,(de)			; mask AND screen: the covered pixels
-	and (hl)
-	jr z,.fn
-	push hl
-	ld l,a
-	ld h,high pf_class
-	ld a,(pu_pf)
-	or (hl)
-	ld (pu_pf),a
-	pop hl
-.fn	inc hl
-	inc d
-	inc c
-	djnz .fb
-	pop hl				; the next q: 2 bytes on
-	inc hl
-	inc hl
-	pop de
-	inc de
-	pop bc
-	inc c
-	inc c
-	djnz .qb
-	ld a,(pu_pf)
-	ret
+pf_v1:	pf_v 0, pf_v1_bits
+pf_v2:	pf_v 1, pf_v2_bits
+pf_v4:	pf_v 2, pf_v4_bits
 
 ; ------------------------------------------------------------------------------------------
 ; The DLI, frame by frame (B500-B6BC, B6C5-B727)
 
+	ifdef BEAM			; (the DLI's cycles, as before: -DBEAM)
 display:
+	nextreg $52,SPAN_PAGE		; the lines' runs of bank and edge (pf_under)
 	call .beam
 	ld hl,rec_bank			; the bank colour's last value to the river's end
 	jp rec_end
@@ -1075,23 +838,6 @@ display:
 	ldi
 	endr
 	djnz .p3
-	ld hl,(SCREEN_TOP)		; the river's top in the ring of screen lines (cl_get)
-	ld c,0
-	ld a,h
-	ld de,-$2000
-	cp $30
-	jr c,.blk
-	ld c,80
-	ld de,-$3000
-.blk	add hl,de
-	ld de,-48
-.slot	add hl,de
-	jr nc,.slot_done
-	inc c
-	jr .slot
-.slot_done
-	ld a,c
-	ld (cl_slot),a
 	; rows whose display list instruction has a screen address: the top row and where screen
 	; memory goes on in the other block
 	ld hl,(SCREEN_TOP)
@@ -1978,3 +1724,7 @@ display:
 	ld a,4
 	adc a,0
 	jp bm_op
+
+	else
+	include "display_simple.asm"
+	endif

@@ -62,6 +62,12 @@ So the work goes "cheap first, exact only if needed". Is there any sprite on thi
 
 What it costs, measured over 20 000 frames of play by the robot player (PAL; NTSC is the same): collisions take about 79 000 ticks of an average frame, 14% of a fiftieth of a second. That was a fifth of the frame's work then; after the DLI was sped up (see Time) it is a quarter. Of the 79 000, nearly half goes on the cheap part (is there anything on this line, and where is the line's river in memory), the rest about evenly on sprites against the river and sprites against each other. One idea not yet tried: do the cheap test once per object instead of on every line, and skip all of an object's lines when its box touches neither the bank nor another sprite. How much that would save is not known until it is measured, since empty lines are already quick.
 
+## Without the DLI's cycles
+
+Later the C++ port showed that the cycle-by-cycle clock is not needed (its docs/DLI_REMOVAL.md, checked frame by frame against the original and, over millions of frames, against the clock itself). The DLI keeps one counter that goes up by one on every line it waits for, so knowing that counter is knowing the line. Where each object's position, width and colours land, which lines each collision read sees and where the next object's start: it all follows from the counter, plus three small rules for the few moments where the cycle does matter (one read and the clearing of the registers can fall either side of a line's drawing, and the DLI sometimes falls a line behind).
+
+The Next now does it that way (display_simple.asm). It walks the DLI's loop object by object without counting cycles; when a read needs them, it goes over the lines up to that one in order, works out the collisions of those that have something on them (only player 3: just its edge with the bank), and the read takes what they set. The lines with nothing on them are passed over in a few instructions. The old clock is still there (built with -DBEAM) and gives the same frames.
+
 ## The panel and the scrolling line
 
 Below the river the Atari shows a panel in large letters (score, game number, fuel gauge, high score, bridge) and a line that scrolls the credits, with a rainbow Activision logo.

@@ -14,7 +14,9 @@ River Raid (Activision, Atari 800, 1983, by Carol Shaw) on the ZX Spectrum Next,
 ## State
 The game is complete, with its sound: attract mode, games 1–8, one and two players, the plane, fuel, enemies, tanks, missiles, bridges, score, lives, high scores, pause, the panel and the scrolling line with the rainbow logo. PAL (50 Hz) by default, NTSC (60 Hz) with CAPS + 1. Checked frame by frame against the C++ port (bot games, hundreds of thousands of frames, PAL and NTSC) and against the original on libatari800 (eight runs, 37 000 frames). Not yet run on a real Next: only on Xpeccy+'s Next core.
 
-Speed (28 MHz, PAL): a frame's work is about 60–61% of a 50 Hz frame on average, up to about 88%; no frame late in 60 000. The sound is about 25 000 ticks a frame on average (up to ~60 000; fewer samples in a busy frame). NTSC at 60 Hz: about 1 frame in 140 is late and shown twice. At bridge 50 and on the scenes are much busier (`NXSOLO=1 NXGAME=7`: ~441 000 ticks on average, 1 frame in 235 late on PAL, 45% on NTSC); on a real Next it slows down there, with and without the sound (CAPS + 2).
+The display no longer counts the DLI's cycles (display_simple.asm, after the C++ port's displaySimple; -DBEAM builds the cycle model): same frames, a frame's work ~318 000 ticks on average (bot 1, PAL) against ~340 000; at bridge 50 on NTSC 22% of frames late instead of 45%.
+
+Speed before that (28 MHz, PAL): a frame's work is about 60–61% of a 50 Hz frame on average, up to about 88%; no frame late in 60 000. The sound is about 25 000 ticks a frame on average (up to ~60 000; fewer samples in a busy frame). NTSC at 60 Hz: about 1 frame in 140 is late and shown twice. At bridge 50 and on the scenes are much busier (`NXSOLO=1 NXGAME=7`: ~441 000 ticks on average, 1 frame in 235 late on PAL, 45% on NTSC); on a real Next it slows down there, with and without the sound (CAPS + 2).
 
 Controls, building, checks: [README.md](README.md).
 

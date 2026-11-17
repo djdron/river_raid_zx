@@ -741,7 +741,7 @@ clear_screen_memory:
 	push hl
 	djnz .b
 	ld sp,(cs_sp)
-	ret
+	jp spans_clear
 
 ; One page of Layer 2 cleared, while there are any left (frames of the reset)
 clear_layer2_page:			; (two)
