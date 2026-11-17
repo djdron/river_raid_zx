@@ -4,8 +4,8 @@
 ; drawn while X = c is c - 69 (one more for each scanline the DLI fell behind: ds_slip).
 ; Where each object's registers and rows land and which scanlines each collision read sees
 ; follow from that; the scanlines themselves are gone over in order as far as a read needs
-; (ds_advance): the registers by scanline (scan_*), the collisions of the scanlines with
-; anything on them (bm_draw, collide) into the collision registers.
+; only as far as the record of what is drawn needs them (ds_advance, when the DLI fell
+; behind); the collisions come from the sprites' rows (display_hits.asm).
 ; What it leaves is what the beam left: per river line the state of player 3 and the bank
 ; colour (scan_*), the rows of the objects in player 3's memory, the collisions (HIT, the
 ; slots' edge flags).
@@ -26,7 +26,7 @@ display:
 	ld bc,192 - 24
 	ldir
 	call ds_lms			; the rows with a screen address: their start cycles
-	call ds_cover_set
+	call dh_lists			; the sprites' collisions' scanlines
 	ld hl,hpos_p			; registers cleared, then as B527-B55C set them
 	ld b,regs_end - hpos_p
 	xor a
@@ -355,6 +355,7 @@ display:
 	dec iy
 	dec ixl
 	jp nz,.late_rows
+	call dh_edge			; (P3PF: the rows', as the loop above does it)
 	jr .rows_done
 .rows_done
 	ld a,(iy + 1)			; (the last row's colour)
@@ -374,10 +375,9 @@ display:
 	ld (ds_bridge),a
 	jr nz,1F
 	dec b				; M2PL: up to the scanline before (a bridge: this one)
-1:	ld a,b
-	call ds_advance
-	ld a,(coll_mpl + 2)
-	and $08
+1:	ld c,b
+	ld ix,dh_desc + DH_BULLET
+	call dh_obj
 	ld (ds_bullet),a
 	jr z,1F
 	ld a,(ds_current)
@@ -404,9 +404,9 @@ display:
 	call ds_bank
 	jr .b60a
 .p3pl	ld a,(ds_le)			; P3PL: the shell
-	call ds_advance
-	ld a,(coll_ppl + 3)
-	and $01
+	ld c,a
+	ld ix,dh_desc + DH_SHELL
+	call dh_obj
 	jr z,.b60a
 	ld a,(ds_current)
 	ld (HIT_SHELL_OBJECT),a
@@ -418,23 +418,24 @@ display:
 	ds_line
 	ld (ds_le),a
 	dec a				; P2PL: the plane touched the shell, the object
-	call ds_advance
-	ld a,(coll_ppl + 2)
-	and $01
+	ld (ds_l1),a
+	ld hl,dh_plane_shell
+	call dh_seen
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_PLANE_SHELL),a
 	ld hl,ds_hits
 	inc (hl)
-1:	call pl_touch			; the plane touched the object: by its rows (P2PL's bit for
-	jr z,1F				; player 3 sees only them)
+1:	ld a,(ds_l1)
+	ld c,a
+	ld ix,dh_desc + DH_PLANE
+	call dh_obj
+	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_PLANE_OBJECT),a
 	ld hl,ds_hits
 	inc (hl)
-1:	ld a,(ds_le)			; P3PF: the object touched the bank edge
-	call ds_advance
-	ld a,(coll_ppf + 3)
+1:	ld a,(coll_ppf + 3)		; P3PF: the object touched the bank edge (its rows)
 	and $02
 	call ds_edge_only
 	ld (ds_edge),a
@@ -458,9 +459,8 @@ display:
 	ds_line
 	ld (ds_le),a			; l
 	dec a				; M0PL: the missile touched the plane (up to l - 1)
-	call ds_advance
-	ld a,(coll_mpl)
-	and $04
+	ld hl,dh_missile_plane
+	call dh_seen
 	ld c,28				; M0PF 28 cycles after the WSYNC, 30 after a hit stored
 	jr z,1F
 	ld a,(ds_current)
@@ -471,37 +471,37 @@ display:
 	ld a,(ds_le)
 	jr c,1F
 	dec a
-1:	call ds_advance
-	ld a,(coll_mpf)
-	and $03
+1:	ld hl,dh_missile_bank
+	call dh_seen
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_MISSILE_BANK),a
-1:	ld a,(ds_le)			; P1PF, P2PF, M2PF: up to l
-	call ds_advance
-	ld c,23				; (HITCLR 23 cycles after the WSYNC, 2 more a hit stored)
-	ld a,(coll_ppf + 1)
-	and $02
+1:	ld a,23				; (HITCLR 23 cycles after the WSYNC, 2 more a hit stored)
+	ld (ds_l1),a
+	ld a,(ds_le)			; P1PF, P2PF, M2PF: up to l
+	ld hl,dh_tank_edge
+	call dh_seen
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_TANK_AT_EDGE),a
-	inc c
-	inc c
-1:	ld a,(coll_ppf + 2)
-	and $01
+	call .stored
+1:	ld a,(ds_le)
+	ld hl,dh_plane_bank
+	call dh_seen
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_PLANE_BANK),a
-	inc c
-	inc c
-1:	ld a,(coll_mpf + 2)
-	and $03
+	call .stored
+1:	ld a,(ds_le)
+	ld hl,dh_bullet_bank
+	call dh_seen
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_BULLET_BANK),a
-	inc c
-	inc c
-1:	ld a,(ds_le)			; B65F HITCLR on l + 1, before or after its draw
+	call .stored
+1:	ld a,(ds_l1)
+	ld c,a
+	ld a,(ds_le)			; B65F HITCLR on l + 1, before or after its draw
 	inc a
 	call ds_after_draw
 	ld a,(ds_le)
@@ -529,64 +529,72 @@ display:
 	ld a,(ds_ended)
 	or a
 	jp nz,.no_reads
-	ld a,(ds_end_line)
-	inc a
-	call ds_advance
-	ld a,(coll_ppf + 3)
+	ld a,(coll_ppf + 3)		; (P3PF: the rows', zero since the HITCLR if none)
 	and $02
 	call ds_edge_only
 	call ds_set_flags
 	ld a,(ds_end_line)
 	add a,2
-	call ds_advance
-	ld a,(coll_mpl)
-	and $04
+	ld (ds_l1),a
+	ld hl,dh_missile_plane
 	ld de,HIT_MISSILE_PLANE
-	call nz,.hit_current
-	ld a,(coll_mpf)
-	and $03
+	call .end_seen
+	ld hl,dh_missile_bank
 	ld de,HIT_MISSILE_BANK
-	call nz,.hit_current
-	ld a,(coll_mpf + 2)
-	and $03
+	call .end_seen
+	ld hl,dh_bullet_bank
 	ld de,HIT_BULLET_BANK
-	call nz,.hit_current
-	ld a,(coll_ppf + 2)
-	and $01
+	call .end_seen
+	ld hl,dh_plane_bank
 	ld de,HIT_PLANE_BANK
-	call nz,.hit_current
-	ld a,(coll_ppl + 2)
-	and $01
+	call .end_seen
+	ld hl,dh_plane_shell
 	ld de,HIT_PLANE_SHELL
-	call nz,.hit_current
-	call pl_touch
-	ld de,HIT_PLANE_OBJECT
-	call nz,.hit_current
-	ld a,(coll_ppl + 3)
-	and $01
-	ld de,HIT_SHELL_OBJECT
-	call nz,.hit_current
-	ld a,(coll_ppf + 1)
-	and $02
+	call .end_seen
+	ld hl,dh_tank_edge
 	ld de,HIT_TANK_AT_EDGE
-	call nz,.hit_current
+	call .end_seen
+	ld ix,dh_desc + DH_PLANE
+	ld de,HIT_PLANE_OBJECT
+	call .end_obj
+	ld ix,dh_desc + DH_SHELL
+	ld de,HIT_SHELL_OBJECT
+	call .end_obj
+	ld hl,ds_l1
+	inc (hl)
+	ld ix,dh_desc + DH_BULLET
+	ld de,HIT_BULLET_OBJECT
+	call .end_obj
+.no_reads
+	ld a,(ds_slow)			; the DLI fell behind: the scanlines' registers to the end
+	or a
+	jr z,1F
 	ld a,(ds_end_line)
 	add a,3
 	call ds_advance
-	ld a,(coll_mpl + 2)
-	and $08
-	ld de,HIT_BULLET_OBJECT
-	call nz,.hit_current
-	jr .fin
-.no_reads
-	ld a,(ds_end_line)		; what is drawn, to the panel
-	inc a
-	call ds_advance
-.fin	call ds_cover_clear
-	jp ds_bank_fill
+1:	jp ds_bank_fill
+.end_seen
+	push de
+	ld a,(ds_l1)
+	call dh_seen
+	pop de
+	ret z
+	jr .hit_current
+.end_obj
+	push de
+	ld a,(ds_l1)
+	ld c,a
+	call dh_obj
+	pop de
+	ret z
 .hit_current
 	ld a,(ds_current)
 	ld (de),a
+	ret
+.stored					; a hit stored: 2 cycles more to the HITCLR
+	ld hl,ds_l1
+	inc (hl)
+	inc (hl)
 	ret
 .road					; a bridge's row: the bank the road's colour from scanline C
 	push de
@@ -773,6 +781,7 @@ ds_chunk_at:
 	inc a
 	ld (ds_slow),a
 	ld a,b
+	ld (ds_adv),a			; (ds_advance from the next scanline)
 	inc a
 	ld l,a
 	ld h,high scan_col
@@ -850,61 +859,19 @@ ds_event:
 .full	pop af
 	ret
 
-; The scanlines up to A, in order. A scanline with nothing on it is passed over (a colour
-; set on it kept); one with a player or missile gets player 3's registers as written up to
-; it (scan_*), and its collisions (from ds_cleared on) go into the collision registers
-; (bm_draw).
+; The DLI fell behind (ds_slow): player 3's registers on every scanline up to A from the one
+; it fell behind on, by the HPOSP3 / SIZEP3 writes and the colours set on them ($FF: none): the
+; record of what GTIA drew (scan_*; build_sprites draws it then)
 ds_advance:
 	ld b,a
 	ld a,(ds_adv)
 	cp b
 	ret nc
 	ld l,a
-	ld a,(ds_slow)
-	or a
-	jr nz,.next
-	; Player 3's rows are done (the rows' loop): only the other sprites' boxes from the last
-	; HITCLR's scanline on
-	ld h,high ds_cover
-.fnext	inc l
-	ld a,(hl)
-	or a
-	jr nz,.fbusy
-.fskip	ld a,l
-	cp b
-	jr c,.fnext
-	ld (ds_adv),a
-	ret
-.fbusy	ld a,(ds_cleared)
-	dec a
-	cp l
-	jr nc,.fskip
-	push bc
-	push hl
-	ld a,l
-	ld (bm_line),a
-	ld c,a
-	ld h,high scan_x		; player 3's registers there: its row's (if any)
-	ld a,(hl)
-	ld (hpos_p + 3),a
-	inc h
-	ld a,(hl)
-	ld (size_p + 3),a
-	inc h
-	ld a,(hl)
-	ld (colour_p3),a
-	call ds_panel
-	call bm_draw
-	pop hl
-	pop bc
-	ld h,high ds_cover
-	jr .fskip
-	; the DLI fell behind: every scanline
 .next	inc l
-	ld h,high scan_p3		; anything on the scanline? (player 3; the others' boxes)
+	ld h,high scan_p3
 	ld a,(hl)
-	ld h,high ds_cover
-	or (hl)
+	or a
 	jr nz,.busy
 	ld h,high scan_col		; (a colour set on it: the one from here)
 	ld a,(hl)
@@ -917,83 +884,7 @@ ds_advance:
 	ld (ds_adv),a
 	ret
 .busy	push bc
-	push hl
-	ld a,l
-	ld (bm_line),a
-	ld c,a
-	ld h,high ds_cover		; player 3 alone (the usual): straight to its part
-	ld a,(hl)
-	or a
-	jp z,.p3_only
-	ld a,(ds_ev_next)		; HPOSP3, SIZEP3 written up to this scanline
-	cp c
-	call z,ds_events
-	call c,ds_events
-	ld l,c				; player 3's colour: set on this scanline, or the last
-	ld h,high scan_col
-	ld a,(hl)
-	cp $FF
-	jr z,1F
-	ld (ds_cur_col),a
-	jr 2F
-1:	ld a,(ds_cur_col)
-	ld (hl),a
-2:	ld (colour_p3),a
-	ld a,(ds_cur_x)
-	ld (hpos_p + 3),a
-	ld a,(ds_cur_size)
-	ld (size_p + 3),a
-	call ds_panel
-	ld a,(ds_cleared)		; the collisions from the last HITCLR's scanline on
-	dec a
-	cp c
-	jr nc,1F
-	push bc
-	call bm_draw			; (collide: only what the DLI reads, spans first)
-	pop bc
-1:	ld l,c				; player 3's registers where it is
-	ld h,high scan_p3
-	ld a,(hl)
-	or a
-	jr z,.done
-	inc h
-	ld a,(hpos_p + 3)
-	ld (hl),a
-	inc h
-	ld a,(size_p + 3)
-	ld (hl),a
-.done	pop hl
-	pop bc
-	jp .skip
-.p3_only
-	ld l,c				; a row written this frame with the DLI not behind: its
-	ld h,high scan_col		; colour, position and size are there already
-	ld a,(hl)
-	cp $FF
-	jr z,.p3_slow
-	ld (ds_cur_col),a
-	ld a,(ds_slow)
-	or a
-	jr nz,.p3_slow
-	ld a,(ds_cleared)		; P3PF from the last HITCLR's scanline on: only the edge
-	dec a				; is read, once set it stays
-	cp c
-	jr nc,.done
-	ld a,(coll_ppf + 3)
-	and $02
-	jr nz,.done
-	ld h,high scan_p3
-	ld d,(hl)
-	inc h
-	ld e,(hl)
-	inc h
-	ld a,(hl)
-	call pf_edge
-	ld hl,coll_ppf + 3
-	or (hl)
-	ld (hl),a
-	jp .done
-.p3_slow
+	ld c,l
 	ld a,(ds_ev_next)		; HPOSP3, SIZEP3 written up to this scanline
 	cp c
 	call z,ds_events
@@ -1010,40 +901,11 @@ ds_advance:
 2:	ld h,high scan_x		; its position and size
 	ld a,(ds_cur_x)
 	ld (hl),a
-	ld e,a
 	inc h
 	ld a,(ds_cur_size)
 	ld (hl),a
-	ld b,a
-	ld a,(ds_cleared)		; P3PF from the last HITCLR's scanline on: only the edge
-	dec a				; is read, once set it stays; only on its box
-	cp c
-	jr nc,.done
-	ld a,(coll_ppf + 3)
-	and $02
-	jr nz,.done
-	ld h,high scan_p3
-	ld d,(hl)
-	ld a,b
-	call pf_edge
-	ld hl,coll_ppf + 3
-	or (hl)
-	ld (hl),a
-	jr .done
-
-; Scanline C in the panel: the shell, the tank, the missile at x 0
-ds_panel:
-	ld a,c
-	cp RIVER_FIRST + RIVER_LINES
-	ret c
-	ld a,(ds_end_line)
-	cp c
-	ret nc
-	xor a
-	ld (hpos_p),a
-	ld (hpos_p + 1),a
-	ld (hpos_m),a
-	ret
+	pop bc
+	jr .skip
 
 ; The HPOSP3 and SIZEP3 writes up to scanline C; ds_ev_next: the next one's ($FF none)
 ds_events:
@@ -1079,67 +941,6 @@ ds_events:
 	ret
 .none	ld a,$FF
 	ld (ds_ev_next),a
-	ret
-
-; The other sprites' boxes by scanline (ds_cover, a bit a sprite: 0 the shell, 1 the tank,
-; 2 the plane, 4 missile 0, 5 missile 2), where the game put them: the shell 16 rows from
-; shellY, the tank 11 from tankY, the plane 14 from $AA, the missile the row missileY, the
-; bullet 8 rows below bulletY. (Player 3: where its rows are.) Cleared again at the end.
-ds_cover_set:
-	ld de,$0102
-	ld hl,$1020
-	jr ds_cover_do
-ds_cover_clear:
-	ld de,0
-	ld hl,0
-ds_cover_do:
-	ld (ds_cmask),hl		; (the bullet, missile 0)
-	ld a,(SHELL_Y)
-	ld b,16
-	ld c,d
-	call .mark
-	ld a,(TANK_Y)
-	ld b,11
-	ld c,e
-	call .mark
-	ld a,$AA
-	ld b,14
-	ld c,e
-	sla c
-	call .mark
-	ld a,(MISSILE_Y)
-	cp $1C
-	jr c,1F
-	ld b,1
-	ld hl,ds_cmask + 1
-	ld c,(hl)
-	call .mark
-1:	ld a,(BULLET_Y)
-	dec a
-	ret z
-	cp $1B
-	jr nc,2F
-	ld a,$1B
-2:	inc a
-	ld b,8
-	ld hl,ds_cmask
-	ld c,(hl)
-.mark	ld l,a
-	ld h,high ds_cover
-	ld a,c
-	or a
-	jr z,.clr
-.m	ld a,(hl)
-	or c
-	ld (hl),a
-	inc l
-	ret z
-	djnz .m
-	ret
-.clr	ld (hl),a
-	inc l
-	ret z
-	djnz .clr
 	ret
 
 ; The bank colour E from scanline A on (a bridge's road, and back)

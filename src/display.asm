@@ -57,6 +57,7 @@ opc:	macro n, k		; the same, C + k cycles first
 	sub n - 1
 	ld ixh,a
 	endm
+	ifdef BEAM			; (the cycle model only: display.asm's display)
 taken:	macro			; a branch taken (3 cycles)
 	op 3
 	endm
@@ -298,6 +299,7 @@ bm_wsync:				; STA WSYNC (after its 4 cycles): on to cycle 106
 	ld ixh,LINE_CYCLES - WSYNC_CYCLE
 	ret
 
+	endif
 ; Per scanline: the cycles ANTIC takes at its start (line_start), and the cycles left in it
 ; after it is drawn (line_after_draw). The river rows whose display list instruction has a
 ; screen address change from frame to frame (display).
@@ -355,6 +357,7 @@ bm_hitclr:
 SPRITES	equ 8				; players 0-3, missiles 0-3
 
 collide:					; (line bm_line)
+	ifdef BEAM			; (the body: the cycle model; display_hits.asm takes .add, .pair)
 .all	; more than player 3. Only what the DLI reads (B5E8-B664, B6BC on): with the
 	; playfield P1PF, P2PF, P3PF, M0PF, M2PF; with each other M0PL (the plane), M2PL (player
 	; 3), P2PL (the shell; player 3: pl_touch), P3PL (the shell). The others are never read.
@@ -474,6 +477,7 @@ collide:					; (line bm_line)
 	ld e,$04
 	; (on to .pair)
 
+	endif
 ; sprites B and C: if both are on the line and touch, (HL) |= E
 .pair	push hl
 	push de
@@ -556,6 +560,7 @@ collide:					; (line bm_line)
 
 ; its playfield colours into (HL) (A = size)
 ; (only the bits the DLI reads: P1PF, P3PF the edge, P2PF the bank, M0PF, M2PF both)
+	ifdef BEAM
 .pf_entry
 	push hl
 	call pf_under
@@ -578,6 +583,7 @@ collide:					; (line bm_line)
 	ret
 
 ; HL = entry A of the list
+	endif
 .entry	ld l,a
 	add a,a
 	add a,a

@@ -402,7 +402,6 @@ COLOUR_WATER		equ $84
 	include "river_gen.asm"
 	include "render.asm"
 	include "display_objs.asm"	; (before the palette's alignment: room there)
-	include "display_plane.asm"
 	assert $ <= $9000
 
 	align 256
@@ -416,29 +415,25 @@ random_columns:
 	include "sprites_scan.asm"
 	ifdef OBJCHECK
 ; (test) the other players' and missiles' rows on the river's lines outside their boxes
-; (ds_cover_set's: shell, tank, plane, helicopter missile, bullet): pc_bad
+; (dh_desc: shell, tank, plane, helicopter missile, bullet): pc_bad
 pc_check:
-	call ds_cover_set
-	ld hl,.list
+	ld ix,dh_desc
 	ld b,5
 .ch	push bc
-	ld d,(hl)			; page
-	inc hl
-	ld e,(hl)			; bits
-	inc hl
-	ld c,(hl)			; box bit
-	inc hl
-	push hl
 	ld l,RIVER_FIRST
-.ln	ld h,d
+.ln	ld h,(ix + 0)
 	ld a,(hl)
-	and e
+	and (ix + 1)
 	jr z,.ok
-	ld h,high ds_cover
-	ld a,(hl)
-	and c
-	jr nz,.ok
-	push hl
+	ld a,(ix + 7)			; rows: in the box?
+	or a
+	jr z,.bad
+	ld a,l
+	sub (ix + 6)
+	jr c,.bad
+	cp (ix + 7)
+	jr c,.ok
+.bad	push hl
 	ld hl,(pc_bad)
 	inc hl
 	ld (pc_bad),hl
@@ -447,15 +442,11 @@ pc_check:
 	ld a,l
 	cp RIVER_FIRST + RIVER_LINES
 	jr c,.ln
-	pop hl
+	ld de,8
+	add ix,de
 	pop bc
 	djnz .ch
-	jp ds_cover_clear
-.list	db high PM_SHELL, $FF, $01
-	db high PM_TANK, $FF, $02
-	db high PM_PLANE, $FF, $04
-	db high PM_MISSILES, $03, $10
-	db high PM_MISSILES, $30, $20
+	ret
 
 ; (test) the objects' sprites against the scanlines: each nonzero row of an object on the
 ; scanline it is drawn on, with its colour, position and scale there; nothing else on the
@@ -565,6 +556,7 @@ oc_check:
 	include "sprites.asm"
 	include "sound_pulses.asm"
 	include "spans.asm"
+	include "display_hits.asm"
 
 	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full
@@ -841,6 +833,14 @@ ay_ch:		ds 1			; the POKEY channel in .one
 	align 256
 edge_lo:	ds 256			; a player's byte: its first dot (bit 7 dot 0; panel_init),
 edge_hi:	ds 256			; its last dot + 1
+dh_tank_edge:	ds 17			; display_hits.asm: the scanlines of each collision (a count,
+dh_plane_bank:	ds 17			; the scanlines; one page),
+dh_missile_bank: ds 17
+dh_bullet_bank:	ds 17
+dh_plane_shell:	ds 17
+dh_missile_plane: ds 17
+dh_desc:	ds 5 * 8		; the sprites
+dh_list:	ds 2
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------
