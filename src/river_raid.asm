@@ -442,7 +442,7 @@ pc_check:
 	ld a,l
 	cp RIVER_FIRST + RIVER_LINES
 	jr c,.ln
-	ld de,8
+	ld de,DH_SIZE
 	add ix,de
 	pop bc
 	djnz .ch
@@ -839,7 +839,7 @@ dh_missile_bank: ds 17
 dh_bullet_bank:	ds 17
 dh_plane_shell:	ds 17
 dh_missile_plane: ds 17
-dh_desc:	ds 5 * 8		; the sprites
+dh_desc:	ds 5 * DH_SIZE		; the sprites
 dh_list:	ds 2
 	assert $ < $FF00		; (the stack above)
 

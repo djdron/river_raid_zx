@@ -4,19 +4,20 @@
 ; frame (dh_lists); an object's at its reads, against its rows in ds_objs (dh_obj). A read
 ; counts a collision if its scanline is between the last HITCLR's (ds_cleared) and its own.
 
-; The sprites (8 bytes each): page of their bytes, mask, rotations to bit 7, X, size, sprite
-; (collide's), first line, rows
+; The sprites (9 bytes each): page of their bytes, mask, rotations to bit 7, X, size, sprite
+; (collide's), first line, rows, clocks wide
+DH_SIZE		equ 9
 DH_SHELL	equ 0
-DH_TANK		equ 8
-DH_PLANE	equ 16
-DH_MISSILE	equ 24
-DH_BULLET	equ 32
+DH_TANK		equ DH_SIZE
+DH_PLANE	equ 2 * DH_SIZE
+DH_MISSILE	equ 3 * DH_SIZE
+DH_BULLET	equ 4 * DH_SIZE
 dh_template:
-	db high PM_SHELL, $FF, 0, 0, 0, 0, 0, 16	; the shell 16 rows from shellY,
-	db high PM_TANK, $FF, 0, 0, 0, 1, 0, 11		; the tank 11 from tankY,
-	db high PM_PLANE, $FF, 0, 0, 0, 2, $AA, 14	; the plane 14 from $AA,
-	db high PM_MISSILES, $03, 6, 0, 1, 4, 0, 1	; the missile (M0, double) its row,
-	db high PM_MISSILES, $30, 2, 0, 0, 6, 0, 8	; the bullet (M2) 8 below bulletY
+	db high PM_SHELL, $FF, 0, 0, 0, 0, 0, 16, 8	; the shell 16 rows from shellY,
+	db high PM_TANK, $FF, 0, 0, 0, 1, 0, 11, 8	; the tank 11 from tankY,
+	db high PM_PLANE, $FF, 0, 0, 0, 2, $AA, 14, 8	; the plane 14 from $AA,
+	db high PM_MISSILES, $03, 6, 0, 1, 4, 0, 1, 4	; the missile (M0, double) its row,
+	db high PM_MISSILES, $30, 2, 0, 0, 6, 0, 8, 2	; the bullet (M2) 8 below bulletY
 dh_template_end:
 
 ; At the frame's start: the sprites, and the scanlines of P1PF (the tank, the edge), P2PF (the
@@ -247,11 +248,33 @@ dh_seen:
 ; NZ: sprite IX touches the current object's rows (the last in ds_objs, if they are its) on
 ; the scanlines from the last HITCLR's to C, bit by bit
 dh_obj:
+	ld a,(ix + 7)			; (no rows)
+	or a
+	ret z
 	ld a,(ds_obj_slot)
 	ld hl,ds_current
 	cp (hl)
-	jr nz,.no
+	jp nz,.no
 	ld iy,(ds_obj_last)
+	ld a,(iy + 7)			; first their clocks: the object's 8, 16 or 32 from its X,
+	and 3				; the sprite's from its
+	ld b,8
+	rra
+	jr nc,1F
+	ld b,16
+	or a
+	jr z,1F
+	ld b,32
+1:	ld a,(ix + 3)
+	sub (iy + 6)
+	jr c,1F
+	cp b				; the sprite from the object's X on: before its end?
+	jp nc,.no
+	jr 2F
+1:	neg				; before it: its end past the object's X?
+	cp (ix + 8)
+	jp nc,.no
+2:
 	ld a,c				; the lines: to min(through + 1, the sprite's end, the
 	inc a				; object's end)
 	jr nz,1F
