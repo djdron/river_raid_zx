@@ -495,6 +495,7 @@ copper_panel:				; (one of the two below: tv_setup)
 copper_panel_end:
 copper_panel_ntsc:
 	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
+	db $31, 0			; the tilemap at the panel's first row (tv_setup: CP_PANEL_Y)
 	db $43, $10			; Layer 2's colours 0-3 (the index going up)
 	db $40, 0
 	db $41, 0, $41, 0, $41, 0, $41, 0	; black
@@ -522,7 +523,8 @@ copper_panel_ntsc:
 copper_panel_ntsc_end:
 ; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239 (Layer 2's
 ; clip window), the scrolling line at 243. The same layout: the offsets below hold for both.
-COPPER_GREY	equ 29			; the grey's 4 bytes in either, 2 apart
+COPPER_GREY	equ 31			; the grey's 4 bytes in either, 2 apart
+CP_PANEL_Y	equ 3			; the tilemap's Y scroll for the panel's first row
 CP_EDGE_BACK	equ 25			; the restored edge colour's byte (the water's 2 after it)
 CP_XSCROLL_BACK	equ 15			; the scrolling line's X scroll (low, high 2 before)
 CP_XSCROLL_HI_BACK equ 17
@@ -535,6 +537,7 @@ NEEDLE_Y_PAL	equ $D3 - RIVER_FIRST + RIVER_TOP
 	assert NEEDLE_Y_NTSC > OBJ_LAST		; (no object's rows reach the needle)
 copper_panel_pal:
 	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
+	db $31, 0			; the tilemap at the panel's first row (tv_setup: CP_PANEL_Y)
 	db $43, $10			; Layer 2's colours 0-3 (the index going up)
 	db $40, 0
 	db $41, 0, $41, 0, $41, 0, $41, 0	; black
@@ -563,8 +566,10 @@ copper_panel_pal:
 copper_start:				; Layer 2's palette, index 1
 	db $43,$90,$40,1
 	db 0,0				; (a NOP: the fallback colour is T's, see main_frame)
-					; the tilemap at the panel's first row, no X scroll
-	db $31,160 - 202
+					; the tilemap: no scroll (its lines the screen's: above
+	db $31,0			; the panel and below the scrolling line, rows nothing is in,
+					; whenever the Copper starts the frame; copper_panel moves it
+					; to the panel's first row from line 200)
 	db $2F,0
 	db $30,0
 copper_start_end:

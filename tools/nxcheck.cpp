@@ -969,7 +969,9 @@ int main(int argc, char **argv) {
 		while (bufSwaps == swaps) compExec(comp);
 	}
 	int bad = 0, firstBadX = -1, firstBadY = -1;
-	const int width = comp->vid->vend.x * 2, height = comp->vid->vend.y;
+	// NXFULL=1: the picture of the whole frame buffer (the lines past the visible area too)
+	const bool fullPic = getenv("NXFULL") != nullptr;
+	const int width = fullPic ? comp->vid->full.x * 2 : comp->vid->vend.x * 2, height = fullPic ? comp->vid->full.y : comp->vid->vend.y;
 	auto pixel = [&](int x, int y) { return bufimg + y * bytesPerLine + x * 4; };
 	for (int y = 0; y < 256; y++) {
 		for (int x = 0; x < 320; x++) {

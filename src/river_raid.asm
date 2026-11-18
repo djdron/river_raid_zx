@@ -375,14 +375,14 @@ tv_setup:
 	ld bc,PANEL_LAST_PAL << 8 | 160 - 206
 .set	ld (wait_line),a
 	ld (rnd_cols),hl
-	ld a,c				; the tilemap at the panel's first row (copper_start)
-	ld (copper_start + 7),a
 	ex de,hl			; the Copper's part for the panel and the scrolling line
 	ld de,copper_panel
 	push bc
 	ld bc,copper_panel_end - copper_panel
 	ldir
 	pop bc
+	ld a,c				; the tilemap at the panel's first row (from line 200)
+	ld (copper_panel + CP_PANEL_Y),a
 	ld a,(palette + $06)		; the panel's background (COLBK $06)
 	ld hl,copper_panel + COPPER_GREY
 	ld (hl),a
