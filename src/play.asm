@@ -1134,6 +1134,30 @@ read_input:
 	ld (snd_clear),a
 .snd	ld a,h
 	ld (snd_keys),a
+	ld b,$FE			; CAPS + 3: 28 MHz and 14 MHz in turn (when pressed)
+	in a,(c)
+	ld h,a
+	ld b,$F7
+	in a,(c)
+	rrca
+	rrca
+	or h
+	cpl
+	and 1
+	ld h,a
+	ld a,(spd_keys)
+	cpl
+	and h
+	jr z,.spd
+	ld a,(cpu_14)
+	xor 1
+	ld (cpu_14),a
+	ld b,a				; NR $07: 3 28 MHz, 2 14 MHz
+	ld a,3
+	sub b
+	nextreg $07,a
+.spd	ld a,h
+	ld (spd_keys),a
 	ld b,$FB			; T: the frame's work on the border, on and off (when
 	in a,(c)			; pressed)
 	cpl

@@ -125,7 +125,10 @@ start:
 	endif
 	di
 	ld sp,0
-	nextreg $07,3			; 28 MHz
+	nextreg $07,3			; 28 MHz (CAPS + 3: 14 MHz and back, read_input)
+	xor a
+	ld (cpu_14),a
+	ld (spd_keys),a
 	nextreg $50,ATARI_RAM_PAGE	; the Atari's RAM at $0000-$3FFF
 	nextreg $51,ATARI_RAM_PAGE + 1
 	nextreg $53,DATA_PAGE
@@ -770,6 +773,8 @@ pk_dma:		ds 2			; where the DMA was
 snd_off:	ds 1			; CAPS + 2: the sound off,
 snd_clear:	ds 1			; the ring to be made quiet,
 snd_keys:	ds 1			; the keys last frame
+cpu_14:		ds 1			; CAPS + 3: 14 MHz (else 28),
+spd_keys:	ds 1			; the keys last frame
 tm_show:	ds 1			; T: the frame's work shown on the border (red, then green)
 tm_keys:	ds 1			; T last frame
 pk_left:	ds 1
