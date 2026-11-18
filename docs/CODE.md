@@ -95,7 +95,7 @@ line (`wait_frame`), the sound by the DMA, the per-line colours by the Copper.
 4. `wait_frame`: polls the active video line (NR $1E/$1F) until `wait_line` (208 NTSC, 220 PAL), below the scrolling line, where nothing on screen changes.
 5. `apply`: everything built goes live at once (Layer 2's scroll and colours, the sprites' attributes, the panel's tiles, the Copper's list).
 
-With T on (`tm_show`), each of these parts sets the border's colour first (`TM_COLOUR`): orange `apply`, grey `prepare` (and `clear_layer2_page` during a reset), red `display`, yellow `build_sprites`, blue `main_loop`, magenta `push_line` (a new river line, inside `main_loop`), white `vbi`, cyan `pokey_frame`, green the time left. `push_line` sets magenta and back to blue.
+With T on (`tm_show`), each of these parts sets the border's colour first (`TM_COLOUR`): orange `apply`, grey `prepare` (and `clear_layer2_page` during a reset), red `display`, yellow `build_sprites`, blue `main_loop`, magenta `push_line` (a new river line, inside `main_loop`), white `vbi`, cyan `pokey_frame`, black the time left. `push_line` sets magenta and back to blue.
 
 Order matters: `display` uses the state the previous frame's `main_loop` left (as the
 Atari's DLI shows the previous frame's state), and `build_sprites` uses what `display` left.

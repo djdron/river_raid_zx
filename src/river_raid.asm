@@ -35,7 +35,7 @@ TM_LOGIC	equ $03			; blue: main_loop (the game logic)
 TM_RIVER	equ $E7			; magenta: push_line (a new river line, inside main_loop)
 TM_VBI		equ $FF			; white: vbi
 TM_SOUND	equ $1F			; cyan: pokey_frame (the sound)
-TM_IDLE		equ $1C			; green: the work done, waiting for the next frame
+TM_IDLE		equ $00			; black: the work done, waiting for the next frame
 	macro TM_COLOUR c
 	ld a,c
 	call tm_colour			; (game.asm; A, B and the flags spent)
