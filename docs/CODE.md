@@ -95,9 +95,11 @@ line (`wait_frame`), the sound by the DMA, the per-line colours by the Copper.
 
 1. Snapshots what this frame's picture shows (`scroll`, the edge and water colours, the player), `read_input`, CAPS + 1 (`restart` in the other standard).
 2. Normally: `prepare` → `display` → `build_sprites` → `main_loop` → `vbi`. During a reset (`busy`, the frames in which the original clears memory: 13 NTSC, 8 PAL): `display` → `build_sprites` → `clear_layer2_page` → (`finish_reset` in the last) → `vbi`.
-3. `pokey_frame`: the frame's samples into the DAC's ring and the AY's tones. With T on (`tm_show`), the fallback colour green here (the work done).
+3. `pokey_frame`: the frame's samples into the DAC's ring and the AY's tones.
 4. `wait_frame`: polls the active video line (NR $1E/$1F) until `wait_line` (208 NTSC, 220 PAL), below the scrolling line, where nothing on screen changes.
-5. With T on, the fallback colour red (the work starts). `apply`: everything built goes live at once (Layer 2's scroll and colours, the sprites' attributes, the panel's tiles, the Copper's list).
+5. `apply`: everything built goes live at once (Layer 2's scroll and colours, the sprites' attributes, the panel's tiles, the Copper's list).
+
+With T on (`tm_show`), each of these parts sets the border's colour first (`TM_COLOUR`): orange `apply`, grey `prepare` (and `clear_layer2_page` during a reset), red `display`, yellow `build_sprites`, blue `main_loop`, magenta `push_line` (a new river line, inside `main_loop`), white `vbi`, cyan `pokey_frame`, green the time left. `push_line` sets magenta and back to blue.
 
 Order matters: `display` uses the state the previous frame's `main_loop` left (as the
 Atari's DLI shows the previous frame's state), and `build_sprites` uses what `display` left.

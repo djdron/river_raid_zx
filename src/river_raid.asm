@@ -25,6 +25,22 @@
 
 	include "vars.inc"
 
+; T: the border's colour (the fallback colour) for the part of the frame that follows, while
+; tm_show is on (A and the flags spent). The parts and their colours (Next RRRGGGBB):
+TM_APPLY	equ $F0			; orange: apply (the frame goes live)
+TM_PREPARE	equ $92			; grey: prepare (and clear_layer2_page during a reset)
+TM_DISPLAY	equ $E0			; red: display (the objects' schedule, the collisions)
+TM_SPRITES	equ $FC			; yellow: build_sprites (the sprites, the Copper's list)
+TM_LOGIC	equ $03			; blue: main_loop (the game logic)
+TM_RIVER	equ $E7			; magenta: push_line (a new river line, inside main_loop)
+TM_VBI		equ $FF			; white: vbi
+TM_SOUND	equ $1F			; cyan: pokey_frame (the sound)
+TM_IDLE		equ $1C			; green: the work done, waiting for the next frame
+	macro TM_COLOUR c
+	ld a,c
+	call tm_colour			; (game.asm; A, B and the flags spent)
+	endm
+
 ATARI_RAM_PAGE	equ 30
 DATA_PAGE	equ 12
 CODE2_PAGE	equ 6
@@ -181,10 +197,15 @@ main_frame:
 	ld a,(busy)
 	or a
 	jr nz,.busy
+	TM_COLOUR TM_PREPARE
 	call prepare
+	TM_COLOUR TM_DISPLAY
 	call display
+	TM_COLOUR TM_SPRITES
 	call build_sprites
+	TM_COLOUR TM_LOGIC
 	call main_loop
+	TM_COLOUR TM_VBI
 	call vbi
 	jr .sound
 .busy	dec a				; sub $B0F1 is clearing memory: the main loop is stuck,
@@ -192,25 +213,25 @@ main_frame:
 	cp 1
 	jr nz,.b
 	ld (SCREEN_ON),a		; colours back on
-.b	call display
+.b	TM_COLOUR TM_DISPLAY
+	call display
+	TM_COLOUR TM_SPRITES
 	call build_sprites
+	TM_COLOUR TM_PREPARE
 	call clear_layer2_page
+	TM_COLOUR TM_LOGIC
 	ld a,(busy)
 	or a
 	call z,finish_reset
+	TM_COLOUR TM_VBI
 	call vbi
-.sound	call pokey_frame
-	ld a,(tm_show)			; T: the border green once the frame's work is done,
-	or a
-	jr z,frame_done
-	nextreg $4A,$1C
-frame_done:
+.sound	TM_COLOUR TM_SOUND
+	call pokey_frame
+	TM_COLOUR TM_IDLE		; T: the work done (the border, from apply on, shows its
+frame_done:				; parts in their colours: TM_*)
 	call wait_frame
-	ld a,(tm_show)			; red from apply on (the fallback colour, which is the
-	or a				; border's: the red part of the frame is the work)
-	jr z,.apply
-	nextreg $4A,$E0
-.apply	call apply
+	TM_COLOUR TM_APPLY
+	call apply
 apply_done:
 	jp main_frame
 

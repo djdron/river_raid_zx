@@ -309,7 +309,18 @@ draw_logo_and_needle:			; (PAL: B133-B15C, 12 and 7 rows lower)
 ; ------------------------------------------------------------------------------------------
 ; A new river line at the top of the screen (Game::pushLine): the generator, screen memory
 ; (the address of the top line moves up by one line), and the line on Layer 2.
+; T: the border's colour A (TM_COLOUR) while tm_show is on
+tm_colour:
+	ld b,a
+	ld a,(tm_show)
+	or a
+	ret z
+	ld a,b
+	nextreg $4A,a
+	ret
+
 push_line:
+	TM_COLOUR TM_RIVER
 	call next_line
 line_done:				; the checks look at the generator here
 	ld hl,(SCREEN_TOP)
@@ -336,7 +347,9 @@ line_done:				; the checks look at the generator here
 	add a,RIVER_TOP
 	call render_line
 	call plain_line			; the collisions' runs: from the line without decoration
-	jp span_line
+	call span_line
+	TM_COLOUR TM_LOGIC		; (back to main_loop's)
+	ret
 
 ; ------------------------------------------------------------------------------------------
 ; AE99-AF38, at the top of the frame: the shapes of the tank, the helicopter missile, the
