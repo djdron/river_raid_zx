@@ -192,8 +192,12 @@ ds_edge_test:
 1:	ld (.pv + 1),de
 	ld (.pv_bits + 1),hl
 	ld a,(ds_x)
+	ld (.bx1 + 1),a
+	ld (.bx2 + 1),a
 	add a,c
 	ld (.pv_end + 1),a
+	ld (.be1 + 1),a
+	ld (.be2 + 1),a
 	jp c,.none
 	jp z,.none
 	ld a,(ds_size)			; their dots' clocks: 1, 2 or 4 a dot (sizes 0 and 2, 1, 3)
@@ -207,19 +211,42 @@ ds_edge_test:
 	ld h,$87
 2:	ld (.s1),hl
 	ld (.s2),hl
-	ld de,(ds_rowp)			; DE: the row, IY: its scanline's span record (the objects'
-	ld a,(ds_counter)		; rows are all on the river's lines), a record 32 bytes
-	sub $44 + RIVER_FIRST		; after the one before (a ring over SPAN_PAGE)
+	ld de,(ds_rowp)			; DE: the row, C: its line's span record (the objects' rows
+	ld a,(ds_counter)		; are all on the river's lines, the next line's the next)
+	sub $44 + RIVER_FIRST
 	ld hl,span_top
 	add a,(hl)
-	span_rec
-	push hl
-	pop iy
+	ld c,a
 	ld a,(ds_rows)
 	ld ixl,a
-.row	ld a,(de)			; the row's first and last dots (edge_lo, edge_hi), the
-	or a				; clocks from X
+.row	ld l,c				; first the object's box (X to X + its width) against the
+	ld h,high eg_e1			; line's water gaps (eg_*): inside one, no edge pixel near
+.bx1	ld a,0
+	cp (hl)
+	jr c,.g2
+	inc h
+	ld a,(hl)
+.be1	cp 0
+	jr nc,.row_on
+.g2	ld h,high eg_e3
+.bx2	ld a,0
+	cp (hl)
+	jr c,.look
+	inc h
+	ld a,(hl)
+.be2	cp 0
+	jr nc,.row_on
+.look	ld a,(de)			; else the row's dots against the line's runs
+	or a
 	jr z,.row_on
+	push bc
+	ld a,c
+	span_rec
+	ld a,l
+	add a,(hl)
+	ld l,a
+	ld a,(de)			; the row's first and last dots (edge_lo, edge_hi), the
+	push hl				; clocks from X
 	ld l,a
 	ld h,high edge_lo
 	ld a,(hl)
@@ -233,19 +260,15 @@ ds_edge_test:
 	nop
 .ex2	add a,0
 	ld b,a				; (B: past the last dot)
-	push iy				; the line's runs of edge pixels (pf_line, pf_edge)
 	pop hl
-	ld a,l
-	add a,(hl)
-	ld l,a
-.run	ld a,(hl)			; a run past the row's last dot: none touched (the runs go
-	cp b				; left to right, $FF at the end)
-	jr nc,.row_on
+.run2	ld a,(hl)			; a run past the row's last dot: none touched
+	cp b
+	jr nc,.off
 	inc l
 	ld a,c				; one that ends before its first dot: the next
 	cp (hl)
 	inc l
-	jr nc,.run
+	jr nc,.run2
 	dec l				; one between: the dots themselves (the rows have gaps)
 	dec l
 	push de
@@ -257,17 +280,14 @@ ds_edge_test:
 	ld d,high span_masks
 .pv	call 0
 	pop de
-	jr z,.row_on
+	jr z,.off
+	pop bc
 	ld a,$02
 	ret
+.off	pop bc
 .row_on	dec de
-	ld bc,32			; the next line's record
-	add iy,bc
-	ld a,iyh
-	cp high (SPANS + $2000)
-	jr c,1F
-	ld iyh,high SPANS
-1:	dec ixl
+	inc c
+	dec ixl
 	jp nz,.row
 .none	xor a
 	ret

@@ -530,6 +530,10 @@ ds_objs:	ds 8 * DS_OBJS		; display: the objects' rows (display_simple.asm)
 copper_list:	ds 2048
 ov_exp2:	ds 2 * 256		; dh_obj: a byte's dots doubled (2 bytes: pages), and
 ov_exp4:	ds 4 * 256		; quadrupled (4)
+eg_e1:		ds 256			; per span record (line), the water's gaps between its
+eg_s2:		ds 256			; runs of edge pixels: from the 1st's end to the 2nd's start,
+eg_e3:		ds 256			; from the 3rd's end to the 4th's ($FF: none, see spans.asm)
+eg_s4:		ds 256
 	assert $ <= $7C00		; (the DAC's ring)
 
 ; Buffers and variables (page 1)
@@ -754,6 +758,7 @@ line_after_draw: ds 256			; and the cycles left after it is drawn
 span_class:	ds 256			; span_line: a byte's colour if its pixels are one, $FF if not
 span_masks:	ds 64			; pf_find: bits i..j of a sprite's byte at 8i + j
 span_tmp:	ds 32			; span_line: the edge's runs
+	assert high span_tmp == high (span_tmp + 31)
 	align 256
 snd_tables:	ds 256			; the sound (sound.asm): POKEY's 5-bit counter at the ticks,
 					; its 4-bit one at +$40, a bit's mask at +$80 (sound_init),

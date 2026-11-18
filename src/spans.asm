@@ -77,10 +77,63 @@ span_line:
 	inc de
 	inc a
 	jr nz,.copy
-	ret
+	jr .gaps
 .full	dec de
 	ld a,$FF
 	ld (de),a
+; The line's water gaps (ds_edge_test): with 2 runs of edge pixels the one between them,
+; with 4 the 1st-2nd and the 3rd-4th (the island between); with none all of it; else none
+; ($FF: the runs looked at)
+.gaps	ld a,(span_top)
+	ld l,a
+	ld de,span_tmp
+	ld a,(de)
+	cp $FF
+	jr z,.g0
+	ld h,high eg_e1
+	inc e
+	ld a,(de)			; the 1st's end
+	ld (hl),a
+	inc e
+	ld a,(de)			; the 2nd's start
+	cp $FF
+	jr z,.gx
+	inc h
+	ld (hl),a
+	inc e
+	inc e
+	ld a,(de)			; a 3rd?
+	cp $FF
+	jr z,.g2
+	inc e
+	ld a,(de)
+	inc h
+	ld (hl),a			; its end
+	inc e
+	ld a,(de)			; a 4th's start
+	cp $FF
+	jr z,.gx
+	inc h
+	ld (hl),a
+	inc e
+	inc e
+	ld a,(de)			; no 5th
+	cp $FF
+	ret z
+.gx	ld h,high eg_e1			; another number of runs: the runs looked at
+	ld (hl),$FF
+	ld h,high eg_e3
+	ld (hl),$FF
+	ret
+.g2	ld h,high eg_e3
+	ld (hl),$FF
+	ret
+.g0	ld h,high eg_e1			; none: all a gap
+	ld (hl),0
+	inc h
+	ld (hl),$FF
+	ld h,high eg_e3
+	ld (hl),$FF
 	ret
 
 ; the run of colour C ends at clock B, one of colour A starts there
@@ -120,8 +173,18 @@ span_line:
 	exx
 	ret
 
-; Screen memory cleared: no runs on any line. Slot 2 is left with SPAN_PAGE.
+; Screen memory cleared: no runs on any line (all a gap). Slot 2 is left with SPAN_PAGE.
 spans_clear:
+	ld hl,eg_e1
+.eg	ld (hl),0
+	inc h
+	ld (hl),$FF
+	inc h
+	ld (hl),$FF
+	dec h
+	dec h
+	inc l
+	jr nz,.eg
 	nextreg $52,SPAN_PAGE
 	ld hl,SPANS
 	ld de,32 - 2
