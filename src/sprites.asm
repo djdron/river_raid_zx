@@ -828,31 +828,41 @@ build_copper:
 ; The tilemap's rows (NTSC): the panel's at 202, 211 and 219 (map rows 20, 22, 23; buffer rows
 ; 182, 191, 199 of the C++ port, 20 lines higher), the scrolling line's at 231 (map row 26):
 ; the Copper sets the tilemap's Y scroll for each, and its X scroll for the scrolling line.
-; The panel's grey is the fallback colour (nothing else is there: the needle goes over it,
-; the characters over the needle, as PRIOR 4 has it), lines 201-229.
+; The panel's grey is Layer 2's, lines 201-229: its clip window goes down to there, and the
+; Copper makes its 4 colours black on line 200 and the grey on 201 (apply sets them again
+; below the scrolling line). Under the sprites, so the needle goes over it and the characters
+; over the needle, as PRIOR 4 has it; and only the 320 dots wide, as the Atari's (the
+; fallback colour, which it used to be, filled the border too).
 copper_panel:				; (one of the two below: tv_setup)
 	ds copper_panel_ntsc_end - copper_panel_ntsc
 copper_panel_end:
 copper_panel_ntsc:
+	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
+	db $43, $10			; Layer 2's colours 0-3 (the index going up)
+	db $40, 0
+	db $41, 0, $41, 0, $41, 0, $41, 0	; black
 	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
-	db $4A, 0			; (grey: tv_setup)
+	db $40, 0
+	db $41, 0, $41, 0, $41, 0, $41, 0	; grey (tv_setup: COPPER_GREY)
 	db $80 | COPPER_WAIT_H * 2, 211 - 32 - 1
 	db $31, 176 - 211
-	db $80 | COPPER_WAIT_H * 2, 230 - 32 - 1
-	db $4A, 0
 	db $80 | COPPER_WAIT_H * 2, 231 - 32 - 1
 	db $31, 208 - 231
 	db $30, 0			; (set by panel_frame)
 copper_panel_ntsc_end:
-; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239, the
-; scrolling line at 243
+; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239 (Layer 2's
+; clip window), the scrolling line at 243
+COPPER_GREY	equ 19			; the grey's 4 bytes in either, 2 apart
 copper_panel_pal:
+	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
+	db $43, $10
+	db $40, 0
+	db $41, 0, $41, 0, $41, 0, $41, 0
 	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
-	db $4A, 0
+	db $40, 0
+	db $41, 0, $41, 0, $41, 0, $41, 0
 	db $80 | COPPER_WAIT_H * 2, 218 - 32 - 1
 	db $31, 176 - 218
-	db $80 | COPPER_WAIT_H * 2, 240 - 32 - 1
-	db $4A, 0
 	db $80 | COPPER_WAIT_H * 2, 243 - 32 - 1
 	db $31, 208 - 243
 	db $30, 0
@@ -915,8 +925,10 @@ apply:
 	ld a,$8E
 .p	call .colour
 	nextreg $41,a
-	nextreg $43,%10010000		; Layer 2: the edge and the water (red while a bridge flashes;
-	nextreg $40,2			; black while the screen is cleared)
+	nextreg $43,%10010000		; Layer 2: black (the Copper made it the panel's grey), the
+	nextreg $40,0			; edge and the water (red while a bridge flashes; black while
+	nextreg $41,0			; the screen is cleared)
+	nextreg $40,2
 	ld a,(show_edge)
 	call .colour
 	nextreg $41,a

@@ -354,7 +354,27 @@ tv_setup:
 	ldir
 	pop bc
 	ld a,(palette + $06)		; the panel's background (COLBK $06)
-	ld (copper_panel + 3),a
+	ld hl,copper_panel + COPPER_GREY
+	ld (hl),a
+	inc hl
+	inc hl
+	ld (hl),a
+	inc hl
+	inc hl
+	ld (hl),a
+	inc hl
+	inc hl
+	ld (hl),a
+	ld a,(tv_pal)			; Layer 2's clip window: the river and the panel's grey
+	or a
+	ld a,229
+	jr z,.l2
+	ld a,239
+.l2	nextreg $1C,%00000001
+	nextreg $18,0
+	nextreg $18,159
+	nextreg $18,RIVER_TOP
+	nextreg $18,a
 	ld a,$FF			; the Copper's list made again (no Atari colour is odd)
 	ld (cp_colour),a
 	nextreg $1C,%00001010		; clip windows: the sprites and the tilemap to the last line

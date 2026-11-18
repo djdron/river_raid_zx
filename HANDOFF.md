@@ -76,7 +76,7 @@ nxcheck checks after every frame: the game's state, screen memory, player-missil
 - Layer 2 at 320x256 holds the playfield's 2-bit colour indices, 160 of the 192 colour clocks, two dots each; the bank, edge and water colours are palette entries, the bank's per line by the Copper (its list sent again only when the bank's colours change).
 - Each object is a ready-made sprite with its rows in their colours (8-bit pattern: dot = 128 + Atari colour / 2, the sprites' palette 128–255 the Atari's colours; made once per shape, frame and clipping, kept in a cache); an object above the river's top is drawn whole and clipped by the sprites' clip window. The other players and missiles are a sprite each from where the game put them (4-bit patterns).
 - The display follows the C++ port's displaySimple, not the 6502's timing: the original's DLI timing survives only where it decides which object a collision is counted for.
-- The panel and scrolling line are the tilemap; the panel's grey is the fallback colour.
+- The panel and scrolling line are the tilemap; the panel's grey is Layer 2's (its 4 colours made grey by the Copper on the panel's lines, its clip window down to the panel's last grey line), so it is 320 dots wide like the river; the fallback colour stays black, the border too.
 - The frame goes live below the scrolling line (raster line 208 NTSC, 220 PAL).
 - PAL by default; CAPS + 1 switches and starts again as if the machine were switched on (P is "right" in Q A O P).
 - Controls: Q A O P, Space/M fire, Enter START, G SELECT, H pause; Kempston 1 and 2, Mega Drive START and A.
