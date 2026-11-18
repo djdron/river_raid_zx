@@ -513,7 +513,8 @@ copper_panel_ntsc:
 					; edge, 3 the water (apply: CP_EDGE_BACK)
 	db $80 | COPPER_WAIT_H * 2, 231 - 32 - 1
 	db $31, 208 - 231
-	db $30, 0			; (set by panel_frame: CP_XSCROLL_BACK)
+	db $2F, 0			; (set by panel_frame: CP_XSCROLL_HI_BACK,
+	db $30, 0			; CP_XSCROLL_BACK)
 	db $80 | COPPER_WAIT_H * 2, WAIT_LINE_NTSC + 32 - 32 - 1
 	db $1C, 2			; the sprites' window the river's again, for the next frame
 	db $19, 0, $19, 159		; (below the logo, where apply starts)
@@ -522,8 +523,11 @@ copper_panel_ntsc_end:
 ; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239 (Layer 2's
 ; clip window), the scrolling line at 243. The same layout: the offsets below hold for both.
 COPPER_GREY	equ 29			; the grey's 4 bytes in either, 2 apart
-CP_EDGE_BACK	equ 23			; the restored edge colour's byte (the water's 2 after it)
-CP_XSCROLL_BACK	equ 15			; the scrolling line's X scroll
+CP_EDGE_BACK	equ 25			; the restored edge colour's byte (the water's 2 after it)
+CP_XSCROLL_BACK	equ 15			; the scrolling line's X scroll (low, high 2 before)
+CP_XSCROLL_HI_BACK equ 17
+PF_PATTERN	equ 20			; the scrolling line's sprite: its pattern (4-bit),
+PF_OFFSET	equ 6			; palette offset
 OBJ_LAST	equ RIVER_TOP + RIVER_LINES - 1 + 15	; the lowest line an object's rows reach
 					; (a 16-row piece from the river's last line at the lowest)
 NEEDLE_Y_NTSC	equ $CC - RIVER_FIRST + RIVER_TOP	; the needle's first line (10 lines)
@@ -549,7 +553,8 @@ copper_panel_pal:
 					; edge, 3 the water (apply: CP_EDGE_BACK)
 	db $80 | COPPER_WAIT_H * 2, 243 - 32 - 1
 	db $31, 208 - 243
-	db $30, 0			; (set by panel_frame: CP_XSCROLL_BACK)
+	db $2F, 0			; (set by panel_frame: CP_XSCROLL_HI_BACK,
+	db $30, 0			; CP_XSCROLL_BACK)
 	db $80 | COPPER_WAIT_H * 2, WAIT_LINE_PAL + 32 - 32 - 1
 	db $1C, 2			; the sprites' window the river's again, for the next frame
 	db $19, 0, $19, 159		; (below the logo, where apply starts)
@@ -708,111 +713,90 @@ panel_frame:
 	ld de,TILE_MAP + 23 * 80
 	call .panel_row
 
-	; the scrolling line: 25 characters from $B800 + TEXT_LO, the first 38 - 2 x FINE_SCROLL
-	; dots left of the screen. Its tiles go S dots left (the X scroll, (38 - 2 x fine) & 7),
-	; the first visible half character is H0 = (38 - 2 x fine) / 8.
+	; the scrolling line: half character h (the character at $B800 + h / 2, its right half if h
+	; is odd) at 8 h - X0, X0 = 16 TEXT_LO + 38 - 2 FINE_SCROLL (the first character 38 - 2 x
+	; fine dots left of the screen). The tilemap's row is a ring: half h in column h mod 40, X
+	; scroll X0 mod 320; only the halves new since the last frame are written. Column h0 mod 40
+	; (h0 = X0 / 8, the left edge's) wraps round to the right edge: its last S = X0 & 7 dots
+	; there are cut off by the tilemap's clip window, and a sprite shows half h0 + 40 there.
+	ld a,(TEXT_LO)
+	ld l,a
+	ld h,0
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
 	ld a,(FINE_SCROLL)
 	add a,a
 	neg
 	add a,38
-	ld b,a
-	and 7
-	ld (pf_s),a
-	ld hl,(copper_bytes)		; the Copper's X scroll for it (the list's last MOVE)
-	ld de,copper_list - CP_XSCROLL_BACK
-	add hl,de
-	ld (hl),a
-	ld a,b
-	rrca
-	rrca
-	rrca
-	and $1F
-	ld (pf_h0),a
-	ld a,(TEXT_LO)
-	ld l,a
-	ld h,high ROM_SCROLL_TEXT
-	ld (pf_text),hl
-	ld de,TILE_MAP + 26 * 80	; column 0: tile 256
-	xor a
-	ld (de),a
-	inc de
-	ld a,$41			; palette offset 4, tile bit 8
-	ld (de),a
-	inc de
-	ld a,(pf_h0)			; columns 1-39: half characters H0 + 1 ...
-	inc a
-	ld c,a
-	ld b,39
-.text	ld a,c
-	call .half_char			; A: character, carry: right half
-	rla
-	and $7F
-	or 128
-	ld (de),a
-	inc de
-	ld a,$40
-	ld (de),a
-	inc de
-	inc c
-	djnz .text
-	; tile 256: column 0 is seen twice, its first S dots at the right edge (half H0 + 40),
-	; the rest at the left (half H0)
-	ld a,(pf_h0)
-	add a,40
-	call .glyph
-	ld (pf_right),hl
-	ld (pf_right_half),a
-	ld a,(pf_h0)
-	call .glyph
-	ld (pf_left_half),a
-	ld a,(pf_s)			; the bits of the nibble from the right edge's half
-	rrca
 	ld e,a
 	ld d,0
+	add hl,de			; X0
+	ld a,l
+	and 7
+	ld (pf_s),a
 	push hl
-	ld hl,.masks
+	ld de,320			; X0 mod 320: the X scroll into the Copper's list
+.mod	or a
+	sbc hl,de
+	jr nc,.mod
 	add hl,de
-	ld a,(hl)
-	ld (pf_mask),a
-	pop hl				; HL: the left half's glyph
-	ld de,(pf_right)
-	exx
-	ld hl,TILE_256
-	exx
-	ld b,8
-.row	ld c,(hl)			; the left's nibble
-	ld a,(pf_left_half)
-	call .nibble
-	ld (pf_left_nibble),a
-	ld a,(de)			; the right edge's
-	ld c,a
-	ld a,(pf_right_half)
-	call .nibble
-	push hl
-	ld hl,pf_mask
-	and (hl)
-	ld c,a
-	ld a,(hl)
-	cpl
-	ld hl,pf_left_nibble
-	and (hl)
-	or c
+	ld b,h
+	ld c,l
+	ld hl,(copper_bytes)
+	ld de,copper_list - CP_XSCROLL_BACK
+	add hl,de
+	ld (hl),c
+	dec hl
+	dec hl
+	ld (hl),b
 	pop hl
-	exx
-	ld c,a				; the nibble as 4 bytes
-	ld b,4
-.dots	xor a
-	bit 3,c
-	jr z,$+4
-	ld a,$11
-	ld (hl),a
-	inc hl
-	sla c
-	djnz .dots
-	exx
-	inc hl
-	inc de
-	djnz .row
+	srl h				; h0
+	rr l
+	srl h
+	rr l
+	srl h
+	rr l
+	ld (pf_h0),hl
+	ld de,(pf_ring_lo)		; the ring has halves pf_ring_lo to + 39: those from there + 40
+	or a				; to h0 + 39 written (all 40 if that is not 1-39 of them)
+	sbc hl,de
+	jr z,.ring_ok
+	ld a,h
+	or a
+	jr nz,.full
+	ld a,l
+	cp 40
+	jr nc,.full
+	ld b,a
+	ld hl,40
+	add hl,de
+	jr .write
+.full	ld hl,(pf_h0)
+	ld b,40
+.write	call .ring_write
+	ld hl,(pf_h0)
+	ld (pf_ring_lo),hl
+.ring_ok
+	ld hl,(pf_h0)			; the sprite's half: h0 + 40, its pattern written when it changes
+	ld de,40
+	add hl,de
+	ld de,(pf_spr_h)
+	or a
+	sbc hl,de
+	add hl,de
+	call nz,.spr_pattern
+	ld a,(pf_s)			; the clip window: S dots off the right
+	rrca
+	neg
+	add a,159
+	nextreg $1C,%00001000
+	nextreg $1B,0
+	nextreg $1B,a
+	nextreg $1B,PANEL_FIRST_LINE
+	ld a,(pf_clip_y2)
+	nextreg $1B,a
 
 	; the needle: missile 1 at fuel / 8 + $5C (B527), rows $CC-$D5
 	ld bc,$303B
@@ -868,7 +852,24 @@ panel_frame:
 	ld a,$C0 | 63
 	ld b,$C0
 	ld de,0
-	jr .logo
+	call .logo
+	ld a,(pf_s)			; the scrolling line's sprite at 320 - S (X bit 8 set)
+	neg
+	add a,64
+	out (c),a
+	ld a,(tv_pal)
+	or a
+	ld a,231
+	jr z,.sy
+	ld a,243
+.sy	out (c),a
+	ld a,PF_OFFSET << 4 | 1
+	out (c),a
+	ld a,$C0 | PF_PATTERN >> 1
+	out (c),a
+	ld a,$80
+	out (c),a
+	ret
 
 ; a logo sprite at HL (then HL + DE), pattern A / B (4-bit, N6)
 .logo	push af
@@ -887,49 +888,106 @@ panel_frame:
 	add hl,de
 	ret
 
-; the half character A of the scrolling line: A = its character, carry set for the right half
-.half_char
+; B halves of the scrolling line from half HL into their columns of the ring
+.ring_write
+	push bc
 	push hl
-	srl a
-	push af
-	ld hl,(pf_text)
-	add a,l
-	ld l,a
-	jr nc,$+3
-	inc h
-	pop af
-	ld a,(hl)
+	ld bc,40			; the first's column: HL mod 40
+.rm	or a
+	sbc hl,bc
+	jr nc,.rm
+	add hl,bc
+	ld a,l
+	add a,a
+	ld e,a
+	ld d,0
+	ld ix,TILE_MAP + 26 * 80
+	add ix,de
 	pop hl
+	pop bc
+	ld c,a				; (its byte in the row, to wrap at 80)
+.rw	push hl
+	ld a,l
+	and 1
+	ld e,a
+	srl h
+	rr l
+	ld a,h
+	add a,high ROM_SCROLL_TEXT
+	ld h,a
+	ld a,(hl)			; tile: 128 + (2 x character + half) & $7F
+	add a,a
+	or e
+	and $7F
+	or 128
+	ld (ix + 0),a
+	ld (ix + 1),$40			; palette offset 4
+	pop hl
+	inc hl
+	inc ix
+	inc ix
+	ld a,c
+	add a,2
+	cp 80
+	jr c,1F
+	ld ix,TILE_MAP + 26 * 80
+	xor a
+1:	ld c,a
+	djnz .rw
 	ret
 
-; HL = the glyph (8 rows at $0600) of half character A; A = 0 left, 1 right
-.glyph	call .half_char
-	push af
+; The sprite's pattern: half HL's 8 rows (a dot 2 pixels of value 1), the rows below empty
+; (as panel_init left them)
+.spr_pattern
+	ld (pf_spr_h),hl
+	ld a,l
+	and 1
+	ld b,a
+	srl h
+	rr l
+	ld a,h
+	add a,high ROM_SCROLL_TEXT
+	ld h,a
+	ld a,(hl)
 	and $3F
 	ld l,a
 	ld h,0
 	add hl,hl
 	add hl,hl
 	add hl,hl
-	ld de,$0600
+	ld de,$0600			; the glyph's rows
 	add hl,de
-	pop af
+	ld e,b				; E: the half
+	ld bc,$303B
+	ld a,PF_PATTERN >> 1
+	out (c),a
+	ld c,$5B
+	ld d,8
+.sr	ld a,(hl)
+	inc hl
+	bit 0,e				; the half's 4 bits at the top
+	jr z,1F
+	rrca
+	rrca
+	rrca
+	rrca
+1:	ld b,4
+.sd	add a,a
+	push af
 	ld a,0
-	rla
+	jr nc,2F
+	ld a,$11
+2:	out (c),a
+	pop af
+	djnz .sd
+	xor a
+	out (c),a
+	out (c),a
+	out (c),a
+	out (c),a
+	dec d
+	jr nz,.sr
 	ret
-
-; A = 0: bits 7-4 of C, else bits 3-0, as bits 3-0
-.nibble	or a
-	ld a,c
-	jr nz,.lo
-	rrca
-	rrca
-	rrca
-	rrca
-.lo	and $0F
-	ret
-
-.masks	db %0000, %1000, %1100, %1110
 
 ; HL: 20 characters as the 40 tiles of a row at DE
 .panel_row

@@ -80,7 +80,11 @@ panel_init:
 	ld c,a
 	djnz .tc
 
-	nextreg $43,%00100000		; the sprites' palette: the needle (offset 4) and the logo's
+	nextreg $43,%00100000		; the sprites' palette: the scrolling line's sprite (as the
+	nextreg $40,PF_OFFSET * 16 + 1	; tilemap's offset 4), the needle (offset 4) and the logo's
+	ld a,(.tile_colours + 4)
+	call .colour
+	nextreg $41,a
 	nextreg $40,NEEDLE_OFFSET * 16 + 1	; rows (offset 5, from $B48D)
 	ld a,$1E
 	call .colour

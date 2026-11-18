@@ -368,10 +368,14 @@ tv_setup:
 	nextreg $19,RIVER_TOP
 	nextreg $19,RIVER_TOP + RIVER_LINES - 1
 	ld a,b
+	ld (pf_clip_y2),a
 	nextreg $1B,0
 	nextreg $1B,159
 	nextreg $1B,PANEL_FIRST_LINE
 	nextreg $1B,a
+	ld hl,$8000			; the scrolling line's ring and sprite: all written again
+	ld (pf_ring_lo),hl
+	ld (pf_spr_h),hl
 	jp rnd_tables			; random_step's tables for the standard
 
 init_video:
@@ -511,14 +515,11 @@ colour_water:	ds 1
 show_edge:	ds 1			; and as this frame shows them
 show_water:	ds 1
 show_player:	ds 1
-pf_s:		ds 1			; panel_frame
-pf_h0:		ds 1
-pf_text:	ds 2
-pf_right:	ds 2
-pf_right_half:	ds 1
-pf_left_half:	ds 1
-pf_left_nibble:	ds 1
-pf_mask:	ds 1
+pf_s:		ds 1			; panel_frame: the scrolling line's X0 & 7,
+pf_h0:		ds 2			; its left edge's half character (X0 / 8),
+pf_ring_lo:	ds 2			; the first of the 40 halves in the tilemap's ring,
+pf_spr_h:	ds 2			; the sprite's half,
+pf_clip_y2:	ds 1			; the tilemap's last line (the clip window)
 logo_shown:	ds 1			; the logo's position this frame (before the VBI moves it)
 game_over_text:	ds 1			; A3B4: "Game over" scrolls past
 busy:		ds 1			; frames of sub $B0F1 still to come
