@@ -63,14 +63,6 @@ PATTERN_CACHE	equ $4800		; page 7 at $4000: the rows of each sprite pattern (128
 PC_BUCKETS	equ $5000		; a hash of the rows -> pattern + 1, for each set (2 x 256),
 PC_HASH		equ $5200		; each pattern's hash,
 PC_USED		equ $5300		; which are used this frame;
-OB_BUCKETS	equ $5400		; the objects' patterns (8-bit): a hash of the key -> pattern + 1,
-OB_SHL		equ $5500		; each pattern's key (by pattern, 64 each): its first row's
-OB_SHH		equ $5540		; address,
-OB_CLL		equ $5580		; its colour's,
-OB_CLH		equ $55C0
-OB_N		equ $5600		; its rows ($FF: none to match),
-OB_HASH		equ $5640		; the hash,
-OB_FRAME	equ $5680		; the frame it was last used in
 SPAN_PAGE	equ 28			; at $4000 (display, push_line): the river lines' runs of bank
 SPANS		equ $4000		; and edge pixels, 32 bytes a line, a ring of 256 (spans.asm)
 
@@ -108,7 +100,8 @@ rnd_feed_reads:	db 0
 start_bridges_hi: db 0			; the starting bridge's hundreds and thousands, BCD (nxcheck
 					; NXBRIDGE patches the ROM's starts and this)
 snd_passed:	dw 0			; the frames whose samples the DMA had passed (sound.asm)
-test_ghost_on:	db 0			; nxcheck NXGHOST: after the display, the plane cannot crash
+test_ghost_on:	db 0
+ob_miss:	dw 0			; objects whose picture obj_lookup did not find (not drawn)			; nxcheck NXGHOST: after the display, the plane cannot crash
 test_ghost:				; and never runs out of fuel (as the C++ port's display_bench)
 	ld a,(test_ghost_on)
 	or a
@@ -541,6 +534,10 @@ pc_check:
 	include "load_rom.asm"
 	display "page 7 end: ",$
 	assert $ <= $6800		; (the pattern cache from $6800: PATTERN_CACHE in slot 2)
+	org $7400			; (after the pattern cache's tables, $5400 in slot 2)
+	include "obj_pics.asm"
+	display "page 7, obj_pics end: ",$
+	assert $ <= $8000
 
 ; ------------------------------------------------------------------------------------------
 ; Buffers (page 12)
@@ -744,17 +741,25 @@ sb_run_size:	ds 1
 cm_count:	ds 1
 cm_shift:	ds 1
 sb_bpage:	ds 1			; the hash table's page of the set (PC_BUCKETS)
-ob_frame:	ds 1			; frames, for the objects' patterns (OB_FRAME)
-ob_next:	ds 1			; the next object pattern to take
-ob_line:	ds 1			; ob_emit: the sprite's first line,
-ob_n:		ds 1			; its rows,
-ob_sh:		ds 2			; the address of its first row,
-ob_col:		ds 2			; and of its first row's colour
+ob_line:	ds 1			; ob_list: the sprite's first line,
+ob_pat:		ds 1			; its pattern (+ bank in bit 7),
 ob_x:		ds 1
 ob_size:	ds 1
-ob_left:	ds 1
-ob_hash:	ds 1
-ob_nokey:	ds 1			; rows from the scanlines: never the same again
+ob_left:	ds 1			; the object's rows left
+op_t:		ds 1			; obj_pics (at the start): the type,
+op_k:		ds 1			; the kind,
+op_s:		ds 1			; the top row's shape byte (low; $B9xx),
+op_c:		ds 1			; its colour (low; $B7xx),
+op_left:	ds 1			; the rows left,
+op_rows:	ds 1			; of the pattern,
+op_sp:		ds 2			; the next row's shape byte,
+op_cp:		ds 2			; and colour,
+op_p:		ds 1			; the next pattern,
+op_bank:	ds 1			; the bank (0 A, 1 B),
+op_reach:	ds 16			; the kinds the type can have,
+op_bankn:	ds 2			; the colours in each bank,
+op_bankc:	ds 32			; and which (place 1-15 in each 16)
+obj_count:	ds 1			; obj_lookup's entries
 	ifdef OBJCHECK
 oc_bad:		ds 2			; (test) the scanlines the objects' sprites do not show as they are
 oc_frames:	ds 2
@@ -819,6 +824,10 @@ dh_plane_shell:	ds 17
 dh_missile_plane: ds 17
 dh_desc:	ds 5 * DH_SIZE		; the sprites
 dh_list:	ds 2
+	align 256
+obj_head:	ds 256			; obj_lookup: by the shape byte's address, its first entry + 1
+obj_e:		ds 3 * OBJ_ENTRIES	; the entries: colour byte's address, pattern (+ bank),
+					; the next with the same shape byte + 1
 	align 256
 rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
 rnd_col16:	ds 3			; and bit 16's column

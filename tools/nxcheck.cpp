@@ -942,6 +942,11 @@ int main(int argc, char **argv) {
 	{
 		const uint16_t passed = symbol(argv[2], "snd_passed");
 		if (passed) std::printf("sound: the DMA passed the samples made in %d frames\n", readZ80(comp, passed) | readZ80(comp, uint16_t(passed + 1)) << 8);
+	{
+		const uint16_t om = symbol(argv[2], "ob_miss");
+		const int miss = readZ80(comp, om) | readZ80(comp, uint16_t(om + 1)) << 8;
+		if (miss) std::printf("objects: %d whose picture was not found (not drawn)\n", miss);
+	}
 	}
 	auto writeWav = [&](const char *path, const std::vector<int16_t> &v) {
 		FILE *wf = std::fopen(path, "wb");

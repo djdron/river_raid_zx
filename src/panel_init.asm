@@ -109,23 +109,6 @@ panel_init:
 	ld bc,PC_USED + $100 - PATTERN_CACHE - 1
 	ld (hl),0
 	ldir
-	ld hl,OB_BUCKETS + $2000	; the objects' patterns: none kept (OB_*)
-	ld de,OB_BUCKETS + $2001
-	ld bc,$FF
-	ld (hl),0
-	ldir
-	ld hl,OB_N + $2000
-	ld b,64
-.obn	ld (hl),$FF
-	inc l
-	djnz .obn
-	ld l,low OB_FRAME
-	ld b,64
-.obf	ld (hl),$80
-	inc l
-	djnz .obf
-	ld a,OB_FIRST
-	ld (ob_next),a
 	ld l,0				; each byte's first and last dots (edge_lo, edge_hi; display)
 .eb	ld b,l
 	ld c,0				; C the dot (bit 7 first), D the first ($FF none yet), E the
@@ -253,7 +236,7 @@ panel_init:
 	xor a
 	ld (pc_next),a
 	ld (pc_next + 1),a
-	ret
+	jp obj_pics			; the objects' patterns
 
 ; the dot B of row E of the logo's player 2 part: its colour (E + 1) or 0
 .logo_dot

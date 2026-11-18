@@ -15,12 +15,15 @@
 ; the tank 33, the plane and its bullet 49; Layer 2: 0 black, 1 the bank, 2 the bank edge,
 ; 3 the water.
 ; Patterns (8-bit, 256 bytes): 0-11 the 4-bit ones, 12 a frame in turn (24 of 128 bytes);
-; 12-61 the objects'; 62-63 the needle and the logo (4-bit 124-127).
+; 4-bit 24 on the objects' (made at the start: obj_pics); 62-63 the needle and the logo
+; (4-bit 124-127).
 
 PATTERNS_HALF	equ 12			; 4-bit patterns per frame: two sets in turn
 SPRITES_MAX	equ 60
-OB_FIRST	equ PATTERNS_HALF		; the objects' patterns
-OB_LAST		equ 61
+OBP_FIRST	equ 2 * PATTERNS_HALF	; the objects' patterns (4-bit, obj_pics)
+OBJ_BANK_A	equ 14			; the objects' sprite palette banks (obj_pics)
+OBJ_BANK_B	equ 15
+OBJ_ENTRIES	equ 64			; obj_lookup's entries at most
 COPPER_WAIT_H	equ 40			; where in the line before a river line the Copper changes colours
 SHELL_OFFSET	equ 1
 TANK_OFFSET	equ 2
@@ -47,8 +50,6 @@ build_sprites:
 .unused	ld (hl),a
 	inc l
 	djnz .unused
-	ld hl,ob_frame
-	inc (hl)
 	; in the order drawRiver draws them, the last on top
 	call ob_list			; player 3: the objects, from their rows
 	ifdef OBJCHECK
@@ -163,15 +164,11 @@ pm_channel:
 	ld (sb_bits),a
 	jp emit_sprite
 
-; The objects' sprites, from what the display left (ds_objs): an object's rows go up in
-; memory from the first (the bottom row is the first), a sprite for each 16 of them.
+; The objects' sprites, from what the display left (ds_objs; the rows from ds_objf): each
+; object's picture made at the start (obj_pics), found by its top row's shape and colour
+; addresses (obj_lookup); a sprite per 16 rows, none for a piece below the river (its rows
+; past the river's end the sprites' window hides: copper_panel).
 ob_list:
-	xor a
-	ld (ob_nokey),a
-	ld a,$2B			; (DEC HL, DEC DE)
-	ld (ob_write.step_sh),a
-	ld a,$1B
-	ld (ob_write.step_col),a
 	ld a,(ds_obj_n)
 	or a
 	ret z
@@ -183,24 +180,13 @@ ob_list:
 	ld a,(hl)
 	ld (ob_line),a
 	inc hl
-	push hl				; the rows: all of them (ds_objf, not the DLI's)
-	ld hl,(ob_fptr)
-	ld a,(hl)
+	inc hl				; (the DLI's rows: the collisions')
+	ld e,(hl)			; E: the shape's address (low; $B9xx)
 	inc hl
-	ld (ob_fptr),hl
-	pop hl
-	ld (ob_left),a
 	inc hl
-	ld e,(hl)
+	ld d,(hl)			; D: the colour's ($B7xx)
 	inc hl
-	ld d,(hl)
 	inc hl
-	ld (ob_sh),de
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	inc hl
-	ld (ob_col),de
 	ld a,(hl)
 	ld (ob_x),a
 	inc hl
@@ -208,184 +194,77 @@ ob_list:
 	ld (ob_size),a
 	inc hl
 	push hl
-.chunk	ld a,(ob_left)			; 16 rows a sprite
+	ld hl,(ob_fptr)
+	ld a,(hl)
+	inc hl
+	ld (ob_fptr),hl
+	ld (ob_left),a
+	call obj_lookup
+	or a
+	jr z,.miss
+	ld (ob_pat),a
+.chunk	ld a,(ob_left)
 	or a
 	jr z,.next
 	ld a,(ob_line)			; none whose first row is below the river (no part of it
-	sub RIVER_FIRST + RIVER_LINES	; shows on the Atari; the rows past the river's end of
-	cp 32				; the one above it the sprites' window hides: copper_panel;
-	jr c,.next			; lines past 220: an object coming in at the top, above 0)
+	sub RIVER_FIRST + RIVER_LINES	; shows on the Atari; lines past 220: an object coming in
+	cp 32				; at the top, above 0)
+	jr c,.next
+	call ob_attr
+	ld hl,ob_pat
+	inc (hl)
 	ld a,(ob_left)
-	cp 17
-	jr c,1F
-	ld a,16
-1:	ld (ob_n),a
-	ld b,a
-	ld a,(ob_left)
-	sub b
-	ld (ob_left),a
-	call ob_emit
-	ld hl,(ob_sh)
-	ld de,-16
-	add hl,de
-	ld (ob_sh),hl
-	ld hl,(ob_col)
-	add hl,de
-	ld (ob_col),hl
+	sub 16
+	jr nc,1F
+	xor a
+1:	ld (ob_left),a
 	ld a,(ob_line)
 	add a,16
 	ld (ob_line),a
 	jr .chunk
+.miss
+	ifdef TEST
+	ld hl,ob_miss			; (not the top row: a DLI slip cut it; not drawn)
+	inc (hl)
+	endif
 .next	pop hl
 	pop bc
 	djnz .obj
 	ret
 
-; A sprite of ob_n rows (up to 16) from ob_sh, their colours from ob_col, at scanline
-; ob_line, position ob_x, size ob_size: its 8-bit pattern, kept (OB_*) and found again by
-; the rows' addresses and how many (unless ob_nokey), its attributes for apply.
-ob_emit:
+; The picture whose top row's shape byte is at $B900 + E, its colour at $B700 + D: A the
+; pattern (4-bit) + its bank in bit 7, 0 none
+obj_lookup:
+	ld h,high obj_head
+	ld l,e
+	ld a,(hl)
+.l	or a
+	ret z
+	dec a
+	ld l,a
+	ld h,high obj_e
+	ld a,(hl)
+	cp d
+	jr z,.f
+	ld a,l
+	add a,2 * OBJ_ENTRIES
+	ld l,a
+	ld a,(hl)
+	jr .l
+.f	ld a,l
+	add a,OBJ_ENTRIES
+	ld l,a
+	ld a,(hl)
+	ret
+
+; The attributes of a sprite of pattern ob_pat at scanline ob_line, position ob_x, size
+; ob_size: X = 2 x (position - 32 - 20) (9 bits), Y = RIVER_TOP + the line's place in the
+; river, the bank, 4 bits, the scale (double 2x, quadruple 4x)
+ob_attr:
 	ld a,(sb_count)
 	cp SPRITES_MAX
 	ret nc
-	ld a,(ob_nokey)
-	or a
-	jp nz,.alloc
-	ld a,(ob_sh)			; the hash
-	ld hl,ob_col
-	xor (hl)
-	rlca
-	ld hl,ob_sh + 1
-	add a,(hl)
-	ld hl,ob_n
-	add a,(hl)
-	ld (ob_hash),a
 	ld l,a
-	ld h,high OB_BUCKETS
-	ld a,(hl)
-	or a
-	jr z,.alloc
-	dec a
-	ld l,a				; the pattern there: the same key?
-	ld h,high OB_SHL
-	ld a,(ob_sh)
-	cp (hl)
-	jr nz,.alloc
-	ld a,l
-	add a,low (OB_SHH - OB_SHL)
-	ld l,a
-	ld a,(ob_sh + 1)
-	cp (hl)
-	jr nz,.alloc
-	ld a,l
-	add a,low (OB_CLL - OB_SHH)
-	ld l,a
-	ld a,(ob_col)
-	cp (hl)
-	jr nz,.alloc
-	ld a,l
-	add a,low (OB_CLH - OB_CLL)
-	ld l,a
-	ld a,(ob_col + 1)
-	cp (hl)
-	jr nz,.alloc
-	ld a,l				; (OB_N on the next page)
-	and $3F
-	ld l,a
-	inc h
-	ld a,(ob_n)
-	cp (hl)
-	jr nz,.alloc
-	ld a,l
-	jp .used
-.alloc	ld hl,ob_next			; a pattern not used this frame or the last one (shown
-	ld b,OB_LAST + 1 - OB_FIRST	; now), in turn
-.an	ld a,(hl)
-	ld c,a
-	inc a
-	cp OB_LAST + 1
-	jr c,.an1
-	ld a,OB_FIRST
-.an1	ld (hl),a
-	ld a,c
-	add a,low OB_FRAME
-	ld e,a
-	ld d,high OB_FRAME
-	ld a,(ob_frame)
-	ex de,hl
-	sub (hl)
-	ex de,hl
-	cp 2
-	jr nc,.free
-	djnz .an
-	ret				; (none: never so many)
-.free	ld a,c
-	ld (sb_pattern),a
-	ld l,a				; its old key out of the hash table
-	ld h,high OB_N
-	ld a,(hl)
-	inc a
-	jr z,.key
-	ld a,l
-	add a,low (OB_HASH - OB_N)
-	ld l,a
-	ld a,(hl)
-	ld l,a
-	ld h,high OB_BUCKETS
-	ld a,(hl)
-	dec a
-	cp c
-	jr nz,.key
-	ld (hl),0
-.key	ld a,(ob_nokey)			; the new one
-	or a
-	ld h,high OB_N
-	ld a,c
-	ld l,a
-	ld (hl),$FF
-	jr nz,.write
-	ld a,(ob_n)
-	ld (hl),a
-	ld a,c
-	add a,low OB_HASH
-	ld l,a
-	ld a,(ob_hash)
-	ld (hl),a
-	ld l,a
-	ld h,high OB_BUCKETS
-	ld a,c
-	inc a
-	ld (hl),a
-	ld h,high OB_SHL
-	ld l,c
-	ld a,(ob_sh)
-	ld (hl),a
-	ld a,l
-	add a,low (OB_SHH - OB_SHL)
-	ld l,a
-	ld a,(ob_sh + 1)
-	ld (hl),a
-	ld a,l
-	add a,low (OB_CLL - OB_SHH)
-	ld l,a
-	ld a,(ob_col)
-	ld (hl),a
-	ld a,l
-	add a,low (OB_CLH - OB_CLL)
-	ld l,a
-	ld a,(ob_col + 1)
-	ld (hl),a
-.write	ld a,c
-	call ob_write
-	ld a,(sb_pattern)
-.used	ld (sb_pattern),a		; A: the pattern, used this frame
-	add a,low OB_FRAME
-	ld l,a
-	ld h,high OB_FRAME
-	ld a,(ob_frame)
-	ld (hl),a
-	ld a,(sb_count)			; the attributes: X = 2 * (position - 32 - 20) (9 bits),
-	ld l,a				; Y = RIVER_TOP + the first line's place in the river
 	ld h,0
 	ld e,l
 	ld d,h
@@ -408,75 +287,44 @@ ob_emit:
 	add a,RIVER_TOP - RIVER_FIRST
 	ld (hl),a			; Y
 	inc hl
+	ld a,(ob_pat)
+	rla
+	ld a,OBJ_BANK_B << 4
+	jr c,2F
+	ld a,OBJ_BANK_A << 4
+2:	ld c,a
 	ld a,d
 	and 1
-	ld (hl),a			; palette offset 0, X bit 8
+	or c
+	ld (hl),a			; the bank, X bit 8
 	inc hl
-	ld a,(sb_pattern)
+	ld a,(ob_pat)
+	and $7F
+	ld c,a
+	srl a
 	or $C0
-	ld (hl),a			; visible, 5 bytes, pattern
+	ld (hl),a			; visible, 5 bytes, pattern / 2
 	inc hl
-	ld a,(ob_size)			; an 8-bit pattern; scale: double 2x, quadruple 4x
+	ld a,c
+	rrca
+	rrca
+	and $40
+	or $80
+	ld c,a				; 4 bits, the half
+	ld a,(ob_size)
 	and 3
 	cp 1
-	ld c,%00001000
-	jr z,1F
+	ld b,%00001000
+	jr z,3F
 	cp 3
-	ld c,%00010000
-	jr z,1F
-	ld c,0
-1:	ld (hl),c
+	ld b,%00010000
+	jr z,3F
+	ld b,0
+3:	ld a,b
+	or c
+	ld (hl),a
 	ld hl,sb_count
 	inc (hl)
-	ret
-
-; Pattern A (8 bits): ob_n rows from ob_sh, colours from ob_col (step_*: the next row's
-; address), then empty rows to 16. A pixel of a row's byte is 2 of colour 128 + colour / 2.
-ob_write:
-	ld bc,$303B
-	out (c),a
-	ld c,$5B
-	ld hl,(ob_sh)
-	ld de,(ob_col)
-	ld a,(ob_n)
-	ld b,a
-.row	ld a,(de)
-	srl a
-	or $80
-	push de
-	ld e,a
-	ld a,(hl)
-	or a
-	jr z,.empty
-	ld d,a
-	rept 8
-	sla d
-	sbc a,a
-	and e
-	out (c),a
-	out (c),a
-	endr
-.stepped
-	pop de
-.step_sh
-	dec hl
-.step_col
-	dec de
-	djnz .row
-	ld a,(ob_n)
-	sub 16
-	ret z
-	neg
-	ld b,a
-	xor a
-.zero	call .row16
-	djnz .zero
-	ret
-.empty	call .row16
-	jr .stepped
-.row16	rept 16
-	out (c),a
-	endr
 	ret
 
 ; A sprite for the run: its pattern now (into the set not shown), its attributes for apply.
