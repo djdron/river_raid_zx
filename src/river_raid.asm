@@ -387,7 +387,7 @@ tv_setup:
 	nextreg $1B,159
 	nextreg $1B,PANEL_FIRST_LINE
 	nextreg $1B,a
-	ret
+	jp rnd_tables			; random_step's tables for the standard
 
 init_video:
 	xor a				; black border, no ULA
@@ -782,6 +782,9 @@ dh_plane_shell:	ds 17
 dh_missile_plane: ds 17
 dh_desc:	ds 5 * DH_SIZE		; the sprites
 dh_list:	ds 2
+	align 256
+rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
+rnd_col16:	ds 3			; and bit 16's column
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------

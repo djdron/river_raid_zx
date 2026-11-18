@@ -55,7 +55,6 @@ The 30 most expensive routines (A / B):
 | `snd_fill` | 2 800 | 2 400 | sound |
 | `pf_size` + `pf_v1` (+ `pf_v1_bits`) | 4 100 | 7 200 | display |
 | `pokey_frame` (own code) | 2 400 | 2 500 | sound |
-| `random_step` | 2 300 | 2 300 | game |
 | `pk_channel` | 1 500 | 2 800 | sound_pulses |
 | `ob_write` | 1 800 | 2 500 | sprites |
 | `ds_inx` | 1 800 | 2 000 | display_simple |
@@ -154,7 +153,8 @@ the original's RAM addresses.
 | routine | called | what and how | A / B |
 |---|---|---|---|
 | `random_read` | `main_loop` (A205) | POKEY's RANDOM: the 17-bit counter as it stands at the read point. The checks count these reads. | |
-| `random_step` | `vbi` | The counter one frame on: a fixed linear map (17 columns in `random.inc`, NTSC or PAL), applied bit by bit. ~2 300 every frame: a candidate (a table per byte would be 3 × 256 × 3 bytes). | 2 300 / 2 300 |
+| `random_step` | `vbi` | The counter one frame on: a fixed linear map (17 columns in `random.inc`, NTSC or PAL), 4 bits at a time: for each of the 4 nibbles of bits 0–15 a 3-byte entry of `rnd_tab` (page 1, 256 bytes aligned: 64 k + 4 v) XORed in, bit 16's column (`rnd_col16`) if set. Was bit by bit, ~2 300. | 560 / 560 |
+| `rnd_tables` | end of `tv_setup` | `rnd_tab` and `rnd_col16` from the standard's columns (`rnd_cols`): each entry the XOR of its value's columns. | |
 | `bank_colour` | `vbi`, `start_attract` | sub $AFD0: the bank's shade (switches while a bridge is drawn in near the top). | 200 / 200 |
 | `start_attract` | `restart` | The attract mode's state at its first line (game 1, no plane). | |
 | `draw_logo_and_needle` | `reset`, `start_attract` | The rainbow and the fuel needle into player-missile memory, as sub $B0F1 leaves them. | |

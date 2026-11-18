@@ -26,44 +26,150 @@ random_read:				; A = the value read: bits 16-9
 	rra
 	ret
 
-; The counter one frame (262 x 114 cycles) on: a linear map, random.inc has its columns.
+; The counter one frame (262 x 114 cycles) on: a linear map, the XOR of column j (random.inc)
+; for each set bit j. Taken 4 bits at a time: rnd_tab has, for each nibble k of bits 0-15 and
+; each value v, the XOR of the columns of v's bits (at 64 k + 4 v, 3 bytes; rnd_tables makes it
+; for the standard); bit 16 its own column (rnd_col16).
 random_step:
-	ld hl,(rnd_state)
-	ld ix,(rnd_cols)
-	ld de,0
-	ld c,d
-	ld b,16
-.bit	srl h
-	rr l
-	jr nc,.next
+	ld h,high rnd_tab
+	ld a,(rnd_state)		; bits 0-3
+	ld b,a
+	and $0F
+	add a,a
+	add a,a
+	ld l,a
+	ld e,(hl)
+	inc l
+	ld d,(hl)
+	inc l
+	ld c,(hl)
+	ld a,b				; bits 4-7
+	and $F0
+	rrca
+	rrca
+	or $40
+	ld l,a
 	ld a,e
-	xor (ix+0)
+	xor (hl)
 	ld e,a
+	inc l
 	ld a,d
-	xor (ix+1)
+	xor (hl)
 	ld d,a
+	inc l
 	ld a,c
-	xor (ix+2)
+	xor (hl)
 	ld c,a
-.next	inc ix
-	inc ix
-	inc ix
-	djnz .bit
-	ld a,(rnd_state + 2)
+	ld a,(rnd_state + 1)		; bits 8-11
+	ld b,a
+	and $0F
+	add a,a
+	add a,a
+	or $80
+	ld l,a
+	ld a,e
+	xor (hl)
+	ld e,a
+	inc l
+	ld a,d
+	xor (hl)
+	ld d,a
+	inc l
+	ld a,c
+	xor (hl)
+	ld c,a
+	ld a,b				; bits 12-15
+	and $F0
+	rrca
+	rrca
+	or $C0
+	ld l,a
+	ld a,e
+	xor (hl)
+	ld e,a
+	inc l
+	ld a,d
+	xor (hl)
+	ld d,a
+	inc l
+	ld a,c
+	xor (hl)
+	ld c,a
+	ld a,(rnd_state + 2)		; bit 16
 	rra
 	jr nc,.done
+	ld hl,rnd_col16
 	ld a,e
-	xor (ix+0)
+	xor (hl)
 	ld e,a
+	inc hl
 	ld a,d
-	xor (ix+1)
+	xor (hl)
 	ld d,a
+	inc hl
 	ld a,c
-	xor (ix+2)
+	xor (hl)
 	ld c,a
 .done	ld (rnd_state),de
 	ld a,c
 	ld (rnd_state + 2),a
+	ret
+
+; rnd_tab and rnd_col16 from the standard's columns (rnd_cols; tv_setup)
+rnd_tables:
+	ld ix,(rnd_cols)
+	ld hl,rnd_tab
+	ld b,4				; the nibbles
+.k	push bc
+	ld c,0				; their values
+.v	ld (hl),0
+	inc l
+	ld (hl),0
+	inc l
+	ld (hl),0
+	dec l
+	dec l
+	push ix
+	ld a,c
+	ld b,4
+.b	rrca
+	jr nc,.nb
+	push af
+	ld a,(ix + 0)
+	xor (hl)
+	ld (hl),a
+	inc l
+	ld a,(ix + 1)
+	xor (hl)
+	ld (hl),a
+	inc l
+	ld a,(ix + 2)
+	xor (hl)
+	ld (hl),a
+	dec l
+	dec l
+	pop af
+.nb	inc ix
+	inc ix
+	inc ix
+	djnz .b
+	pop ix
+	ld a,l
+	add a,4
+	ld l,a
+	inc c
+	ld a,c
+	cp 16
+	jr c,.v
+	ld de,12			; the next 4 columns
+	add ix,de
+	pop bc
+	djnz .k
+	push ix				; column 16
+	pop hl
+	ld de,rnd_col16
+	ld bc,3
+	ldir
 	ret
 
 ; ------------------------------------------------------------------------------------------
