@@ -9,7 +9,7 @@
 Неофициальный любительский проект в учебных целях, не связан с Activision и Microsoft. Игры
 в нём нет: программа читает ваш собственный образ картриджа во время работы.
 
-Как это работает на Next, для всех: [docs/HOW_IT_WORKS.ru.md](docs/HOW_IT_WORKS.ru.md). Чтобы продолжить работу: [HANDOFF.ru.md](HANDOFF.ru.md); как сделано, с цифрами: [docs/NOTES.ru.md](docs/NOTES.ru.md).
+Как это работает на Next, для всех: [docs/HOW_IT_WORKS.ru.md](docs/HOW_IT_WORKS.ru.md). Чтобы продолжить работу: [HANDOFF.ru.md](HANDOFF.ru.md); как сделано, с цифрами: [docs/NOTES.ru.md](docs/NOTES.ru.md); исходный код на ассемблере по процедурам: [docs/CODE.ru.md](docs/CODE.ru.md).
 
 ## Состояние
 
