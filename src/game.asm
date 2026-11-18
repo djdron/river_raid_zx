@@ -237,6 +237,7 @@ start_attract:
 	ldir
 	ld a,60				; (all of it into the tilemap: panel_frame)
 	ld (pf_dirty_n),a
+	call pb_forget			; (the numbers printed again)
 	ld a,$80
 	ld (ATTRACT_FLAGS),a
 	call set_up_game

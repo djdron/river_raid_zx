@@ -868,6 +868,8 @@ respawn_or_game_over:
 	ld a,(PLAYER)
 	or a
 	call nz,swap_players
+	ld a,$FF			; (the lives' place: printed again after this)
+	ld (sl_last),a
 	ld hl,ROM_PLAYER_TWO_TEXT
 	ld de,PANEL + PANEL_LIVES
 	ld b,4
@@ -1054,125 +1056,7 @@ select_game:
 	ret
 
 ; ------------------------------------------------------------------------------------------
-; A character into the panel (at DE: panel_put_de; at HL: panel_put), only if it changed:
-; then its position is listed for panel_frame (pf_dirty; past 59 of them: all). AF only.
-panel_put_de:
-	ex de,hl
-	call panel_put
-	ex de,hl
-	ret
-panel_put:
-	cp (hl)
-	ret z
-	ld (hl),a
-	push hl
-	push de
-	ld e,l				; (PANEL at $1000: L is the position)
-	ld hl,pf_dirty_n
-	ld a,(hl)
-	cp 60
-	jr nc,.done
-	inc (hl)
-	ld hl,pf_dirty
-	add a,l
-	ld l,a
-	jr nc,1F
-	inc h
-1:	ld (hl),e
-.done	pop de
-	pop hl
-	ret
-
-; The panel's characters ($1000, 40 per row)
-
-; sub $AF5B: the lives as plane symbols (the newest blinks while the bonus sounds).
-show_lives:
-	ld a,(LIVES)
-	ld c,a
-	or a
-	jr z,.s
-	ld a,(SOUND_BONUS)
-	and 8
-	jr z,.s
-	dec c
-.s	ld hl,PANEL + PANEL_LIVES
-	ld b,9
-	ld e,0
-.l	ld a,e
-	cp c
-	ld a,LIFE_SYMBOL
-	jr c,.w
-	xor a
-.w	call panel_put
-	inc hl
-	inc e
-	djnz .l
-	ret
-
-show_bridges:
-	ld hl,BRIDGES
-	ld b,2
-	ld de,PANEL + PANEL_BRIDGES
-	ld c,DIGITS_BRIDGES
-	jr print_bcd
-show_score:
-	ld hl,SCORE
-	ld b,3
-	ld de,PANEL + PANEL_SCORE
-	ld c,DIGITS_SCORE
-	jr print_bcd
-show_other_score:
-	ld hl,SCORE
-	ld b,3
-	ld de,PANEL + PANEL_HIGH_SCORE
-	ld c,DIGITS_OTHER
-	jr print_bcd
-show_high_score:
-	ld a,(GAME_NUMBER)
-	and $0E
-	add a,a
-	add a,HIGH_SCORE
-	ld l,a
-	ld h,0
-	ld b,3
-	ld de,PANEL + PANEL_HIGH_SCORE
-	ld c,DIGITS_HIGH_SCORE
-
-; B086-B0C6: B BCD bytes at HL as digits at DE, '0' = C, leading zeros blank; nothing in the
-; attract mode.
-print_bcd:
-	ld a,(ATTRACT_FLAGS)
-	rla
-	ret c
-	ld a,1
-	ld (pb_leading),a
-.byte	ld a,(hl)
-	rrca
-	rrca
-	rrca
-	rrca
-	and $0F
-	call .digit
-	ld a,(hl)
-	and $0F
-	call .digit
-	inc hl
-	djnz .byte
-	ret
-.digit	jr nz,.show
-	ld a,(pb_leading)
-	or a
-	jr z,.show
-	xor a
-	call panel_put_de
-	inc de
-	ret
-.show	add a,c
-	call panel_put_de
-	inc de
-	xor a
-	ld (pb_leading),a
-	ret
+; (pb_forget, panel_put, show_lives, show_bridges, show_score, print_bcd: panel.asm, page 6)
 
 ; ------------------------------------------------------------------------------------------
 ; The controls, as the original reads them (Input of the C++ port): in_stick for the two

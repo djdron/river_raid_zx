@@ -453,6 +453,7 @@ random_columns:
 	include "sound_ay_run.asm"
 	include "spans.asm"
 	include "display_hits.asm"
+	include "panel.asm"
 
 	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full
@@ -541,6 +542,8 @@ logo_y:		ds 1
 rl_page:	ds 1
 cs_sp:		ds 2
 pb_leading:	ds 1
+pb_cache:	ds 16			; print_bcd: per place, the digits' base and BCD bytes printed
+sl_last:	ds 1			; show_lives: the symbols printed
 fp_exploding:	ds 1
 shell_colour:	ds 1
 ms_right:	ds 1
