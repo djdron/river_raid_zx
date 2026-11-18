@@ -77,13 +77,16 @@ nxcheck checks after every frame: the game's state, screen memory, player-missil
 - Each object is a ready-made sprite with its rows in their colours (8-bit pattern: dot = 128 + Atari colour / 2, the sprites' palette 128–255 the Atari's colours; made once per shape, frame and clipping, kept in a cache); an object above the river's top is drawn whole and clipped by the sprites' clip window. The other players and missiles are a sprite each from where the game put them (4-bit patterns).
 - The display follows the C++ port's displaySimple, not the 6502's timing: the original's DLI timing survives only where it decides which object a collision is counted for.
 - The panel and scrolling line are the tilemap; the panel's grey is Layer 2's (its 4 colours made grey by the Copper on the panel's lines, its clip window down to the panel's last grey line), so it is 320 dots wide like the river; the fallback colour stays black, the border too.
+- The picture is the Next's 320 dots, colour clocks 20–179: the C++ port shows 12–179 (and the scrolling line's 192); the 8 on the left stay out (the border can only be a flat colour, and the sprites would vanish over it). In the attract mode the scrolling line lacks 2 characters on the left, about 1 on the right.
+- The pixels' shape is left to the screen: Xpeccy+ square; the C++ port 0.86 (NTSC) / 1.03 (PAL); a real Next on HDMI at 60 Hz about 0.89.
+- The sound: the DAC's gain fixed at 8 a volume unit (levels to 240), keeping the C++ port's balance with the AY's tones (at the YM table's top); mono, as the original. In Xpeccy+ it is about half the C++ port's loudness (one DAC a side in the Next's mix; DAC and PSG volumes 80 by default).
 - The frame goes live below the scrolling line (raster line 208 NTSC, 220 PAL).
 - PAL by default; CAPS + 1 switches and starts again as if the machine were switched on (P is "right" in Q A O P).
 - Controls: Q A O P, Space/M fire, Enter START, G SELECT, H pause; Kempston 1 and 2, Mega Drive START and A.
 
 ## Open questions
 - Not tried on a real Next; the keyboard and joystick reading is untested (the checks give the controls directly). Speed is measured on Xpeccy+'s Next core; the real machine's memory wait states at 28 MHz are not checked.
-- The sound has not been heard on a real Next: the zxnDMA (burst mode, prescaler 55, auto restart, read back of its address) and the DAC on port $DF are as Xpeccy+'s core models the VHDL.
+- The sound has been heard only on Xpeccy+ (the crackle there was the DMA reading another page mapped over the ring: fixed; nothing may map over $6000-$7FFF while it plays). Not on a real Next: the zxnDMA (burst mode, prescaler 55, auto restart, read back of its address) and the DAC on port $DF are as Xpeccy+'s core models the VHDL.
 - The ROM is now read by `load_rom` in page 7 (moved for room); test builds do not have it, so it is checked only on a real Next.
 - The DLI falling behind (above): the original shows old rows of an object for a frame or two; whether to model it is open (it would need the old rows kept).
 - Power-on before the attract mode (the first 38/25 frames) is not shown; the program starts at the attract mode.
@@ -92,4 +95,5 @@ nxcheck checks after every frame: the game's state, screen memory, player-missil
 - The schedule cheaper (`display` ~33 000 ticks, `ds_fields` ~5 600): the reads' windows and cycles, the slot's fields; or decide whether the cycle rules are still wanted (without them the schedule is a few additions an object, with rare differences from the original).
 - `dh_obj` (~7 000): a test by Y before the one by X.
 - The sound cheaper: the running sum (`snd_sum`, ~6 800 ticks a frame) and the noise (`pk_noise`, ~4 400).
+- If wanted: the scrolling line whole in the tilemap's 80-column mode on its rows (narrower characters); the AY's tones in stereo (NR $09).
 - Run it on a real Next (the keyboard, the joysticks, the DMA sound, the ROM loading, the speed with memory wait states).

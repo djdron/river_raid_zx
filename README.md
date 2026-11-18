@@ -29,7 +29,9 @@ against the C++ port frame by frame.
 The sound: the original's sound driver sets POKEY's four channels every frame (checked
 against the C++ port); POKEY itself is emulated in software, its output made into a ring of
 samples that the zxnDMA sends to the DAC on its own (15 909 a second). Not yet heard on a
-real Next: on Xpeccy+'s core it plays, and the checks write it to a WAV (`-wav`).
+real Next: on Xpeccy+'s core it plays, and the checks write it to a WAV (`-wav`). In
+Xpeccy+ set the DAC and PSG volumes to 100 (they are 80 by default): the DAC plays the
+noises, the PSG (AY) the pure tones.
 
 PAL or NTSC: the program starts as a PAL Atari (the Next at 50 Hz), CAPS + 1 switches to an
 NTSC one (60 Hz) and back, as if the machine were switched on again. They differ as the
