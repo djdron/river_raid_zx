@@ -44,7 +44,7 @@ The 30 most expensive routines (A / B):
 | `ob_list` | 5 700 | 6 400 | sprites |
 | `ds_fields` | 5 600 | 6 400 | display_simple |
 | `dh_seen` | 4 000 | 6 500 | display_hits |
-| `ds_obj` | 3 900 | 4 500 | display_objs |
+| `ds_obj` | 3 900 | 4 500 Also `ds_objf`: the rows for the sprites, all of them, those past the river's end too (byte 1, the DLI's count, stays for the collisions); the Copper's sprite window below the river hides them, so an object keeps one pattern while it goes out at the bottom. Now at the end of page 4. | display_objs |
 | `emit_sprite` | 2 600 | 5 200 | sprites |
 | `dh_bits` | 3 400 | 4 200 | display_hits |
 | `pf_line` | 2 600 | 4 200 | display |
@@ -84,7 +84,7 @@ page 7 at the same addresses, which runs once at the start.)
 
 The code pages are nearly full: page 4 ends at ~$9F2F (of $A000), page 6 at ~$DE4E (of
 $E000), page 7 at ~$66CD (the build prints these). Moving code between pages is how room was
-found before (`display_objs.asm` sits in the gap before the palette's alignment in page 4).
+found before (`display_objs.asm` sat in the gap before the palette's alignment in page 4, now at its end).
 
 Interrupts are off all the time (`di` at start): the frame is paced by polling the raster
 line (`wait_frame`), the sound by the DMA, the per-line colours by the Copper.
@@ -289,7 +289,7 @@ assembled only with `-DBEAM`. Assembled always:
 | routine | called | what and how | A / B |
 |---|---|---|---|
 | `build_sprites` | `main_frame` | Flips the 4-bit pattern set (`sb_half`: two sets of 12, one shown while the other is written) and clears its "used" table; `ob_list` (the objects); the plane, its bullet, the tank, the helicopter's missile, the shell with `pm_channel` (in the order `drawRiver` draws them, the last on top); `build_copper`. | 1 000 / 1 100 |
-| `ob_list` | `build_sprites` | Per `ds_objs` entry, a sprite per 16 rows (`ob_emit`), the row pointers stepping back 16 a chunk (the bottom row is first in memory: `ob_write` steps with self-modified `dec hl`/`dec de`). | 5 700 / 6 400 |
+| `ob_list` | `build_sprites` | Per `ds_objs` entry, its rows from `ds_objf` (all of them), a sprite per 16 rows (`ob_emit`), the row pointers stepping back 16 a chunk (the bottom row is first in memory: `ob_write` steps with self-modified `dec hl`/`dec de`). | 5 700 / 6 400 |
 | `ob_emit` | `ob_list` | An 8-bit multicolour pattern for (shape address, colour address, rows): a hash of the key into `OB_BUCKETS`, the key compared (`OB_SHL/SHH/CLL/CLH/N`); found: reused. Not found: a pattern slot (12–61) not used this frame or the last (`OB_FRAME`, so the one on screen is not overwritten) taken in turn, its old key removed, the new one stored, `ob_write`. Then the 5 attribute bytes into `sprite_list` (X = 2·(x − 52), Y, the pattern, the scale for double or quadruple width). Mostly the key check and attribute work: a pattern write is rare once the cache is warm. | 9 700 / 10 400 |
 | `ob_write` | `ob_emit` | Pattern A over port $5B: n rows of 8 dots, each dot 2 bytes of colour 128 + Atari colour / 2 (bit set) or 0, then empty rows to 16. | 1 800 / 2 500 |
 | `pm_channel` | `build_sprites` | One player or missile from player-missile memory as one 4-bit sprite: only its known rows (E from line D: where the game put it), clipped to the river; nothing if they are empty (an OR over them); a missile's bits converted to a player's byte through a table into `ch_bits`. Then `emit_sprite`. | 2 700 / 3 100 |
