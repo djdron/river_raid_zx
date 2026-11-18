@@ -40,13 +40,12 @@ the scrolling line are higher, the memory clearing after a crash takes 13 frames
 8, fuel depots are a little rarer on PAL from level $2F on, and so on (the C++ port's PAL
 and NTSC variants).
 
-Speed: at 28 MHz a frame's work takes about 60–61% of a 50 Hz frame on average, the
-busiest (tanks, shells and missiles beside the enemies) up to about 88%; on PAL no frame was
-late in 60 000. The sound is about 25 000 ticks of it (4% of a frame); in a busy frame it
-makes fewer samples and leaves the rest to the next frames. At 60 Hz (NTSC) the frame is
-shorter: about 1 frame in 140 is a little late and shown twice. From bridge 50 on the scenes
-are much busier: there a frame is late now and then on PAL, and often on NTSC (the sound
-then gives way first, with short flat gaps).
+Speed: at 28 MHz a frame's work takes about 21% of a 50 Hz frame on average at the start of
+a game, about 41% at most in the heaviest scenes (all enemy slots taken, full speed, firing
+all the time, from bridge 80); no frame is late on PAL or NTSC. So it runs at 14 MHz too:
+even the heaviest frames take about 83% of a 50 Hz frame and 98% of a 60 Hz one. The sound is
+about 25 000 ticks of it (4% of a frame), up to ~40 000 with explosions and the helicopter's
+missile; in a busy frame it makes fewer samples and leaves the rest to the next frames.
 
 ## Running it
 
@@ -110,8 +109,8 @@ N). `tools/nxcheck` runs the program on the ZX Spectrum Next core of
 beside it (`rr::Game::frame`, with the same POKEY counter and the same controls). The
 controls come from a made-up player: it waits in the attract mode, sometimes selects another
 game, presses START, flies towards the middle of the water, dodges enemies ahead, flies over
-depots when low on fuel, fires, pauses now and then (`-bot N` for other choices, `-seed N`
-for another POKEY counter, `-attract` for no player). After every frame it compares the
+depots when low on fuel, fires, pauses now and then (`-bot N` for other choices, `-stress`
+at full speed always firing, `-seed N` for another POKEY counter, `-attract` for no player). After every frame it compares the
 river generator's state (`RiverGen::diffWithRam`), the game's state (the scrolling line's
 too), the high scores and the panel's characters, screen memory, the
 bank colour per line (`Game::scan`) and the objects as drawn (`Game::drawn`), the Copper's
@@ -141,12 +140,12 @@ Each frame (`src/river_raid.asm`):
    colour, the lives, bridges and score into the panel's characters (`Game::prepare`). The
    Next writes no player-missile memory: the sprites' pictures and the collisions' rows
    come from the ROM's shapes.
-2. `src/display_simple.asm`, `src/display_hits.asm`: the DLI's work (`Game::displaySimple`
-   on the C++ port's `dli_removal` branch). Its loop is kept as a schedule: which rows of
-   each object the Atari shows and on which lines, where each collision read and the
-   clearing come (a few cycle rules move them). The objects' rows go to `ds_objs`; the
-   collisions the game reads are worked out from the sprites' rows (boxes, then dots) and
-   counted for the object whose reading window holds their line.
+2. `src/display_simple.asm`, `src/display_hits.asm`: the DLI's work, without the DLI
+   (`Game::displayGeometry` on the C++ port's `dli_removed` branch). Each object stands at
+   its slot's height, cut to the river; its rows go to `ds_objs`. The collisions the game reads
+   are plain geometry: boxes first (against each line's water gaps, against each other),
+   then the dots, wherever they touch. The original reads them in windows, object by object:
+   0.01–0.25% of frames decide otherwise, a touch a frame earlier.
 3. `src/sprites.asm`: what the Atari shows becomes Next hardware. Each object (player 3,
    whose colour changes every line) is a ready-made sprite with its rows in their colours,
    placed at the object's position. The other players and missiles are a sprite each too,
