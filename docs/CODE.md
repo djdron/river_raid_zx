@@ -25,7 +25,7 @@ By part (A / B):
 |---|---|---|
 | the display: objects' schedule and collisions (`display_simple`, `display_objs`, `display_hits`, `pf_*` and `collide` in `display.asm`) | 87 400 | 120 100 |
 | sound (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 25 400 | 32 100 |
-| sprites and the Copper's list (`build_sprites`, `ob_*`, `pm_channel`, `emit_sprite`, `build_copper`) | 25 000 | 30 100 |
+| sprites and the Copper's list (`build_sprites`, `ob_*`, `pl_*`, `build_copper`; measured with the old caches: the pictures made at the start, `obj_pics` and `pl_pics`, take ~13 500 off) | 25 000 | 30 100 |
 | new river lines (`river_gen`, `render_line`, `span_line`, `push_line`) | 19 700 | 27 900 |
 | the game logic and the rest (`prepare`, `main_loop`, `move_objects`, `random_step`, `print_bcd`, …) | 13 100 | 15 000 |
 
@@ -34,7 +34,6 @@ The 30 most expensive routines (A / B):
 | routine | A | B | file |
 |---|---|---|---|
 | `display` (own code) | 32 700 | 50 400 | display_simple |
-| `ob_emit` | 9 700 | 10 400 | sprites |
 | `render_line` | 7 700 | 10 500 | render |
 | `snd_sum` | 8 600 | 7 300 | sound |
 | `dh_obj` | 7 100 | 8 600 | display_hits |
@@ -44,19 +43,16 @@ The 30 most expensive routines (A / B):
 | `ob_list` | 5 700 | 6 400 | sprites |
 | `ds_fields` | 5 600 | 6 400 | display_simple |
 | `dh_seen` | 4 000 | 6 500 | display_hits |
-| `ds_obj` | 3 900 | 4 500 Also `ds_objf`: the rows for the sprites, all of them, those past the river's end too (byte 1, the DLI's count, stays for the collisions); the Copper's sprite window below the river hides them, so an object keeps one pattern while it goes out at the bottom. Now at the end of page 4. | display_objs |
-| `emit_sprite` | 2 600 | 5 200 | sprites |
+| `ds_obj` | 3 900 | 4 500 | display_objs |
 | `dh_bits` | 3 400 | 4 200 | display_hits |
 | `pf_line` | 2 600 | 4 200 | display |
 | `prepare` | 3 000 | 3 000 | game |
-| `pm_channel` | 2 700 | 3 100 | sprites |
 | `move_objects` | 2 000 | 3 700 | game |
 | `draw_line` | 2 300 | 3 300 | river_gen |
 | `snd_fill` | 2 800 | 2 400 | sound |
 | `pf_size` + `pf_v1` (+ `pf_v1_bits`) | 4 100 | 7 200 | display |
 | `pokey_frame` (own code) | 2 400 | 2 500 | sound |
 | `pk_channel` | 1 500 | 2 800 | sound_pulses |
-| `ob_write` | 1 800 | 2 500 | sprites |
 | `ds_inx` | 1 800 | 2 000 | display_simple |
 | `dh_lists` (shown as `dh_template_end`, the same address) | 1 900 | 1 900 | display_hits |
 | `ds_bank_fill` | 1 800 | 1 900 | display_simple |
@@ -75,8 +71,8 @@ page 7 at the same addresses, which runs once at the start.)
 | slot | address | normally | remapped by |
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31: the Atari's RAM at the original's addresses | `pokey_frame`: 14–15, POKEY's 17-bit counter (`poly17.bin`), while it makes samples |
-| 2 | $4000–$5FFF | varies: there is no fixed page | `render_line`: 18–27 (Layer 2, one page per 32 columns); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, the lines' runs); `build_sprites`/`emit_sprite`: 7 (`INIT_PAGE`: the 4-bit patterns' rows and hash tables, the 8-bit pattern cache `OB_*`); `panel_frame`: 11 (tile 256, the map); `panel_init`: 10, 11 |
-| 3 | $6000–$7FFF | 12: buffers (`copper_list`, `ds_objs`, `sprite_list`, `exp8`, the DAC's ring at $7C00) | only at the start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Never while the sound plays**: the DMA reads the ring through this slot |
+| 2 | $4000–$5FFF | varies: there is no fixed page | `render_line`: 18–27 (Layer 2, one page per 32 columns); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, the lines' runs); `panel_frame`: 11 (tile 256, the map); `panel_init`: 10, 11 |
+| 3 | $6000–$7FFF | 12: buffers (`copper_list`, `ds_objs`, `sprite_list`, the DAC's ring at $7C00) | only at the start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Never while the sound plays**: the DMA reads the ring through this slot |
 | 4 | $8000–$9FFF | 4: code | — |
 | 5 | $A000–$BFFF | 5: the cartridge, read from River_Raid.rom | — |
 | 6 | $C000–$DFFF | 6: code | — |
@@ -117,11 +113,10 @@ and buffers of page 12, test-build hooks.
 | `restart` | `start`; CAPS + 1 | The machine "switched on" in `tv_pal`'s standard: `tv_setup`, Layer 2 cleared (all 10 pages at once), `sound_init`, `start_attract`, falls into `main_frame`. |
 | `main_frame` | every frame | See *The frame*. ~340 ticks of its own. |
 | `wait_frame` | `main_frame` | Busy-waits on NR $1F against `wait_line`. Its time is idle time, not work. |
-| `init_tables` | `start` | Once: the tables: `mc_bullet`/`mc_missile` (a missile's bits as a player's byte), `pix_tab` (`render_line`), `ring_lo`/`ring_hi` (screen memory's 160 lines in order), `exp8` (a byte as 8 nibbles, for the 4-bit patterns), `span_class` (a byte's colour if its 4 pixels are one), `span_init` (the masks), an empty Copper list. |
+| `init_tables` | `start` | Once: the tables: `pix_tab` (`render_line`), `ring_lo`/`ring_hi` (screen memory's 160 lines in order), `span_class` (a byte's colour if its 4 pixels are one), `span_init` (the masks), an empty Copper list. |
 | `tv_setup` | `restart` | The standard's settings: NR $05 50/60 Hz, `init_line_tables`, `wait_line`, the random map, the Copper's panel part (`copper_panel_ntsc`/`_pal` copied, the grey patched into it, `COPPER_GREY`), the tilemap's first Y scroll, clip windows (Layer 2 down to the panel's last grey line, sprites, tilemap). |
 | `init_video` | `start` | Black border, no ULA, global transparency $E3, Layer 2 320×256×8 at bank 9, layer order (tilemap over sprites over Layer 2), the palettes: Layer 2's 4 entries, the sprites' 128–255 = the Atari's colours, NR $15 with the sprites' clip in over-border mode. |
 | `test_ghost` | test builds, after `display` when `test_ghost_on` | nxcheck's NXGHOST: the plane's collisions and the fuel set so that it cannot crash. |
-| `pc_check` | `build_sprites`, `OBJCHECK` builds | Counts the other sprites' rows outside their boxes (`pc_bad`). |
 
 Also: `span_rec` (macro: HL = the 32-byte record of river line A in SPAN_PAGE), the
 `palette` (Atari colour → Next colour, 256 bytes) and `random_columns`, the `TEST`
@@ -288,12 +283,9 @@ assembled only with `-DBEAM`. Assembled always:
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `build_sprites` | `main_frame` | Flips the 4-bit pattern set (`sb_half`: two sets of 12, one shown while the other is written) and clears its "used" table; `ob_list` (the objects); the plane, its bullet, the tank, the helicopter's missile, the shell with `pm_channel` (in the order `drawRiver` draws them, the last on top); `build_copper`. | 1 000 / 1 100 |
-| `ob_list` | `build_sprites` | Per `ds_objs` entry, its rows from `ds_objf` (all of them), a sprite per 16 rows (`ob_emit`), none for a piece whose first line is below the river, the row pointers stepping back 16 a chunk (the bottom row is first in memory: `ob_write` steps with self-modified `dec hl`/`dec de`). | 5 700 / 6 400 |
-| `ob_emit` | `ob_list` | An 8-bit multicolour pattern for (shape address, colour address, rows): a hash of the key into `OB_BUCKETS`, the key compared (`OB_SHL/SHH/CLL/CLH/N`); found: reused. Not found: a pattern slot (12–61) not used this frame or the last (`OB_FRAME`, so the one on screen is not overwritten) taken in turn, its old key removed, the new one stored, `ob_write`. Then the 5 attribute bytes into `sprite_list` (X = 2·(x − 52), Y, the pattern, the scale for double or quadruple width). Mostly the key check and attribute work: a pattern write is rare once the cache is warm. | 9 700 / 10 400 |
-| `ob_write` | `ob_emit` | Pattern A over port $5B: n rows of 8 dots, each dot 2 bytes of colour 128 + Atari colour / 2 (bit set) or 0, then empty rows to 16. | 1 800 / 2 500 |
-| `pm_channel` | `build_sprites` | One player or missile from player-missile memory as one 4-bit sprite: only its known rows (E from line D: where the game put it), clipped to the river; nothing if they are empty (an OR over them); a missile's bits converted to a player's byte through a table into `ch_bits`. Then `emit_sprite`. | 2 700 / 3 100 |
-| `emit_sprite` | `pm_channel` | A 4-bit pattern for the 16 rows: a hash (rotate-XOR, unrolled) into the set's hash table (page 7 at $4000), compared row by row (unrolled); found: reused; else a new pattern from `exp8` (a byte as 8 nibbles) into the set not shown. The attributes. | 2 600 / 5 200 |
+| `build_sprites` | `main_frame` | `ob_list` (the objects); the plane, its bullet, the tank, the helicopter's missile, the shell (in the order `drawRiver` draws them, the last on top): each its frame's pattern made at the start (`pl_plane`, `pl_tank`, `pl_shell`, `pl_bullet`, `pl_missile`) at its position, `pl_sprite`; `pl_keep` saves their attributes, which a reset's frames (`busy`) show again (`pl_again`); `build_copper`. | 1 000 / 1 100 |
+| `pl_sprite` | `build_sprites` | Pattern A ($FF: none) at line D (none below the river), position E, palette offset C: its 5 attribute bytes into `sprite_list` (X = 2·(x − 52), 9 bits; Y; the offset; the pattern; 4-bit, the half pattern). | ~100 a sprite |
+| `ob_list` | `build_sprites` | Per `ds_objs` entry, its rows from `ds_objf` (all of them): its picture made at the start found by the top row's shape and colour addresses (`obj_lookup`; not found: `ob_miss`, not drawn), a sprite per 16 rows (`ob_attr`: X = 2·(x − 52), Y, the bank, 4 bits, the half pattern, the scale for double or quadruple width), none for a piece whose first line is below the river. | 5 700 / 6 400 |
 | `build_copper` | `build_sprites` | Only when the bank colours change (`cp_colour`; always while there are bank events, `ds_bank_n` ≠ 0): `copper_start`, then a WAIT + MOVE $41 for each colour change by river line, from `ds_bank_ev`, set on the line before; then the panel's part (`copper_panel`), the end WAIT. `cp_full` = 1. | 1 400 / 1 600 |
 | `apply` | after `wait_frame` | Layer 2's scroll (NR $17), the sprites' attributes (port $57, OTIR 5 a sprite; the previous frame's extra ones hidden), the colours of the shell, the tank and the plane (sprite palette), Layer 2's colours 0, 2, 3, `panel_frame`, the Copper: stopped, the whole list sent if `cp_full`, else only the scrolling line's X-scroll byte, restarted (mode %11). The screen off after a long idle (IDLE_TIME). Not in the numbers above. | — |
 | `panel_frame` | `apply` | The panel's 3 rows of 20 characters into the tilemap (2 tiles a character), tile 256 for the scrolling line's split edge column (made fresh from the two halves), the scrolling line's tiles and X scroll, the needle's and the logo's sprites. | — |
@@ -350,7 +342,9 @@ ring (see NOTES: the crackle).
 
 | routine | called | what and how |
 |---|---|---|
-| `panel_init` | `start` (page 7 at $6000) | The Atari's character sets built where the game builds them (OS font from `font.inc`, the cartridge's symbols), each character as two tiles (tiles 0–127 the panel's, 128–255 the scrolling line's) in pages 10–11, the tilemap's palette and registers (NR $6B/$6C/$6E/$6F, clip), the needle's and the logo's sprite patterns, the 8-bit pattern cache's tables (`OB_*`), `edge_lo`/`edge_hi` (the first and last set dot of each byte, for the edge test). |
+| `panel_init` | `start` (page 7 at $6000) | The Atari's character sets built where the game builds them (OS font from `font.inc`, the cartridge's symbols), each character as two tiles (tiles 0–127 the panel's, 128–255 the scrolling line's) in pages 10–11, the tilemap's palette and registers (NR $6B/$6C/$6E/$6F, clip), the needle's and the logo's sprite patterns, `edge_lo`/`edge_hi` (the first and last set dot of each byte, for the edge test). |
+| `pl_pics` | `panel_init`, before `obj_pics` (page 7) | The plane's 10 frames (14 rows), the tank's 8 (11 rows) and the shell's 7 (16 rows) from their ROM pointer tables, as `prepare` copies them into player-missile memory: a 4-bit pattern each (a dot: 2 pixels of value 1), shared by frames with one address, none for an all-empty one ($FF); the bullet (8 rows of one dot) and the helicopter's missile (one row of 4 dots). Patterns from 0 (20 of them). |
+| `obj_pics` | `panel_init` (page 7) | The objects' pictures: for types 7–15 the kinds they can have (their own, `ROM_NEXT_KIND`'s below $0C, the explosion's from 2 and 3), each mirrored too, height + 1 rows; 58 pictures as 4-bit patterns from 24, a dot's value its row colour's place in palette bank 14 (types 12, 15) or 15 (the others); `obj_head`/`obj_e` for `obj_lookup`. |
 
 ## load_rom.asm (page 7)
 
@@ -368,10 +362,10 @@ ring (see NOTES: the crackle).
 
 ## Conventions worth knowing before changing code
 
-- **Self-modifying code** is common in hot loops: patched immediates and jump targets (`display`'s `.ex1/.ex2/.s1/.s2/.pv/.pv_bits/.pv_end/.pv_x`; `ob_write.step_sh/.step_col`; `snd_sum`'s `.jp`; `emit_sprite`'s `.hj/.cj`; `pk_*`'s `.pf/.pq`). A variant must be checked byte by byte (a leftover `add a,a` once doubled the sound).
-- **Unrolled entry points**: `snd_sum`, `emit_sprite` jump into the middle of a `rept` block for the remainder.
+- **Self-modifying code** is common in hot loops: patched immediates and jump targets (`display`'s `.ex1/.ex2/.s1/.s2/.pv/.pv_bits/.pv_end/.pv_x`; `snd_sum`'s `.jp`; `pk_*`'s `.pf/.pq`). A variant must be checked byte by byte (a leftover `add a,a` once doubled the sound).
+- **Unrolled entry points**: `snd_sum` jumps into the middle of a `rept` block for the remainder.
 - **Slot 2** is a scratch window: a routine that needs a page there maps it and does not restore it; the next user maps its own. **Slot 3** must stay page 12 while the sound plays.
-- **Tables are page-aligned** so that `ld h,high table / ld l,index` is the lookup: `pix_tab`, `span_masks`, `span_class`, `edge_lo/edge_hi`, `OB_*`, the palette, the hash tables.
+- **Tables are page-aligned** so that `ld h,high table / ld l,index` is the lookup: `pix_tab`, `span_masks`, `span_class`, `edge_lo/edge_hi`, `obj_head`, the palette.
 - **The checks**: after any change, `nxcheck` compares state, screen and player-missile memory, the bank colour per line, the objects as drawn, the Copper's list and memory every frame, and the picture at the end, against the C++ port. The full set takes ~25 minutes on 2 cores (HANDOFF.md, *Method*). A failed assembly leaves the old pages: check the build output first.
 - **Measuring**: `NXHISTALL=file` (all frames) or `NXHIST=file` (one frame) and `tools/prof.py`; `NXSLOW=T` lists the frames over T ticks. `NXHISTAPPLY=file` does the same for `apply` (from the end of `wait_frame`) and prints its average and maximum; `tools/prof_local.py build/test.sym file frames [routine…]` splits the time by local labels too (`display.rows`, `panel_frame.entry`, …).
 - **apply** (~42 500 a frame on both runs, not in the tables above): `panel_frame` ~38 000 of it (the panel's 3 rows of 40 tiles rewritten every frame ~21 000, the scrolling line's 39 tiles ~10 000, tile 256 ~5 000), the sprites' attributes ~1 800, the Copper's list ~1 200.

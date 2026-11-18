@@ -148,10 +148,11 @@ Each frame (`src/river_raid.asm`):
    counted for the object whose reading window holds their line.
 3. `src/sprites.asm`: what the Atari shows becomes Next hardware. Each object (player 3,
    whose colour changes every line) is a ready-made sprite with its rows in their colours,
-   an 8-bit pattern made the first time and kept, placed at the object's position. The other
-   players and missiles are a sprite each too, its rows taken where the game put it (no
-   search through their memory), with a 4-bit pattern made from the rows' bytes (an Atari
-   pixel is two sprite pixels; double and quadruple width are the sprite's scale). The bank's colour changes next to a
+   placed at the object's position. The other players and missiles are a sprite each too,
+   at the position the game gave them. All their pictures are 4-bit patterns made once at
+   the start from the ROM's shapes (`src/obj_pics.asm`), so a frame only picks a pattern and
+   writes the sprite's attributes (an Atari pixel is two sprite pixels; double and quadruple
+   width are the sprite's scale). The bank's colour changes next to a
    bridge: the Copper sets it per line in Layer 2's palette.
 4. `src/play.asm`, `main_loop`: the main loop (`Game::mainLoop`): the controls (the keyboard
    and joysticks, read as the Atari's), pause, an enemy woken every 16 frames by POKEY's
@@ -165,7 +166,7 @@ Each frame (`src/river_raid.asm`):
    on (a matrix, `src/random.inc`). Then `pokey_frame` (`src/sound.asm`) makes the frame's
    samples of POKEY's output for the DMA.
 6. Below the scrolling line (raster line 208) the new picture goes live: Layer 2's scroll and
-   colours, the sprites' attributes (their patterns were written into the set not shown),
+   colours, the sprites' attributes,
    the panel and the scrolling line, the Copper's list.
 
 The panel and the scrolling line are the tilemap (40 x 32, 8x8 tiles at 4 bits per pixel):

@@ -59,10 +59,6 @@ TILE_256	equ $4000		; page 11 at $4000: the scrolling line's tile 256
 TILE_MAP	equ $4100		; and the map, 40 x 32 entries of 2 bytes
 NEEDLE_OFFSET	equ 4			; sprite palette offsets
 LOGO_OFFSET	equ 5
-PATTERN_CACHE	equ $4800		; page 7 at $4000: the rows of each sprite pattern (128 x 16),
-PC_BUCKETS	equ $5000		; a hash of the rows -> pattern + 1, for each set (2 x 256),
-PC_HASH		equ $5200		; each pattern's hash,
-PC_USED		equ $5300		; which are used this frame;
 SPAN_PAGE	equ 28			; at $4000 (display, push_line): the river lines' runs of bank
 SPANS		equ $4000		; and edge pixels, 32 bytes a line, a ring of 256 (spans.asm)
 
@@ -242,30 +238,6 @@ wait_frame:
 	ret
 
 init_tables:
-	ld hl,mc_bullet			; the missiles' bits as a player's byte
-.mc	ld a,l
-	ld c,0
-	bit 5,a
-	jr z,$+4
-	set 7,c
-	bit 4,a
-	jr z,$+4
-	set 6,c
-	ld (hl),c
-	inc h
-	ld c,0
-	bit 1,a
-	jr z,$+4
-	ld c,$C0
-	bit 0,a
-	jr z,.mc1
-	ld a,c
-	or $30
-	ld c,a
-.mc1	ld (hl),c
-	dec h
-	inc l
-	jr nz,.mc
 	ld hl,pix_tab			; render_line's tables
 .pix	ld a,l
 	ld c,h
@@ -298,18 +270,6 @@ init_tables:
 	ld hl,$3000
 .r1	cp 160
 	jr nz,.ring
-	ld hl,exp8			; exp8: a byte as 8 bytes of 4-bit pixels
-	ld c,0
-.e8	ld b,8
-	ld d,c
-.e8b	sla d
-	sbc a,a
-	and $11
-	ld (hl),a
-	inc hl
-	djnz .e8b
-	inc c
-	jr nz,.e8
 	ld hl,span_class		; span_class: a byte's colour if its 4 pixels are one
 .sc	ld a,l				; (water and background: 0), $FF if not
 	rlca
@@ -328,7 +288,6 @@ init_tables:
 	call span_init
 	xor a
 	ld (sb_count),a
-	ld (sb_half),a
 	ld (ap_shown),a
 	ld hl,copper_list		; no Copper list yet: the end only
 	ld (hl),$FF
@@ -474,42 +433,6 @@ random_columns:
 	include "sound.asm"
 	include "sound_handlers.asm"
 	include "display_objs.asm"
-	ifdef OBJCHECK
-; (test) the other players' and missiles' rows on the river's lines outside their boxes
-; (dh_desc: shell, tank, plane, helicopter missile, bullet): pc_bad
-pc_check:
-	ld ix,dh_desc
-	ld b,5
-.ch	push bc
-	ld l,RIVER_FIRST
-.ln	ld h,(ix + 0)
-	ld a,(hl)
-	and (ix + 1)
-	jr z,.ok
-	ld a,(ix + 7)			; rows: in the box?
-	or a
-	jr z,.bad
-	ld a,l
-	sub (ix + 6)
-	jr c,.bad
-	cp (ix + 7)
-	jr c,.ok
-.bad	push hl
-	ld hl,(pc_bad)
-	inc hl
-	ld (pc_bad),hl
-	pop hl
-.ok	inc l
-	ld a,l
-	cp RIVER_FIRST + RIVER_LINES
-	jr c,.ln
-	ld de,DH_SIZE
-	add ix,de
-	pop bc
-	djnz .ch
-	ret
-
-	endif
 
 	display "page 4 end: ",$
 	assert $ <= $A000		; page 4 is full
@@ -532,11 +455,8 @@ pc_check:
 	include "panel_init.asm"
 	include "sound_ay.asm"
 	include "load_rom.asm"
-	display "page 7 end: ",$
-	assert $ <= $6800		; (the pattern cache from $6800: PATTERN_CACHE in slot 2)
-	org $7400			; (after the pattern cache's tables, $5400 in slot 2)
 	include "obj_pics.asm"
-	display "page 7, obj_pics end: ",$
+	display "page 7 end: ",$
 	assert $ <= $8000
 
 ; ------------------------------------------------------------------------------------------
@@ -549,14 +469,12 @@ scan_size:	ds 256			; its size,
 scan_col:	ds 256			; its colour,
 scan_bank:	ds 256			; and the bank colour
 ds_cover:	ds 256			; display: the other sprites' boxes by scanline
-ch_bits:	ds 256			; one player's bytes for the sprites
 ring_lo:	ds 256			; screen memory's 160 lines, in the order they follow
 ring_hi:	ds 256
 sprite_list:	ds 5 * SPRITES_MAX	; the sprites' attributes for apply
 ds_objs:	ds 8 * DS_OBJS		; display: the objects' rows (display_simple.asm)
 	align 256
 copper_list:	ds 2048
-exp8:		ds 8 * 256		; a byte as 8 bytes of 4-bit pixels, $11 a bit
 	assert $ <= $8000
 
 ; Buffers and variables (page 1)
@@ -650,10 +568,7 @@ ov_bits:	ds 1			; collide.overlap: the other sprite
 ov_hpos:	ds 1
 ov_wlog:	ds 1
 	align 16
-es_key:		ds 16			; emit_sprite: a pattern's rows
-es_hash:	ds 1
-es_src:		ds 2			; the run's rows
-pc_next:	ds 2			; the next pattern to take, in each set			; the bank colour's record (rec_set): value, from which line, scan page
+			; the bank colour's record (rec_set): value, from which line, scan page
 sp_pf:		ds 1
 dl_counter:	ds 1
 dl_slot:	ds 1
@@ -729,18 +644,8 @@ ds_edge_kind:	ds 1			; the object is tested against the edge ($FF) or not (0)
 ds_edge_skip:	ds 1			; display's rows: no edge test (none, or P3PF set already)
 ; the sprites (sprites.asm)
 sb_count:	ds 1
-sb_half:	ds 1
-sb_pattern:	ds 1
-sb_bits:	ds 1
-sb_off:		ds 1
-sb_offset:	ds 1
-sb_start:	ds 1
-sb_lines:	ds 1
-sb_run_x:	ds 1
-sb_run_size:	ds 1
 cm_count:	ds 1
 cm_shift:	ds 1
-sb_bpage:	ds 1			; the hash table's page of the set (PC_BUCKETS)
 ob_line:	ds 1			; ob_list: the sprite's first line,
 ob_pat:		ds 1			; its pattern (+ bank in bit 7),
 ob_x:		ds 1
@@ -760,11 +665,17 @@ op_reach:	ds 16			; the kinds the type can have,
 op_bankn:	ds 2			; the colours in each bank,
 op_bankc:	ds 32			; and which (place 1-15 in each 16)
 obj_count:	ds 1			; obj_lookup's entries
-	ifdef OBJCHECK
-oc_bad:		ds 2			; (test) the scanlines the objects' sprites do not show as they are
-oc_frames:	ds 2
-pc_bad:		ds 2
-	endif
+op_tab:		ds 2			; pl_pics: the shapes' pointers,
+op_out:		ds 2			; the patterns' table,
+op_buf:		ds 8			; rows of a missile
+pl_plane:	ds 10			; the plane's frames' patterns ($FF none)
+pl_tank:	ds 8			; the tank's
+pl_shell:	ds 7			; the shell's
+pl_bullet:	ds 1			; the bullet's
+pl_missile:	ds 1			; the helicopter missile's
+pl_first:	ds 1			; build_sprites: the players' first sprite,
+pl_kept:	ds 1			; how many, last frame,
+pl_attrs:	ds 5 * 5			; and their attributes
 bc_bank:	ds 1
 bc_p3:		ds 1
 copper_bytes:	ds 2
@@ -774,9 +685,6 @@ cp_colour:	ds 1			; the bank's colour of the list, when it has no changes ($FF:
 ap_shown:	ds 1
 	align 256
 pix_tab:	ds 4 * 256		; render_line: pixel k (bits 7-6 first) of a line byte
-mc_bullet:	ds 256			; missile 2's bits ($30) as a player's byte (1 clock a bit)
-mc_missile:	ds 256			; missile 0's bits ($03) as a player's byte (2 clocks a bit)
-sm_src:		ds 16			; a sprite's bits doubled, before the shift
 	align 256
 line_start:	ds 256			; per scanline: ANTIC's cycles at its start
 line_after_draw: ds 256			; and the cycles left after it is drawn

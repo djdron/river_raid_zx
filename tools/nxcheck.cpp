@@ -933,10 +933,6 @@ int main(int argc, char **argv) {
 		games, numbers.empty() ? "-" : numbers.c_str(), crashes, gameOvers, maxBridge, pausedFrames, busyFrames);
 	std::printf("sprites: up to %d of the %d a frame can have\n", maxSprites, kSpritesMax);
 	std::printf("Copper: %ld frames with its memory not the list, %ld with the list not the bank's colours\n", copperBad, copperListBad);
-	if (getenv("NXOBJCHECK")) {   // (a build with -DOBJCHECK: the other sprites' rows outside their boxes)
-		const uint16_t pc = symbol(argv[2], "pc_bad");
-		if (pc) std::printf("other sprites: %d rows outside their boxes\n", readZ80(comp, pc) | readZ80(comp, uint16_t(pc + 1)) << 8);
-	}
 	std::printf("sound: %.1f samples a frame on average; making them (pokey_frame) %lld ticks on average, %lld at most (frame %d)\n",
 		sndFrames ? double(sndSamples) / double(sndFrames) : 0.0, worked ? sndSum / worked : 0, sndMax, sndMaxFrame);
 	{

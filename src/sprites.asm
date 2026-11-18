@@ -18,9 +18,8 @@
 ; 4-bit 24 on the objects' (made at the start: obj_pics); 62-63 the needle and the logo
 ; (4-bit 124-127).
 
-PATTERNS_HALF	equ 12			; 4-bit patterns per frame: two sets in turn
 SPRITES_MAX	equ 60
-OBP_FIRST	equ 2 * PATTERNS_HALF	; the objects' patterns (4-bit, obj_pics)
+OBP_FIRST	equ 24			; the objects' patterns (4-bit, obj_pics); the players' below
 OBJ_BANK_A	equ 14			; the objects' sprite palette banks (obj_pics)
 OBJ_BANK_B	equ 15
 OBJ_ENTRIES	equ 64			; obj_lookup's entries at most
@@ -32,137 +31,207 @@ PLANE_OFFSET	equ 3
 build_sprites:
 	xor a
 	ld (sb_count),a
-	ld a,(sb_half)			; the set of patterns not shown now
-	xor PATTERNS_HALF
-	ld (sb_half),a
-	ld b,high PC_BUCKETS		; (its hash table)
-	jr z,1F
-	inc b
-1:	ld c,a
-	ld a,b
-	ld (sb_bpage),a
-	ld a,c
-	nextreg $52,INIT_PAGE		; its patterns not used yet (emit_sprite)
-	ld l,a
-	ld h,high PC_USED
-	ld b,PATTERNS_HALF
-	xor a
-.unused	ld (hl),a
-	inc l
-	djnz .unused
 	; in the order drawRiver draws them, the last on top
 	call ob_list			; player 3: the objects, from their rows
-	ifdef OBJCHECK
-	call pc_check
-	endif
-	ld a,(PLANE_X)			; the plane: 14 rows from $AA
-	ld hl,high PM_PLANE << 8 | $FF	; (page, mask)
-	ld bc,PLANE_OFFSET		; (no conversion)
-	ld de,$AA << 8 | 14
-	call pm_channel
-	ld a,(BULLET_Y)			; its bullet: missile 2, 1 clock a bit; 8 rows below
-	dec a				; bulletY (none at 1; not above $1C)
+	ld a,(sb_count)			; (where the players' attributes start)
+	ld (pl_first),a
+	ld a,(busy)			; a reset's frames: player-missile memory as the last
+	or a				; prepare left it (none runs meanwhile): the same sprites
+	jp nz,pl_again
+	ld a,(PLANE_FRAME)		; the plane: its frame (pl_pics, 0-9) at $AA
+	ld hl,pl_plane
+	call pl_pattern
+	ld b,a
+	ld d,$AA
+	ld a,(PLANE_X)
+	ld e,a
+	ld c,PLANE_OFFSET
+	ld a,b
+	call pl_sprite
+	ld a,(BULLET_Y)			; its bullet: 8 rows from bulletY (none at 1; not above $1C)
+	dec a
 	jr z,1F
 	cp $1B
 	jr nc,2F
 	ld a,$1B
 2:	inc a
 	ld d,a
-	ld e,8
 	ld a,(PLANE_X)
 	add a,4
-	ld hl,high PM_MISSILES << 8 | $30
-	ld bc,high mc_bullet << 8 | PLANE_OFFSET
-	call pm_channel
-1:	ld a,(TANK_Y)			; the tank: 11 rows
+	ld e,a
+	ld c,PLANE_OFFSET
+	ld a,(pl_bullet)
+	call pl_sprite
+1:	ld a,(TANK_KIND)		; the tank: its kind's frame (0-7; bit 7 destroyed) at tankY
+	and $7F
+	cp 8
+	jr nc,1F
+	ld hl,pl_tank
+	call pl_pattern
+	ld b,a
+	ld a,(TANK_Y)
 	ld d,a
-	ld e,11
 	ld a,(TANK_X)
-	ld hl,high PM_TANK << 8 | $FF
-	ld bc,TANK_OFFSET
-	call pm_channel
-	ld a,(MISSILE_Y)		; the helicopter's missile: missile 0, 2 clocks a bit; its
-	cp $1C				; row (from $1C)
+	ld e,a
+	ld c,TANK_OFFSET
+	ld a,b
+	call pl_sprite
+1:	ld a,(MISSILE_Y)		; the helicopter's missile: its row (from $1C), while it has
+	cp $1C				; a position
 	jr c,1F
 	ld d,a
-	ld e,1
 	ld a,(MISSILE_X)
-	ld hl,high PM_MISSILES << 8 | $03
-	ld bc,high mc_missile << 8 | SHELL_OFFSET
-	call pm_channel
-1:	ld a,(SHELL_Y)			; the shell: 16 rows
+	or a
+	jr z,1F
+	ld e,a
+	ld c,SHELL_OFFSET
+	ld a,(pl_missile)
+	call pl_sprite
+1:	ld a,(SHELL_FRAME)		; the shell: its frame (0-6) at shellY
+	cp 7
+	jr nc,1F
+	ld hl,pl_shell
+	call pl_pattern
+	ld b,a
+	ld a,(SHELL_Y)
 	ld d,a
-	ld e,16
 	ld a,(SHELL_X)
-	ld hl,high PM_SHELL << 8 | $FF
-	ld bc,SHELL_OFFSET
-	call pm_channel
+	ld e,a
+	ld c,SHELL_OFFSET
+	ld a,b
+	call pl_sprite
+1:	call pl_keep
 	jp build_copper
 
-; A player's or a missile's rows from player-missile memory as one sprite at position A,
-; normal width: page H, the bits L of each byte (a missile's), palette offset C; B: a table
-; turning a missile's bits into a player's byte (0: none). Its rows: E from line D (where the
-; game put it: nothing of it is anywhere else, as ds_cover_set has it), the river's lines of
-; them; none if they are empty.
-pm_channel:
-	ld (sb_run_x),a
-	ld a,d				; the lines on the river (above its top: the clip window)
-	cp RIVER_FIRST + RIVER_LINES
-	ret nc
-	ld a,RIVER_FIRST + RIVER_LINES
-	sub d
-	cp e
-	jr nc,1F
-	ld e,a
-1:	ld a,h
-	ld (sb_bits),a
-	ld a,c
-	ld (sb_offset),a
-	push bc
-	ld c,l
-	ld l,d
-	ld b,e
-	xor a
-.or	or (hl)
-	inc l
-	djnz .or
-	and c
-	pop hl				; (H the table)
+; The players' attributes this frame kept (pl_keep), or put again (pl_again: a reset)
+pl_keep:
+	ld a,(sb_count)
+	ld hl,pl_first
+	sub (hl)
+	ld (pl_kept),a
 	ret z
-	ld a,d
-	sub RIVER_FIRST
-	ld (sb_start),a
-	ld a,e
-	ld (sb_lines),a
-	ld a,RIVER_FIRST
-	ld (sb_off),a
-	xor a
-	ld (sb_run_size),a
-	ld a,h				; a missile: its bits as a player's bytes (ch_bits)
+	ld b,a				; 5 bytes each
+	add a,a
+	add a,a
+	add a,b
+	ld c,a
+	ld b,0
+	push bc
+	ld a,(pl_first)
+	call .addr
+	pop bc
+	ld de,pl_attrs
+	ldir
+	ret
+.addr	ld l,a				; HL = sprite_list + 5 A
+	ld h,0
+	ld e,l
+	ld d,h
+	add hl,hl
+	add hl,hl
+	add hl,de
+	ld de,sprite_list
+	add hl,de
+	ret
+pl_again:
+	ld a,(pl_kept)
 	or a
-	jp z,emit_sprite
-	ld ixh,a			; (the table)
-	ld b,e
-	ld e,d
-	ld l,d
-	ld d,high ch_bits
-	ld a,(sb_bits)
-	ld h,a
-.conv	ld a,(hl)
-	and c
-	push hl
+	jp z,build_copper
+	ld b,a
+	ld a,(sb_count)
+	add a,b
+	cp SPRITES_MAX + 1
+	jp nc,build_copper
+	ld c,a
+	ld a,(sb_count)
+	ld e,c
+	push de
+	call pl_keep.addr
+	ex de,hl
+	ld a,b
+	add a,a
+	add a,a
+	add a,b
+	ld c,a
+	ld b,0
+	ld hl,pl_attrs
+	ldir
+	pop de
+	ld a,e
+	ld (sb_count),a
+	jp build_copper
+
+; A = the pattern of frame A in the table at HL
+pl_pattern:
+	add a,l
 	ld l,a
-	ld a,ixh
+	adc a,h
+	sub l
 	ld h,a
 	ld a,(hl)
-	pop hl
-	ld (de),a
-	inc l
-	inc e
-	djnz .conv
-	ld a,high ch_bits
-	ld (sb_bits),a
-	jp emit_sprite
+	ret
+
+; A player's or a missile's sprite: pattern A (made at the start: pl_pics; $FF none), its
+; first row on line D (not below the river), position E, palette offset C, normal width.
+; Its attributes: X = 2 * (position - 32 - 20) (9 bits, round the screen), Y = RIVER_TOP +
+; the line's place in the river
+pl_sprite:
+	cp $FF
+	ret z
+	ld b,a
+	ld a,d
+	cp RIVER_FIRST + RIVER_LINES
+	ret nc
+	ld a,(sb_count)
+	cp SPRITES_MAX
+	ret nc
+	push bc
+	ld l,a
+	ld h,0
+	ld c,l
+	ld b,h
+	add hl,hl
+	add hl,hl
+	add hl,bc			; 5 bytes a sprite
+	ld bc,sprite_list
+	add hl,bc
+	pop bc
+	ld a,e
+	sub 32 + WINDOW_FIRST
+	ld e,a
+	sbc a,a				; (borrow: negative)
+	sla e
+	rla
+	ld (hl),e			; X
+	inc hl
+	and 1
+	ld e,a
+	ld a,d
+	sub RIVER_FIRST - RIVER_TOP
+	ld (hl),a			; Y
+	inc hl
+	ld a,c
+	add a,a
+	add a,a
+	add a,a
+	add a,a
+	or e
+	ld (hl),a			; palette offset, X bit 8
+	inc hl
+	ld a,b
+	srl a
+	or $C0
+	ld (hl),a			; visible, 5 bytes, pattern
+	inc hl
+	ld a,b
+	and 1
+	rrca
+	rrca				; N6 at bit 6
+	or $80				; 4-bit pattern
+	ld (hl),a
+	ld hl,sb_count
+	inc (hl)
+	ret
 
 ; The objects' sprites, from what the display left (ds_objs; the rows from ds_objf): each
 ; object's picture made at the start (obj_pics), found by its top row's shape and colour
@@ -325,278 +394,6 @@ ob_attr:
 	ld (hl),a
 	ld hl,sb_count
 	inc (hl)
-	ret
-
-; A sprite for the run: its pattern now (into the set not shown), its attributes for apply.
-emit_sprite:
-	ld a,(sb_count)
-	cp SPRITES_MAX
-	ret nc
-	ld a,(sb_bits)			; the pattern's rows: sb_lines of them, then empty to 16
-	ld h,a
-	ld a,(sb_off)
-	ld l,a
-	ld a,(sb_start)
-	add a,l
-	ld l,a
-	ld (es_src),hl
-	ld a,(sb_lines)			; the hash (16 rows: rotated, XORed in turn; the empty
-	ld b,a				; rows only rotate), 3 bytes a row
-	ld a,16
-	sub b
-	ld c,a				; C: the empty rows
-	add a,a
-	add a,c
-	add a,low .hb
-	ld (.hj + 1),a
-	ld a,high .hb
-	adc a,0
-	ld (.hj + 2),a
-	xor a
-.hj	jp .hb
-.hb	rept 16
-	rlca
-	xor (hl)
-	inc l
-	endr
-	ld e,a
-	ld a,c
-	and 7
-	ld b,a
-	ld a,e
-	jr z,.hd
-.rot	rlca
-	djnz .rot
-.hd	ld (es_hash),a			; a pattern of this set with these rows already: no need
-	ld l,a				; to write one (page 7 at $4000: the patterns' rows, a hash
-	ld a,(sb_bpage)			; table, which are used this frame)
-	ld h,a
-	ld a,(hl)
-	or a
-	jp z,.alloc
-	dec a
-	ld (sb_pattern),a
-	call .rows_of
-	ld a,c				; its rows: the run's, 7 bytes a row
-	add a,a
-	add a,a
-	add a,a
-	sub c
-	add a,low .cb
-	ld (.cj + 1),a
-	ld a,high .cb
-	adc a,0
-	ld (.cj + 2),a
-	ld de,(es_src)
-.cj	jp .cb
-.cb	rept 16
-	ld a,(de)
-	cp (hl)
-	jp nz,.alloc
-	inc e
-	inc l
-	endr
-	ld a,c				; then empty
-	or a
-	jr z,.hit
-	ld b,a
-.ce	ld a,(hl)
-	or a
-	jp nz,.alloc
-	inc l
-	djnz .ce
-.hit	ld a,(sb_pattern)		; used again
-	ld l,a
-	ld h,high PC_USED
-	ld (hl),1
-	jp .attributes
-.alloc	ld hl,(es_src)			; a new one: its rows (and the empty ones) in es_key
-	ld de,es_key
-	ld a,(sb_lines)
-	ld c,a
-	ld b,0
-	ldir
-	ld a,16
-	ld hl,sb_lines
-	sub (hl)
-	jr z,.ak
-	ld b,a
-	xor a
-.az	ld (de),a
-	inc e
-	djnz .az
-.ak	ld a,(sb_half)			; a pattern not used this frame, in turn
-	or a
-	ld hl,pc_next
-	jr z,1F
-	inc hl
-1:	ld b,PATTERNS_HALF
-.an	ld a,(hl)
-	ld c,a
-	inc a
-	cp PATTERNS_HALF
-	jr c,.an1
-	xor a
-.an1	ld (hl),a
-	ld a,(sb_half)
-	add a,c
-	ld e,a
-	ld d,high PC_USED
-	ld a,(de)
-	or a
-	jr z,.an2
-	djnz .an
-	ret				; (none: never so many)
-.an2	ld a,1
-	ld (de),a
-	ld a,e
-	ld (sb_pattern),a
-	ld l,e				; its old rows out of the hash table
-	ld h,high PC_HASH
-	ld c,(hl)
-	ld a,(es_hash)
-	ld (hl),a
-	ld a,(sb_bpage)
-	ld h,a
-	ld l,c
-	ld a,(hl)
-	dec a
-	cp e
-	jr nz,.ev
-	ld (hl),0
-.ev	ld a,(es_hash)			; the new ones in
-	ld l,a
-	ld a,e
-	inc a
-	ld (hl),a
-	call .rows_of
-	ex de,hl
-	ld hl,es_key
-	ld bc,16
-	ldir
-	ld a,(sb_pattern)		; the pattern: slot pattern / 2, half pattern & 1
-	ld c,a
-	srl a
-	bit 0,c
-	jr z,.slot
-	or $80
-.slot	ld bc,$303B
-	out (c),a
-	ld c,$5B
-	ld hl,es_key
-	ld d,16
-.row	ld a,(hl)
-	inc l
-	or a
-	jr z,.empty
-	push hl				; the byte's 8 pixel pairs from exp8
-	push de
-	ld l,a
-	ld h,0
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	ld de,exp8
-	add hl,de
-	outi
-	outi
-	outi
-	outi
-	outi
-	outi
-	outi
-	outi
-	pop de
-	pop hl
-	dec d
-	jr nz,.row
-	jr .attributes
-.empty	out (c),a
-	out (c),a
-	out (c),a
-	out (c),a
-	out (c),a
-	out (c),a
-	out (c),a
-	out (c),a
-	dec d
-	jr nz,.row
-.attributes
-	; the attributes: X = 2 * (position - 32 - 20) (9 bits, round the screen),
-	; Y = RIVER_TOP + the first line
-	ld a,(sb_count)
-	ld l,a
-	ld h,0
-	ld e,l
-	ld d,h
-	add hl,hl
-	add hl,hl
-	add hl,de			; 5 bytes a sprite
-	ld de,sprite_list
-	add hl,de
-	ld a,(sb_run_x)
-	sub 32 + WINDOW_FIRST
-	ld e,a
-	sbc a,a				; (borrow: negative)
-	ld d,a
-	ex de,hl
-	add hl,hl			; HL = X (9 bits)
-	ex de,hl
-	ld (hl),e			; X
-	inc hl
-	ld a,(sb_start)
-	add a,RIVER_TOP
-	ld (hl),a			; Y
-	inc hl
-	ld a,(sb_offset)
-	add a,a
-	add a,a
-	add a,a
-	add a,a
-	ld b,a
-	ld a,d
-	and 1
-	or b
-	ld (hl),a			; palette offset, X bit 8
-	inc hl
-	ld a,(sb_pattern)
-	srl a
-	or $C0
-	ld (hl),a			; visible, 5 bytes, pattern
-	inc hl
-	ld a,(sb_pattern)
-	and 1
-	rrca
-	rrca				; N6 at bit 6
-	or $80				; 4-bit pattern
-	ld b,a
-	ld a,(sb_run_size)		; scale: double 2x, quadruple 4x
-	and 3
-	cp 1
-	ld c,%00001000
-	jr z,.scale
-	cp 3
-	ld c,%00010000
-	jr z,.scale
-	ld c,0
-.scale	ld a,b
-	or c
-	ld (hl),a
-	ld hl,sb_count
-	inc (hl)
-	ret
-
-; HL = the rows kept for pattern sb_pattern
-.rows_of
-	ld a,(sb_pattern)
-	ld l,a
-	ld h,0
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	ld de,PATTERN_CACHE
-	add hl,de
 	ret
 
 ; The Copper's list for the frame: per river line, the bank colour where it changes, set in

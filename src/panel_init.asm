@@ -104,11 +104,6 @@ panel_init:
 	djnz .pc1
 	dec d
 	jr nz,.pc
-	ld hl,PATTERN_CACHE + $2000	; (page 7 at $6000 now)
-	ld de,PATTERN_CACHE + $2001
-	ld bc,PC_USED + $100 - PATTERN_CACHE - 1
-	ld (hl),0
-	ldir
 	ld l,0				; each byte's first and last dots (edge_lo, edge_hi; display)
 .eb	ld b,l
 	ld c,0				; C the dot (bit 7 first), D the first ($FF none yet), E the
@@ -233,9 +228,7 @@ panel_init:
 	nextreg $1B,PANEL_FIRST_LINE
 	nextreg $1B,PANEL_LAST_NTSC
 	nextreg $6B,%10000010
-	xor a
-	ld (pc_next),a
-	ld (pc_next + 1),a
+	call pl_pics			; the other players' and missiles' patterns
 	jp obj_pics			; the objects' patterns
 
 ; the dot B of row E of the logo's player 2 part: its colour (E + 1) or 0

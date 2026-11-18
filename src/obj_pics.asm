@@ -284,3 +284,148 @@ obj_pics:
 .found	pop hl
 	ld a,c
 	ret
+
+; The other players' and missiles' patterns, made at the start: the plane's, the tank's and
+; the shell's frames (their shape pointers' tables, as prepare copies them into player-
+; missile memory: row i of the frame at its line + i), the bullet (missile 2's 8 rows: a
+; dot) and the helicopter's missile (missile 0's row: 4 dots); 4-bit patterns from 0, a dot
+; 2 pixels of value 1 (their bank: SHELL_, TANK_, PLANE_OFFSET). pl_plane, pl_tank,
+; pl_shell: each frame's pattern, $FF for an empty one.
+pl_pics:
+	xor a
+	ld (op_p),a
+	ld hl,ROM_PLANE_SHAPE
+	ld de,pl_plane
+	ld bc,10 << 8 | 14
+	call .table
+	ld hl,ROM_TANK_SHAPE
+	ld de,pl_tank
+	ld bc,8 << 8 | 11
+	call .table
+	ld hl,ROM_SHELL_SHAPE
+	ld de,pl_shell
+	ld bc,7 << 8 | 16
+	call .table
+	ld hl,op_buf			; the bullet: 8 rows of a dot (missile 2's bit 5)
+	ld b,8
+1:	ld (hl),$80
+	inc hl
+	djnz 1B
+	ld a,(op_p)
+	ld (pl_bullet),a
+	ld hl,op_buf
+	ld c,8
+	call .write
+	ld a,$F0			; the helicopter's missile: a row of 4 dots (missile 0's
+	ld (op_buf),a			; 2 bits, 2 clocks each)
+	ld a,(op_p)
+	ld (pl_missile),a
+	ld hl,op_buf
+	ld c,1
+	jp .write
+
+; B frames, their shapes' pointers at HL, C rows each, the patterns into DE
+.table	ld (op_tab),hl
+	ld (op_out),de
+	ld a,c
+	ld (op_rows),a
+	xor a
+.frame	ld (op_k),a
+	push bc
+	ld l,a				; this frame's pointer
+	ld h,0
+	add hl,hl
+	ld de,(op_tab)
+	add hl,de
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ld b,a				; the same as an earlier frame's: its pattern
+	ld hl,(op_tab)
+	or a
+	jr z,.blank_q
+.same	ld a,(hl)
+	inc hl
+	cp e
+	jr nz,.diff
+	ld a,(hl)
+	cp d
+	jr nz,.diff
+	ld a,(op_k)			; (frame j = op_k - B)
+	sub b
+	ld l,a
+	ld h,0
+	push de
+	ld de,(op_out)
+	add hl,de
+	pop de
+	ld a,(hl)
+	jr .put
+.diff	inc hl
+	djnz .same
+.blank_q
+	ld a,(op_rows)			; empty: none
+	ld b,a
+	push de
+.bq	ld a,(de)
+	inc de
+	or a
+	jr nz,.full
+	djnz .bq
+	pop de
+	ld a,$FF
+	jr .put
+.full	pop hl				; (the rows)
+	ld a,(op_rows)
+	ld c,a
+	ld a,(op_p)
+	push af
+	call .write
+	pop af
+.put	ld hl,(op_out)
+	ld e,a
+	ld a,(op_k)
+	add a,l
+	ld l,a
+	adc a,h
+	sub l
+	ld h,a
+	ld (hl),e
+	pop bc
+	ld a,(op_k)
+	inc a
+	djnz .frame
+	ret
+
+; pattern op_p (and on): C rows from HL, the rest empty, a set bit 2 pixels of value 1
+.write	ld a,(op_p)
+	ld b,a
+	srl a
+	bit 0,b
+	jr z,2F
+	or $80
+2:	push bc
+	ld bc,$303B
+	out (c),a
+	pop bc
+	ld b,16
+.wr	ld a,c
+	or a
+	ld d,0
+	jr z,3F
+	ld d,(hl)
+	inc hl
+	dec c
+3:	push bc
+	ld b,8
+.wd	xor a
+	rl d
+	jr nc,4F
+	ld a,$11
+4:	out ($5B),a
+	djnz .wd
+	pop bc
+	djnz .wr
+	ld hl,op_p
+	inc (hl)
+	ret
