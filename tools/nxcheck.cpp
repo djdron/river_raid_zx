@@ -304,6 +304,12 @@ int main(int argc, char **argv) {
 	const uint16_t frameHook = word(5), applyHook = word(7);
 	const uint32_t first = rrzx::pokeyFirstRead(seed, pal);   // POKEY's counter at the first read
 	code[0][17] = pal ? 1 : 0;                                  // tv_init
+	if (const char *sp = getenv("NXSPEED")) {   // the CPU's speed, NR $07 (0 3.5, 1 7, 2 14, 3 28 MHz): start's nextreg $07,3
+		int n = 0;
+		for (size_t i = 0; i + 3 < code[0].size(); i++)
+			if (code[0][i] == 0xED && code[0][i + 1] == 0x91 && code[0][i + 2] == 0x07 && code[0][i + 3] == 3) { code[0][i + 3] = uint8_t(std::atoi(sp) & 3); n++; }
+		if (n != 1) { std::printf("NXSPEED: %d nextreg $07,3 found, not 1\n", n); return 2; }
+	}
 	code[0][9] = uint8_t(first);
 	code[0][10] = uint8_t(first >> 8);
 	code[0][11] = uint8_t(first >> 16);
@@ -856,9 +862,13 @@ int main(int argc, char **argv) {
 		// late: more than one Next frame (567 262 ticks at 50 Hz, 481 546 at 60) since the last
 		// apply (counted in ticks: an apply ends near the vertical sync, so its count can be off)
 		{
+			// (counted in the Next's frames when NXSPEED makes the CPU slower: its ticks are then longer)
 			const long long frameTicks = pal ? 567262 : 481546;
 			const long long period = applyTick >= 0 ? comp->tickTotal - applyTick : frameTicks;
-			const long long n = (period + frameTicks / 2) / frameTicks;
+			static long long lastVsync = -1;
+			const long long vs = (long long)comp->next->vsyncCount;
+			const long long n = getenv("NXSPEED") ? (lastVsync >= 0 ? vs - lastVsync : 1) : (period + frameTicks / 2) / frameTicks;
+			lastVsync = vs;
 			if (applyTick >= 0 && n > 1) {
 				lateFrames++;
 				if (getenv("NXSLOW")) std::printf("frame %d late: %lld Next frames since the last apply\n", f, n);

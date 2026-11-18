@@ -846,6 +846,11 @@ copper_panel_ntsc:
 	db $41, 0, $41, 0, $41, 0, $41, 0	; grey (tv_setup: COPPER_GREY)
 	db $80 | COPPER_WAIT_H * 2, 211 - 32 - 1
 	db $31, 176 - 211
+	db $80 | COPPER_WAIT_H * 2, 230 - 32 - 1
+	db $40, 0			; the river's colours back after the grey (so a late frame,
+	db $41, 0, $41, 0, $41, 0, $41, 0	; whose apply comes after the next frame's top, still
+					; shows them): 0 black, 1 (the list's top sets it), 2 the
+					; edge, 3 the water (apply: CP_EDGE_BACK)
 	db $80 | COPPER_WAIT_H * 2, 231 - 32 - 1
 	db $31, 208 - 231
 	db $30, 0			; (set by panel_frame)
@@ -853,6 +858,8 @@ copper_panel_ntsc_end:
 ; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239 (Layer 2's
 ; clip window), the scrolling line at 243
 COPPER_GREY	equ 19			; the grey's 4 bytes in either, 2 apart
+CP_EDGE_BACK	equ 11			; the restored edge colour's byte, from the list's end (the
+					; water's 2 after it; then the scrolling line's 3 MOVEs, the end)
 copper_panel_pal:
 	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
 	db $43, $10
@@ -863,6 +870,9 @@ copper_panel_pal:
 	db $41, 0, $41, 0, $41, 0, $41, 0
 	db $80 | COPPER_WAIT_H * 2, 218 - 32 - 1
 	db $31, 176 - 218
+	db $80 | COPPER_WAIT_H * 2, 240 - 32 - 1
+	db $40, 0
+	db $41, 0, $41, 0, $41, 0, $41, 0
 	db $80 | COPPER_WAIT_H * 2, 243 - 32 - 1
 	db $31, 208 - 243
 	db $30, 0
@@ -933,10 +943,19 @@ apply:
 	ld a,(show_edge)
 	call .colour
 	nextreg $41,a
+	ld hl,(copper_bytes)		; and into the Copper's list, where the panel's part
+	ld de,copper_list - CP_EDGE_BACK	; restores them
+	add hl,de
+	ld (hl),a
+	push hl
 	nextreg $40,3
 	ld a,(show_water)
 	call .colour
 	nextreg $41,a
+	pop hl
+	inc hl
+	inc hl
+	ld (hl),a
 	call panel_frame
 	nextreg $62,0			; the Copper: stopped, the list (when it changed, or only the
 	nextreg $61,0			; X scroll: its last MOVE's value), started for each frame
@@ -959,10 +978,9 @@ apply:
 	or e
 	jr nz,.cop
 	jr .cs
-.xs	ld hl,(copper_bytes)
-	dec hl
-	dec hl
-	dec hl
+.xs	ld hl,(copper_bytes)		; the restored edge and water colours to the X scroll
+	ld de,-CP_EDGE_BACK
+	add hl,de
 	ld a,l
 	nextreg $61,a
 	ld a,h
@@ -970,8 +988,11 @@ apply:
 	nextreg $62,a
 	ld de,copper_list
 	add hl,de
-	ld a,(hl)
+	ld b,CP_EDGE_BACK - 2		; (not the end WAIT)
+.xb	ld a,(hl)
 	nextreg $60,a
+	inc hl
+	djnz .xb
 .cs	nextreg $61,0
 	nextreg $62,%11000000
 	ld a,(IDLE_TIME)		; A1F5: the screen off after a long time without input

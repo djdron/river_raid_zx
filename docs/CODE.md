@@ -300,7 +300,8 @@ assembled only with `-DBEAM`. Assembled always:
 
 Data: `copper_start` (Layer 2's palette index 1, a NOP where NR $4A was (T's colour), the tilemap at the panel's first row),
 `copper_panel_ntsc`/`_pal` (line 200: Layer 2's colours 0–3 black; 201: grey (`COPPER_GREY`,
-patched by `tv_setup`); the tilemap's Y scroll per panel row; the scrolling line's Y and X
+patched by `tv_setup`); the tilemap's Y scroll per panel row; line 230 (240 PAL): colours 0–3
+back, the edge's and water's written by `apply` (`CP_EDGE_BACK`); the scrolling line's Y and X
 scroll).
 
 ## sound.asm: the sound driver and POKEY's samples
