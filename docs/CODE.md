@@ -289,7 +289,7 @@ assembled only with `-DBEAM`. Assembled always:
 | routine | called | what and how | A / B |
 |---|---|---|---|
 | `build_sprites` | `main_frame` | Flips the 4-bit pattern set (`sb_half`: two sets of 12, one shown while the other is written) and clears its "used" table; `ob_list` (the objects); the plane, its bullet, the tank, the helicopter's missile, the shell with `pm_channel` (in the order `drawRiver` draws them, the last on top); `build_copper`. | 1 000 / 1 100 |
-| `ob_list` | `build_sprites` | Per `ds_objs` entry, its rows from `ds_objf` (all of them), a sprite per 16 rows (`ob_emit`), the row pointers stepping back 16 a chunk (the bottom row is first in memory: `ob_write` steps with self-modified `dec hl`/`dec de`). | 5 700 / 6 400 |
+| `ob_list` | `build_sprites` | Per `ds_objs` entry, its rows from `ds_objf` (all of them), a sprite per 16 rows (`ob_emit`), none for a piece whose first line is below the river, the row pointers stepping back 16 a chunk (the bottom row is first in memory: `ob_write` steps with self-modified `dec hl`/`dec de`). | 5 700 / 6 400 |
 | `ob_emit` | `ob_list` | An 8-bit multicolour pattern for (shape address, colour address, rows): a hash of the key into `OB_BUCKETS`, the key compared (`OB_SHL/SHH/CLL/CLH/N`); found: reused. Not found: a pattern slot (12–61) not used this frame or the last (`OB_FRAME`, so the one on screen is not overwritten) taken in turn, its old key removed, the new one stored, `ob_write`. Then the 5 attribute bytes into `sprite_list` (X = 2·(x − 52), Y, the pattern, the scale for double or quadruple width). Mostly the key check and attribute work: a pattern write is rare once the cache is warm. | 9 700 / 10 400 |
 | `ob_write` | `ob_emit` | Pattern A over port $5B: n rows of 8 dots, each dot 2 bytes of colour 128 + Atari colour / 2 (bit set) or 0, then empty rows to 16. | 1 800 / 2 500 |
 | `pm_channel` | `build_sprites` | One player or missile from player-missile memory as one 4-bit sprite: only its known rows (E from line D: where the game put it), clipped to the river; nothing if they are empty (an OR over them); a missile's bits converted to a player's byte through a table into `ch_bits`. Then `emit_sprite`. | 2 700 / 3 100 |
@@ -300,14 +300,12 @@ assembled only with `-DBEAM`. Assembled always:
 
 Data: `copper_start` (Layer 2's palette index 1, a NOP where NR $4A was (T's colour), the tilemap at the panel's first row),
 `copper_panel_ntsc`/`_pal` (the same layout, so the offsets from the list's end hold for both:
-line 200: Layer 2's colours 0–3 black and the sprites' window from the needle's top line down,
-only the needle's 4 dots wide (`CP_NEEDLE_BACK`, written by `panel_frame` from the fuel); 201:
-grey (`COPPER_GREY`, patched by `tv_setup`); the tilemap's Y scroll per panel row; line 223
-(`OBJ_LAST` + 1, below any object's rows): the sprites' window all the width; line 230 (240 PAL):
+line 200: Layer 2's colours 0–3 black and the sprites' window from line 215 down (`OBJ_LAST` + 1,
+below any object's rows; the needle and the logo lower); 201: grey (`COPPER_GREY`, patched by
+`tv_setup`); the tilemap's Y scroll per panel row; line 230 (240 PAL):
 colours 0–3 back, the edge's and water's written by `apply` (`CP_EDGE_BACK`); the scrolling
 line's Y and X scroll (`CP_XSCROLL_BACK`); at `wait_line`: the sprites' window the river's
-again). `apply` sends the needle's and the edge-to-X-scroll bytes (`.cp_send`) when the list is
-not sent whole.
+again). `apply` sends the edge-to-X-scroll bytes (`.cp_send`) when the list is not sent whole.
 
 ## sound.asm: the sound driver and POKEY's samples
 
