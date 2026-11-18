@@ -409,12 +409,12 @@ tv_setup:
 	nextreg $18,a
 	ld a,$FF			; the Copper's list made again (no Atari colour is odd)
 	ld (cp_colour),a
-	nextreg $1C,%00001010		; clip windows: the sprites and the tilemap to the last line
-	nextreg $19,0
+	nextreg $1C,%00001010		; clip windows: the sprites the river (below it the Copper
+	nextreg $19,0			; switches them: copper_panel), the tilemap to the last line
 	nextreg $19,159
 	nextreg $19,RIVER_TOP
+	nextreg $19,RIVER_TOP + RIVER_LINES - 1
 	ld a,b
-	nextreg $19,a
 	nextreg $1B,0
 	nextreg $1B,159
 	nextreg $1B,PANEL_FIRST_LINE
@@ -470,7 +470,6 @@ COLOUR_WATER		equ $84
 
 	include "river_gen.asm"
 	include "render.asm"
-	include "display_objs.asm"	; (before the palette's alignment: room there)
 	assert $ <= $9000
 
 	align 256
@@ -481,6 +480,7 @@ random_columns:
 	include "play.asm"
 	include "sound.asm"
 	include "sound_handlers.asm"
+	include "display_objs.asm"
 	ifdef OBJCHECK
 ; (test) the other players' and missiles' rows on the river's lines outside their boxes
 ; (dh_desc: shell, tank, plane, helicopter missile, bullet): pc_bad
@@ -723,6 +723,9 @@ ds_edge:	ds 1
 ds_obj_n:	ds 1			; the objects drawn (ds_objs)
 ds_obj_over:	ds 1			; more than DS_OBJS of them
 ds_obj_t:	ds 1
+ds_objf:	ds DS_OBJS		; the objects' rows for the sprites (ds_obj: those past the
+					; river's end too)
+ob_fptr:	ds 2			; ob_list: the next of them
 ds_obj_slot:	ds 1			; the slot of the last object in ds_objs ($FF: none),
 ds_obj_last:	ds 2			; its entry
 ds_edge_kind:	ds 1			; the object is tested against the edge ($FF) or not (0)

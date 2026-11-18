@@ -1,4 +1,4 @@
-; (page 4, before the palette's alignment: display_simple.asm's page is full)
+; (page 4: display_simple.asm's page is full)
 
 ; The object's rows for the sprites (build_sprites): the scanline of its first row, how many,
 ; the address of the first row's byte (DE) and colour (IY), its position and size. 8 bytes
@@ -62,6 +62,25 @@ ds_obj:
 	inc hl
 	ld a,(ds_rows)
 3:	ld (hl),a
+	push hl				; the rows for the sprites (ds_objf): all of them, also
+	push af				; those past the river's end, which the DLI did not get to
+	ld a,(ds_obj_n)			; (the sprites' window hides them: copper_panel), so an
+	add a,low (ds_objf - 1)		; object's pattern stays the same while it goes out
+	ld l,a
+	adc a,high (ds_objf - 1)
+	sub l
+	ld h,a
+	ld a,(ds_row)
+	inc a
+	push hl
+	ld hl,ds_rows
+	sub (hl)
+	pop hl
+	ld (hl),a
+	pop af
+	add a,(hl)
+	ld (hl),a
+	pop hl
 	inc hl
 	ld (hl),e
 	inc hl

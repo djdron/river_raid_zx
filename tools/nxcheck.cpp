@@ -24,6 +24,7 @@
 #include <cstring>
 #include <deque>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -296,6 +297,7 @@ int main(int argc, char **argv) {
 	const int frames = std::atoi(argv[3]);
 	const uint16_t sbCount = symbol(argv[2], "sb_count");
 	const uint16_t copperBytes = symbol(argv[2], "copper_bytes"), copperList = symbol(argv[2], "copper_list");
+	static std::set<long long> objKeys;
 	const uint16_t objN = symbol(argv[2], "ds_obj_n"), objList = symbol(argv[2], "ds_objs");
 	long copperBad = 0, copperListBad = 0;
 	const uint16_t paletteAt = symbol(argv[2], "palette");
@@ -670,6 +672,14 @@ int main(int argc, char **argv) {
 			// rows above it: compared from the C++ port's first)
 			const int n = readZ80(comp, objN);
 			const uint8_t *objs = &comp->mem->ramData[sramOffset(12) + (objList - 0x6000)];
+			if (getenv("NXOBJKEYS"))   // the 16-row pictures ob_emit asks for (shape, colour, rows)
+				for (int i = 0; i < n; i++) {
+					const uint8_t *e = objs + 8 * i;
+					const int sh = e[2] | e[3] << 8, col = e[4] | e[5] << 8;
+					const int full = readZ80(comp, uint16_t(symbol(argv[2], "ds_objf") + i));   // the sprites' rows
+					for (int k = 0; 16 * k < full; k++)
+						objKeys.insert((long long)(sh - 16 * k) << 32 | (long long)(col - 16 * k) << 8 | std::min(16, full - 16 * k));
+				}
 			if (n != int(game.drawn.size())) {
 				std::snprintf(b, sizeof b, "objects: z80 %d, c++ %zu", n, game.drawn.size());
 				diffs.push_back(b);
@@ -897,6 +907,11 @@ int main(int argc, char **argv) {
 	if (errors) {
 		std::printf("FAIL: frames differ\n");
 		return 1;
+	}
+	if (getenv("NXOBJKEYS")) {
+		FILE *kf = std::fopen(getenv("NXOBJKEYS"), "w");
+		for (long long k : objKeys) std::fprintf(kf, "%04llX %04llX %lld\n", k >> 32, (k >> 8) & 0xFFFFFF, k & 0xFF);
+		std::fclose(kf);
 	}
 	if (histApplyPath) {
 		std::printf("apply: %lld ticks on average, %lld at most (frame %d)\n", applyN ? applySum / applyN : 0, applyMax, applyMaxFrame);

@@ -176,12 +176,19 @@ ob_list:
 	or a
 	ret z
 	ld b,a
+	ld hl,ds_objf
+	ld (ob_fptr),hl
 	ld hl,ds_objs
 .obj	push bc
 	ld a,(hl)
 	ld (ob_line),a
 	inc hl
+	push hl				; the rows: all of them (ds_objf, not the DLI's)
+	ld hl,(ob_fptr)
 	ld a,(hl)
+	inc hl
+	ld (ob_fptr),hl
+	pop hl
 	ld (ob_left),a
 	inc hl
 	ld e,(hl)
@@ -841,41 +848,72 @@ copper_panel_ntsc:
 	db $43, $10			; Layer 2's colours 0-3 (the index going up)
 	db $40, 0
 	db $41, 0, $41, 0, $41, 0, $41, 0	; black
+	db $1C, 2			; the sprites' window below the river: nothing above the
+	db $19, 0, $19, 0		; needle's top, then only its 4 dots (apply: CP_NEEDLE_BACK),
+	db $19, NEEDLE_Y_NTSC, $19, 255	; under which an object's rows past the river's end go
 	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
 	db $40, 0
 	db $41, 0, $41, 0, $41, 0, $41, 0	; grey (tv_setup: COPPER_GREY)
 	db $80 | COPPER_WAIT_H * 2, 211 - 32 - 1
 	db $31, 176 - 211
-	db $80 | COPPER_WAIT_H * 2, 230 - 32 - 1
+	db $80 | COPPER_WAIT_H * 2, OBJ_LAST + 1 - 32 - 1
+	db $1C, 2			; past the lowest line an object's rows reach: all the
+	db $19, 0, $19, 159		; width (the rest of the needle, the logo)
+	db $19, NEEDLE_Y_NTSC, $19, 255
+	db $80 | COPPER_WAIT_H * 2, 229 + 1 - 32 - 1
 	db $40, 0			; the river's colours back after the grey (so a late frame,
 	db $41, 0, $41, 0, $41, 0, $41, 0	; whose apply comes after the next frame's top, still
 					; shows them): 0 black, 1 (the list's top sets it), 2 the
 					; edge, 3 the water (apply: CP_EDGE_BACK)
 	db $80 | COPPER_WAIT_H * 2, 231 - 32 - 1
 	db $31, 208 - 231
-	db $30, 0			; (set by panel_frame)
+	db $30, 0			; (set by panel_frame: CP_XSCROLL_BACK)
+	db $80 | COPPER_WAIT_H * 2, WAIT_LINE_NTSC + 32 - 32 - 1
+	db $1C, 2			; the sprites' window the river's again, for the next frame
+	db $19, 0, $19, 159		; (below the logo, where apply starts)
+	db $19, RIVER_TOP, $19, RIVER_TOP + RIVER_LINES - 1
 copper_panel_ntsc_end:
 ; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239 (Layer 2's
-; clip window), the scrolling line at 243
-COPPER_GREY	equ 19			; the grey's 4 bytes in either, 2 apart
-CP_EDGE_BACK	equ 11			; the restored edge colour's byte, from the list's end (the
-					; water's 2 after it; then the scrolling line's 3 MOVEs, the end)
+; clip window), the scrolling line at 243. The same layout: the offsets below hold for both.
+COPPER_GREY	equ 29			; the grey's 4 bytes in either, 2 apart
+CP_NEEDLE_BACK	equ 67			; the needle's window X1 from the list's end (X2 2 after it)
+CP_EDGE_BACK	equ 23			; the restored edge colour's byte (the water's 2 after it)
+CP_XSCROLL_BACK	equ 15			; the scrolling line's X scroll
+OBJ_LAST	equ RIVER_TOP + RIVER_LINES - 1 + 23	; the lowest line an object's rows reach
+					; (its first row on the river's last line, 24 rows at most)
+NEEDLE_Y_NTSC	equ $CC - RIVER_FIRST + RIVER_TOP	; the needle's first line (10 lines)
+NEEDLE_Y_PAL	equ $D3 - RIVER_FIRST + RIVER_TOP
+	assert NEEDLE_Y_PAL > OBJ_LAST		; (on PAL no object reaches it: its window is all
+					; the width; on NTSC it is the needle's 2 dots to OBJ_LAST)
 copper_panel_pal:
 	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
-	db $43, $10
+	db $43, $10			; Layer 2's colours 0-3 (the index going up)
 	db $40, 0
-	db $41, 0, $41, 0, $41, 0, $41, 0
+	db $41, 0, $41, 0, $41, 0, $41, 0	; black
+	db $1C, 2			; the sprites' window below the river: nothing above the
+	db $19, 0, $19, 0		; needle's top, then only its 4 dots (apply: CP_NEEDLE_BACK),
+	db $19, NEEDLE_Y_PAL, $19, 255	; under which an object's rows past the river's end go
 	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
 	db $40, 0
-	db $41, 0, $41, 0, $41, 0, $41, 0
+	db $41, 0, $41, 0, $41, 0, $41, 0	; grey (tv_setup: COPPER_GREY)
 	db $80 | COPPER_WAIT_H * 2, 218 - 32 - 1
 	db $31, 176 - 218
-	db $80 | COPPER_WAIT_H * 2, 240 - 32 - 1
-	db $40, 0
-	db $41, 0, $41, 0, $41, 0, $41, 0
+	db $80 | COPPER_WAIT_H * 2, OBJ_LAST + 1 - 32 - 1
+	db $1C, 2			; past the lowest line an object's rows reach: all the
+	db $19, 0, $19, 159		; width (the rest of the needle, the logo)
+	db $19, NEEDLE_Y_PAL, $19, 255
+	db $80 | COPPER_WAIT_H * 2, 239 + 1 - 32 - 1
+	db $40, 0			; the river's colours back after the grey (so a late frame,
+	db $41, 0, $41, 0, $41, 0, $41, 0	; whose apply comes after the next frame's top, still
+					; shows them): 0 black, 1 (the list's top sets it), 2 the
+					; edge, 3 the water (apply: CP_EDGE_BACK)
 	db $80 | COPPER_WAIT_H * 2, 243 - 32 - 1
 	db $31, 208 - 243
-	db $30, 0
+	db $30, 0			; (set by panel_frame: CP_XSCROLL_BACK)
+	db $80 | COPPER_WAIT_H * 2, WAIT_LINE_PAL + 32 - 32 - 1
+	db $1C, 2			; the sprites' window the river's again, for the next frame
+	db $19, 0, $19, 159		; (below the logo, where apply starts)
+	db $19, RIVER_TOP, $19, RIVER_TOP + RIVER_LINES - 1
 
 copper_start:				; Layer 2's palette, index 1
 	db $43,$90,$40,1
@@ -978,21 +1016,12 @@ apply:
 	or e
 	jr nz,.cop
 	jr .cs
-.xs	ld hl,(copper_bytes)		; the restored edge and water colours to the X scroll
-	ld de,-CP_EDGE_BACK
-	add hl,de
-	ld a,l
-	nextreg $61,a
-	ld a,h
-	and 7
-	nextreg $62,a
-	ld de,copper_list
-	add hl,de
-	ld b,CP_EDGE_BACK - 2		; (not the end WAIT)
-.xb	ld a,(hl)
-	nextreg $60,a
-	inc hl
-	djnz .xb
+.xs	ld de,-CP_NEEDLE_BACK		; the needle's window (X1, MOVE, X2)
+	ld b,3
+	call .cp_send
+	ld de,-CP_EDGE_BACK		; the restored edge and water colours to the X scroll
+	ld b,CP_EDGE_BACK - CP_XSCROLL_BACK + 1
+	call .cp_send
 .cs	nextreg $61,0
 	nextreg $62,%11000000
 	ld a,(IDLE_TIME)		; A1F5: the screen off after a long time without input
@@ -1005,6 +1034,22 @@ apply:
 	ld bc,$123B
 	xor a
 	out (c),a
+	ret
+; B bytes of the Copper's list from DE (negative) before its end into its memory
+.cp_send
+	ld hl,(copper_bytes)
+	add hl,de
+	ld a,l
+	nextreg $61,a
+	ld a,h
+	and 7
+	nextreg $62,a
+	ld de,copper_list
+	add hl,de
+.cps	ld a,(hl)
+	nextreg $60,a
+	inc hl
+	djnz .cps
 	ret
 .colour
 	ld l,a
@@ -1037,7 +1082,7 @@ panel_frame:
 	and 7
 	ld (pf_s),a
 	ld hl,(copper_bytes)		; the Copper's X scroll for it (the list's last MOVE)
-	ld de,copper_list - 3
+	ld de,copper_list - CP_XSCROLL_BACK
 	add hl,de
 	ld (hl),a
 	ld a,b
@@ -1142,6 +1187,17 @@ panel_frame:
 	rrca
 	and $3E
 	add a,2 * ($5C - 32 - WINDOW_FIRST)
+	push af				; (its 2 Atari dots, 4 of the Next's, the sprites'
+	srl a				; window under the river, in 2-dot units: CP_NEEDLE_BACK)
+	ld hl,(copper_bytes)
+	ld de,copper_list - CP_NEEDLE_BACK
+	add hl,de
+	ld (hl),a
+	inc hl
+	inc hl
+	inc a
+	ld (hl),a
+	pop af
 	out (c),a			; X
 	ld a,(tv_pal)			; (rows $D3-$DC on PAL)
 	or a

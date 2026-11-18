@@ -299,10 +299,15 @@ assembled only with `-DBEAM`. Assembled always:
 | `panel_frame` | `apply` | The panel's 3 rows of 20 characters into the tilemap (2 tiles a character), tile 256 for the scrolling line's split edge column (made fresh from the two halves), the scrolling line's tiles and X scroll, the needle's and the logo's sprites. | — |
 
 Data: `copper_start` (Layer 2's palette index 1, a NOP where NR $4A was (T's colour), the tilemap at the panel's first row),
-`copper_panel_ntsc`/`_pal` (line 200: Layer 2's colours 0–3 black; 201: grey (`COPPER_GREY`,
-patched by `tv_setup`); the tilemap's Y scroll per panel row; line 230 (240 PAL): colours 0–3
-back, the edge's and water's written by `apply` (`CP_EDGE_BACK`); the scrolling line's Y and X
-scroll).
+`copper_panel_ntsc`/`_pal` (the same layout, so the offsets from the list's end hold for both:
+line 200: Layer 2's colours 0–3 black and the sprites' window from the needle's top line down,
+only the needle's 4 dots wide (`CP_NEEDLE_BACK`, written by `panel_frame` from the fuel); 201:
+grey (`COPPER_GREY`, patched by `tv_setup`); the tilemap's Y scroll per panel row; line 223
+(`OBJ_LAST` + 1, below any object's rows): the sprites' window all the width; line 230 (240 PAL):
+colours 0–3 back, the edge's and water's written by `apply` (`CP_EDGE_BACK`); the scrolling
+line's Y and X scroll (`CP_XSCROLL_BACK`); at `wait_line`: the sprites' window the river's
+again). `apply` sends the needle's and the edge-to-X-scroll bytes (`.cp_send`) when the list is
+not sent whole.
 
 ## sound.asm: the sound driver and POKEY's samples
 
