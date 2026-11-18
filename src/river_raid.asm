@@ -733,12 +733,21 @@ ay_ch:		ds 1			; the POKEY channel in .one
 	align 256
 edge_lo:	ds 256			; a player's byte: its first dot (bit 7 dot 0; panel_init),
 edge_hi:	ds 256			; its last dot + 1
-dh_tank_edge:	ds 17			; display_hits.asm: the scanlines of each collision (a count,
-dh_plane_bank:	ds 17			; the scanlines; one page),
+dh_lists_mem:				; display_hits.asm: the scanlines of each collision (before
+		ds 1			; it, dh_seen's cursor: the first not yet passed; then a
+dh_tank_edge:	ds 17			; count, the scanlines in order; one page),
+		ds 1
+dh_plane_bank:	ds 17
+		ds 1
 dh_missile_bank: ds 17
+		ds 1
 dh_bullet_bank:	ds 17
+		ds 1
 dh_plane_shell:	ds 17
+		ds 1
 dh_missile_plane: ds 17
+dh_lists_end:
+	assert high dh_lists_mem == high (dh_lists_end - 1)
 dh_desc:	ds 5 * DH_SIZE		; the sprites
 pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
 dh_list:	ds 2

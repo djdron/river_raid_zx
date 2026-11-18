@@ -27,6 +27,13 @@ dh_ones:	db $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF	; the missiles' rows: all set
 ; plane, the bank), M0PF and M2PF (the missile, the bullet: either), P2PL (the plane and the
 ; shell), M0PL (the missile and the plane)
 dh_lists:
+	xor a				; dh_seen's cursors back to each list's start
+	ld (dh_tank_edge - 1),a
+	ld (dh_plane_bank - 1),a
+	ld (dh_missile_bank - 1),a
+	ld (dh_bullet_bank - 1),a
+	ld (dh_plane_shell - 1),a
+	ld (dh_missile_plane - 1),a
 	ld hl,dh_template
 	ld de,dh_desc
 	ld bc,dh_template_end - dh_template
@@ -282,23 +289,41 @@ dh_pf:
 	jr nz,.l
 	ret
 
-; NZ: list HL has a scanline from the last HITCLR's to A
+; NZ: list HL has a scanline from the last HITCLR's to A. The reads come down the screen
+; (ds_cleared only grows), so each list keeps a cursor (the byte before it) past the
+; scanlines above the last HITCLR: the first one not passed is the only one to look at.
 dh_seen:
 	ld c,a
 	ld a,(ds_cleared)
 	ld d,a
-	ld b,(hl)
-	inc b
-	jr .e
-.l	inc hl
-	ld a,(hl)
+	ld b,(hl)			; the count
+	dec l
+	ld e,(hl)			; the cursor
+	ld a,b
+	sub e
+	jr z,.no
+	ld b,a				; the scanlines left
+	push hl
+	ld a,l
+	add a,e
+	add a,2
+	ld l,a
+.skip	ld a,(hl)
 	cp d
-	jr c,.e
-	ld e,a
-	ld a,c
-	cp e
+	jr nc,.found
+	inc l
+	inc e
+	djnz .skip
+	pop hl
+	ld (hl),e			; (all passed)
+.no	xor a
+	ret
+.found	ex (sp),hl
+	ld (hl),e
+	pop hl
+	ld a,c				; up to A?
+	cp (hl)
 	jr nc,.yes
-.e	djnz .l
 	xor a
 	ret
 .yes	or 1
