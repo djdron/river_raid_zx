@@ -333,7 +333,8 @@ dh_obj:
 	cp d
 	jr c,1F
 	ld d,a
-1:	ld a,d
+1:	call ov_setup			; (the fast way when both are on the playfield's clocks)
+	ld a,d
 .l	cp e
 	jr nc,.no
 	push de
@@ -347,6 +348,19 @@ dh_obj:
 	ld a,(hl)
 	or a
 	jr z,.n
+	ld (ov_r),a
+	ld a,(ov_mode)
+	or a
+	jr z,.slow
+	pop de
+	push de
+	ld a,d
+	call dh_bits
+	jr z,.n
+	call ov_fast
+	jr nz,.yes
+	jr .n
+.slow	ld a,(ov_r)
 	ld d,a
 	ld a,(ds_x)
 	ld e,a
@@ -371,4 +385,120 @@ dh_obj:
 	or 1
 	ret
 .no	xor a
+	ret
+
+; dh_obj's fast way for sprite IX and the current object: when both are on the playfield's
+; clocks (32-223), their dots compared a byte at a time: the object's row widened to a
+; clock a bit (ov_exp2, ov_exp4: 1, 2 or 4 bytes), the sprite's byte (a clock a bit) shifted
+; to it. ov_mode: the object's bytes (0: the slow way, collide); ov_k, ov_s: the sprite from
+; the object's byte k, bit s on; ov_k $FF: it starts ov_s clocks before the object. D, E kept.
+ov_setup:
+	xor a
+	ld (ov_mode),a
+	ld a,(ds_size)			; the object's width and bytes
+	and 3
+	ld bc,8 << 8 | 1
+	rra
+	jr nc,1F
+	ld bc,16 << 8 | 2
+	or a
+	jr z,1F
+	ld bc,32 << 8 | 4
+1:	ld a,(ds_x)
+	cp 32
+	ret c
+	add a,b
+	ret c
+	cp 224 + 1
+	ret nc
+	ld a,(ix + 3)			; the sprite's (8 clocks)
+	cp 32
+	ret c
+	cp 224 - 8 + 1
+	ret nc
+	ld hl,ds_x
+	sub (hl)
+	jr c,.before
+	ld b,a
+	rrca
+	rrca
+	rrca
+	and $1F
+	ld (ov_k),a
+	ld a,b
+	and 7
+	ld (ov_s),a
+	ld a,c
+	ld (ov_mode),a
+	ret
+.before	neg
+	ld (ov_s),a
+	ld a,$FF
+	ld (ov_k),a
+	ld a,c
+	ld (ov_mode),a
+	ret
+
+; NZ: the sprite's byte A (from dh_bits) meets the object's row ov_r (ov_setup)
+ov_fast:
+	ld b,a
+	ld a,(ov_r)			; the row, a clock a bit, into ov_o (a zero after it)
+	ld l,a
+	ld a,(ov_mode)
+	ld de,ov_o
+	cp 2
+	jr c,.w1
+	ld h,high ov_exp2
+	jr z,.w2
+	ld h,high ov_exp4
+	ld c,4
+.w4	ld a,(hl)
+	ld (de),a
+	inc e
+	inc h
+	dec c
+	jr nz,.w4
+	jr .w0
+.w2	ld a,(hl)
+	ld (de),a
+	inc e
+	inc h
+	ld a,(hl)
+	ld (de),a
+	inc e
+	jr .w0
+.w1	ld a,l
+	ld (de),a
+	inc e
+.w0	xor a
+	ld (de),a
+	ld a,(ov_s)
+	ld c,a
+	ld a,(ov_k)
+	cp $FF
+	jr z,.before
+	ld e,a				; the sprite from byte k, bit s: its byte over k and k + 1
+	ld d,0
+	ld hl,ov_o
+	add hl,de
+	ld a,b
+	ld e,0
+	inc c
+	jr .sh
+.shl	srl a
+	rr e
+.sh	dec c
+	jr nz,.shl
+	and (hl)
+	ret nz
+	inc hl
+	ld a,e
+	and (hl)
+	ret
+.before	ld a,b				; s clocks before the object: its byte moved left by s
+.bl	add a,a
+	dec c
+	jr nz,.bl
+	ld hl,ov_o
+	and (hl)
 	ret

@@ -239,6 +239,39 @@ wait_frame:
 	ret
 
 init_tables:
+	ld hl,ov_exp2			; dh_obj's: a byte's dots twice and 4 times as wide
+.ov	ld a,l
+	rrca
+	rrca
+	rrca
+	rrca
+	call .g16
+	ld (hl),a			; (bits 7-4)
+	inc h
+	ld a,l
+	call .g16
+	ld (hl),a			; (bits 3-0)
+	inc h
+	ld b,4				; 4 times: a pair of bits a byte, from bits 7-6
+	ld c,l
+.ov4	ld a,c
+	rlca
+	rlca
+	ld c,a
+	and 3
+	push hl
+	ld e,a
+	ld d,0
+	ld hl,.f4
+	add hl,de
+	ld a,(hl)
+	pop hl
+	ld (hl),a
+	inc h
+	djnz .ov4
+	ld h,high ov_exp2
+	inc l
+	jr nz,.ov
 	ld hl,pix_tab			; render_line's tables
 .pix	ld a,l
 	ld c,h
@@ -299,6 +332,18 @@ init_tables:
 	ld a,1				; (all of it to the Copper)
 	ld (cp_full),a
 	ret
+; A's bits 3-0 each twice (bit 3 first)
+.g16	and $0F
+	push hl
+	ld e,a
+	ld d,0
+	ld hl,.t16
+	add hl,de
+	ld a,(hl)
+	pop hl
+	ret
+.t16	db $00,$03,$0C,$0F,$30,$33,$3C,$3F,$C0,$C3,$CC,$CF,$F0,$F3,$FC,$FF
+.f4	db $00,$0F,$F0,$FF
 
 ; The standard's settings (tv_pal): 50 or 60 Hz, ANTIC's cycles at the panel's first line,
 ; when a frame starts, POKEY's counter per frame, where the panel and the scrolling line are.
@@ -483,7 +528,9 @@ sprite_list:	ds 5 * SPRITES_MAX	; the sprites' attributes for apply
 ds_objs:	ds 8 * DS_OBJS		; display: the objects' rows (display_simple.asm)
 	align 256
 copper_list:	ds 2048
-	assert $ <= $8000
+ov_exp2:	ds 2 * 256		; dh_obj: a byte's dots doubled (2 bytes: pages), and
+ov_exp4:	ds 4 * 256		; quadrupled (4)
+	assert $ <= $7C00		; (the DAC's ring)
 
 ; Buffers and variables (page 1)
 	mmu 7,1
@@ -637,6 +684,12 @@ ds_colours:	ds 2
 ds_row:		ds 1
 ds_l1:		ds 1
 ds_rowp:	ds 2			; display: the object's first row's byte (its rows down from it)
+ov_mode:	ds 1			; ov_setup, ov_fast (display_hits.asm)
+ov_k:		ds 1
+ov_s:		ds 1
+ov_r:		ds 1
+ov_o:		ds 5
+	assert high ov_o == high (ov_o + 4)
 ds_le:		ds 1
 ds_bridge:	ds 1
 ds_bullet:	ds 1

@@ -207,18 +207,19 @@ ds_edge_test:
 	ld h,$87
 2:	ld (.s1),hl
 	ld (.s2),hl
-	ld de,(ds_rowp)			; DE: the row, L: its scanline
-	ld a,(ds_counter)
-	sub $44
-	ld l,a
+	ld de,(ds_rowp)			; DE: the row, IY: its scanline's span record (the objects'
+	ld a,(ds_counter)		; rows are all on the river's lines), a record 32 bytes
+	sub $44 + RIVER_FIRST		; after the one before (a ring over SPAN_PAGE)
+	ld hl,span_top
+	add a,(hl)
+	span_rec
+	push hl
+	pop iy
 	ld a,(ds_rows)
 	ld ixl,a
 .row	ld a,(de)			; the row's first and last dots (edge_lo, edge_hi), the
 	or a				; clocks from X
 	jr z,.row_on
-	push de
-	push hl
-	ld b,l
 	ld l,a
 	ld h,high edge_lo
 	ld a,(hl)
@@ -231,20 +232,15 @@ ds_edge_test:
 .s2	nop
 	nop
 .ex2	add a,0
-	ld h,b
 	ld b,a				; (B: past the last dot)
-	ld a,h				; (a river scanline)
-	sub RIVER_FIRST
-	cp RIVER_LINES
-	jr nc,.row_off
-	ld hl,span_top			; the scanline's runs of edge pixels (pf_line, pf_edge)
-	add a,(hl)
-	span_rec
+	push iy				; the line's runs of edge pixels (pf_line, pf_edge)
+	pop hl
+	ld a,l
 	add a,(hl)
 	ld l,a
 .run	ld a,(hl)			; a run past the row's last dot: none touched (the runs go
 	cp b				; left to right, $FF at the end)
-	jr nc,.row_off
+	jr nc,.row_on
 	inc l
 	ld a,c				; one that ends before its first dot: the next
 	cp (hl)
@@ -252,6 +248,7 @@ ds_edge_test:
 	jr nc,.run
 	dec l				; one between: the dots themselves (the rows have gaps)
 	dec l
+	push de
 	ld a,(de)			; the row's bits into the size's variant (pf_v*)
 .pv_bits
 	ld (0),a
@@ -259,17 +256,18 @@ ds_edge_test:
 .pv_x	ld c,0
 	ld d,high span_masks
 .pv	call 0
-	jr z,.row_off
-	pop hl
 	pop de
+	jr z,.row_on
 	ld a,$02
 	ret
-.row_off
-	pop hl
-	pop de
-.row_on	inc l
-	dec de
-	dec ixl
+.row_on	dec de
+	ld bc,32			; the next line's record
+	add iy,bc
+	ld a,iyh
+	cp high (SPANS + $2000)
+	jr c,1F
+	ld iyh,high SPANS
+1:	dec ixl
 	jp nz,.row
 .none	xor a
 	ret
