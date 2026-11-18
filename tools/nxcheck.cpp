@@ -400,6 +400,9 @@ int main(int argc, char **argv) {
 	// frames of a game); tools/prof.py sums it per routine
 	static long long histAll[0x10000];
 	const char *histAllPath = getenv("NXHISTALL");
+	static long long histApply[0x10000];
+	const char *histApplyPath = getenv("NXHISTAPPLY");
+	long long applySum = 0, applyMax = 0; long applyN = 0; int applyMaxFrame = 0;
 	auto runTo = [&](uint16_t hook) {
 		if (histAllPath && hook == frameHook) {
 			long long t = comp->tickTotal;
@@ -833,6 +836,19 @@ int main(int argc, char **argv) {
 			runTo(applyHook);
 			const long long a = comp->tickTotal - t0;
 			if (a > 60000) std::printf("frame %d: apply %lld\n", f, a);
+		} else if (histApplyPath) {   // NXHISTAPPLY=file: apply's time per instruction (after the wait)
+			runTo(uint16_t(frameHook + 3));
+			const long long t0 = comp->tickTotal;
+			long long t = t0;
+			for (;;) {
+				const uint16_t pc = comp->cpu->regPC;
+				compExec(comp);
+				histApply[pc] += comp->tickTotal - t;
+				t = comp->tickTotal;
+				if (comp->cpu->regPC == applyHook) break;
+			}
+			applySum += t - t0; applyN++;
+			if (t - t0 > applyMax) { applyMax = t - t0; applyMaxFrame = f; }
 		} else
 			runTo(applyHook);
 		{   // the Copper's memory as apply left it: the list the program made (the parts it sends)
@@ -881,6 +897,12 @@ int main(int argc, char **argv) {
 	if (errors) {
 		std::printf("FAIL: frames differ\n");
 		return 1;
+	}
+	if (histApplyPath) {
+		std::printf("apply: %lld ticks on average, %lld at most (frame %d)\n", applyN ? applySum / applyN : 0, applyMax, applyMaxFrame);
+		FILE *hf = std::fopen(histApplyPath, "w");
+		for (int a = 0; a < 0x10000; a++) if (histApply[a]) std::fprintf(hf, "%04X %lld\n", a, histApply[a]);
+		std::fclose(hf);
 	}
 	if (histAllPath) {
 		FILE *hf = std::fopen(histAllPath, "w");
