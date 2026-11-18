@@ -11,7 +11,7 @@
 //     Next's colours, black around the river.
 // It also reports whether every frame was ready in time on the Next.
 //
-// usage: nxcheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-bot N] [-attract] [-pal | -ntsc]
+// usage: nxcheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-bot N] [-stress] [-attract] [-pal | -ntsc]
 //   NXBRIDGE=n: every game starts at bridge n; NXGHOST=1: the plane cannot crash, the fuel stays full
 //   -pal (the default) or -ntsc: the standard, the Next at 50 or 60 Hz
 //   -seed: POKEY's counter at power-on; -bot: the made-up player's choices; -attract: no
@@ -128,6 +128,7 @@ const struct { const char *name; uint16_t addr; int size; } kGameArrays[] = {
 class Bot {
 public:
 	explicit Bot(uint32_t seed) : s_(seed ? seed : 1) {}
+	bool stress = false;              // -stress: full speed, always firing, no pauses
 	rr::Input next(const rr::Game &game) {
 		rr::Input in;
 		const rr::GameState &g = game.g;
@@ -161,17 +162,17 @@ public:
 			return in;
 		}
 		wait_ = -1;
-		if (rnd() % 4000 == 0) {
+		if (!stress && rnd() % 4000 == 0) {
 			pause_ = 62 + int(rnd() % 100);
 			in.key = true;
 			return in;
 		}
 		uint8_t stick = 0x0F;
-		if (randomFor_ > 0) {             // random steering for a while
+		if (!stress && randomFor_ > 0) {  // random steering for a while
 			randomFor_--;
 			stick = randomStick_;
 		} else {
-			if (rnd() % 400 == 0) {
+			if (!stress && rnd() % 400 == 0) {
 				randomFor_ = 5 + int(rnd() % 40);
 				randomStick_ = uint8_t(0x0F & ~(1u << (rnd() % 4)) & ~((rnd() % 3 == 0) ? 1u << (rnd() % 4) : 0));
 			}
@@ -225,11 +226,12 @@ public:
 				speedFor_ = 20 + int(rnd() % 120);
 				speed_ = uint8_t(rnd() % 3);
 			}
+			if (stress) speed_ = 1;
 			if (speed_ == 1) stick &= ~0x01;
 			else if (speed_ == 2) stick &= ~0x02;
 		}
 		in.stick[0] = in.stick[1] = stick;
-		const bool fire = !depot_ && rnd() % 4 != 0;
+		const bool fire = stress || (!depot_ && rnd() % 4 != 0);
 		in.trigger[0] = in.trigger[1] = fire;
 		return in;
 	}
@@ -266,6 +268,7 @@ int main(int argc, char **argv) {
 		return 2;
 	}
 	uint32_t seed = 12345, botSeed = 1;
+	bool stressBot = false;
 	bool attractOnly = false, pal = true;
 	int switchAt = -1;
 	const char *oracleDir = nullptr;   // -oracle DIR: against the original (rr_oracle's output)
@@ -274,6 +277,7 @@ int main(int argc, char **argv) {
 	const char *wavPath = nullptr, *wavCppPath = nullptr;   // -wav, -wavcpp: the sound (see below)
 	for (int i = 4; i < argc; i++) {
 		if (!std::strcmp(argv[i], "-seed") && i + 1 < argc) seed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
+		else if (!std::strcmp(argv[i], "-stress")) stressBot = true;
 		else if (!std::strcmp(argv[i], "-bot") && i + 1 < argc) botSeed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
 		else if (!std::strcmp(argv[i], "-attract")) attractOnly = true;
 		else if (!std::strcmp(argv[i], "-ntsc")) pal = false;
@@ -391,6 +395,7 @@ int main(int argc, char **argv) {
 			std::memcpy(&rows[size_t(k) * 320], &picture[rr::kRiverTop + k][2 * kWindowFirst], 320);
 	};
 	Bot bot(botSeed);
+	bot.stress = stressBot;
 	rr::Input input = attractOnly ? rr::Input() : bot.next(game);
 	uint8_t *inputAt = sram + sramOffset(kCodePages[0]) + 12;
 	putInput(inputAt, input);
