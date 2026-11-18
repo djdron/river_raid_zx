@@ -558,6 +558,7 @@ int main(int argc, char **argv) {
 			random = rr::PokeyRandom(seed + 1, rr::tvSystem(pal));
 			random.nextFrame();
 		}
+		if (getenv("NXBORDER")) writeZ80(comp, symbol(argv[2], "tm_show"), 1);   // T's border on (the picture)
 		if (!getenv("NXHISTALL")) {   // pokey_frame's time: the samples made
 			runTo(pokeyFrame);
 			const long long t0 = comp->tickTotal;

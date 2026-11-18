@@ -95,9 +95,9 @@ line (`wait_frame`), the sound by the DMA, the per-line colours by the Copper.
 
 1. Snapshots what this frame's picture shows (`scroll`, the edge and water colours, the player), `read_input`, CAPS + 1 (`restart` in the other standard).
 2. Normally: `prepare` → `display` → `build_sprites` → `main_loop` → `vbi`. During a reset (`busy`, the frames in which the original clears memory: 13 NTSC, 8 PAL): `display` → `build_sprites` → `clear_layer2_page` → (`finish_reset` in the last) → `vbi`.
-3. `pokey_frame`: the frame's samples into the DAC's ring and the AY's tones.
+3. `pokey_frame`: the frame's samples into the DAC's ring and the AY's tones. With T on (`tm_show`), the fallback colour green here (the work done).
 4. `wait_frame`: polls the active video line (NR $1E/$1F) until `wait_line` (208 NTSC, 220 PAL), below the scrolling line, where nothing on screen changes.
-5. `apply`: everything built goes live at once (Layer 2's scroll and colours, the sprites' attributes, the panel's tiles, the Copper's list).
+5. With T on, the fallback colour red (the work starts). `apply`: everything built goes live at once (Layer 2's scroll and colours, the sprites' attributes, the panel's tiles, the Copper's list).
 
 Order matters: `display` uses the state the previous frame's `main_loop` left (as the
 Atari's DLI shows the previous frame's state), and `build_sprites` uses what `display` left.
@@ -146,7 +146,7 @@ the original's RAM addresses.
 | `swap_players`, `update_high_score`, `set_up_game`, `select_game` | | Two players, high score with its check bytes, the game number. | |
 | `show_lives`, `show_score`, `show_bridges`, … | the loop, the VBI | The panel's characters in Atari RAM ($1000). | 620 / 720 |
 | `print_bcd` | the `show_*` | B086: BCD bytes as digits, leading zeros blank. | 1 200 / 1 400 |
-| `read_input` | `main_frame` (not in test builds) | The keyboard (Q A O P, Space/M, Enter, G, H, CAPS + 1/2), Kempston 1 and 2 and the Mega Drive pad, into the Atari's stick, trigger and console bytes. | — |
+| `read_input` | `main_frame` (not in test builds) | The keyboard (Q A O P, Space/M, Enter, G, H, CAPS + 1/2), Kempston 1 and 2 and the Mega Drive pad, into the Atari's stick, trigger and console bytes. T (on press) toggles `tm_show`, off: the fallback colour black. | — |
 
 ## game.asm: per-frame game parts and the VBI
 
@@ -296,7 +296,7 @@ assembled only with `-DBEAM`. Assembled always:
 | `apply` | after `wait_frame` | Layer 2's scroll (NR $17), the sprites' attributes (port $57, OTIR 5 a sprite; the previous frame's extra ones hidden), the colours of the shell, the tank and the plane (sprite palette), Layer 2's colours 0, 2, 3, `panel_frame`, the Copper: stopped, the whole list sent if `cp_full`, else only the scrolling line's X-scroll byte, restarted (mode %11). The screen off after a long idle (IDLE_TIME). Not in the numbers above. | — |
 | `panel_frame` | `apply` | The panel's 3 rows of 20 characters into the tilemap (2 tiles a character), tile 256 for the scrolling line's split edge column (made fresh from the two halves), the scrolling line's tiles and X scroll, the needle's and the logo's sprites. | — |
 
-Data: `copper_start` (Layer 2's palette index 1, the tilemap at the panel's first row),
+Data: `copper_start` (Layer 2's palette index 1, a NOP where NR $4A was (T's colour), the tilemap at the panel's first row),
 `copper_panel_ntsc`/`_pal` (line 200: Layer 2's colours 0–3 black; 201: grey (`COPPER_GREY`,
 patched by `tv_setup`); the tilemap's Y scroll per panel row; the scrolling line's Y and X
 scroll).

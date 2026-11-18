@@ -869,7 +869,8 @@ copper_panel_pal:
 
 copper_start:				; Layer 2's palette, index 1
 	db $43,$90,$40,1
-	db $4A,0			; the tilemap at the panel's first row, no X scroll
+	db 0,0				; (a NOP: the fallback colour is T's, see main_frame)
+					; the tilemap at the panel's first row, no X scroll
 	db $31,160 - 202
 	db $2F,0
 	db $30,0

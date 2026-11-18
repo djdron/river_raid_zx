@@ -135,6 +135,9 @@ start:
 	ld (rnd_state + 2),a
 	ld a,(tv_init)
 	ld (tv_pal),a
+	xor a				; (T: the frame's work on the border, off)
+	ld (tm_show),a
+	ld (tm_keys),a
 ; The machine switched on with tv_pal's standard: everything from the start
 restart:
 	ld sp,0
@@ -197,11 +200,19 @@ main_frame:
 	call z,finish_reset
 	call vbi
 .sound	call pokey_frame
+	ld a,(tm_show)			; T: the border green once the frame's work is done,
+	or a
+	jr z,frame_done
+	nextreg $4A,$1C
 frame_done:
 	call wait_frame
-	call apply
+	ld a,(tm_show)			; red from apply on (the fallback colour, which is the
+	or a				; border's: the red part of the frame is the work)
+	jr z,.apply
+	nextreg $4A,$E0
+.apply	call apply
 apply_done:
-	jr main_frame
+	jp main_frame
 
 ; wait for raster line WAIT_LINE, below the river
 wait_frame:
@@ -754,6 +765,8 @@ pk_dma:		ds 2			; where the DMA was
 snd_off:	ds 1			; CAPS + 2: the sound off,
 snd_clear:	ds 1			; the ring to be made quiet,
 snd_keys:	ds 1			; the keys last frame
+tm_show:	ds 1			; T: the frame's work shown on the border (red, then green)
+tm_keys:	ds 1			; T last frame
 pk_left:	ds 1
 pk_must:	ds 2
 pokey_audf:	ds 4			; what the sound driver wrote: AUDF1-4,

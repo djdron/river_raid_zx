@@ -65,6 +65,7 @@ and the program stops. The ROM is looked for by its long name, then by its short
 | pause | H (press and release; again to go on) | |
 | PAL / NTSC | CAPS + 1 (starts again) | |
 | sound off / on | CAPS + 2 | |
+| the frame's work on the border (red while it works, then green) | T (on / off) | |
 
 Games 1-8 as on the Atari: starting at bridge 1, 5, 20 or 50, odd numbers one player, even
 two (they take turns; the keyboard flies for both).

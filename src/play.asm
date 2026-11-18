@@ -1206,6 +1206,22 @@ read_input:
 	ld (snd_clear),a
 .snd	ld a,h
 	ld (snd_keys),a
+	ld b,$FB			; T: the frame's work on the border, on and off (when
+	in a,(c)			; pressed)
+	cpl
+	and $10
+	ld h,a
+	ld a,(tm_keys)
+	cpl
+	and h
+	jr z,.tm
+	ld a,(tm_show)
+	xor 1
+	ld (tm_show),a
+	jr nz,.tm
+	nextreg $4A,0			; off: black again
+.tm	ld a,h
+	ld (tm_keys),a
 	ld b,$BF			; Enter: START; H: pause
 	in a,(c)
 	bit 0,a
