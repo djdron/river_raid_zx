@@ -801,6 +801,11 @@ obj_e:		ds 3 * OBJ_ENTRIES	; the entries: colour byte's address, pattern (+ bank
 	align 256
 rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
 rnd_col16:	ds 3			; and bit 16's column
+	align 256
+bg_e1:		ds 256			; per span record (line), its two widest gaps between runs
+bg_s2:		ds 256			; of bank pixels (dh_pf; spans.asm)
+bg_e3:		ds 256
+bg_s4:		ds 256
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------

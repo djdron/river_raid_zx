@@ -108,18 +108,22 @@ dh_sprites:
 	ld ix,dh_desc + DH_TANK
 	ld de,pf_edge
 	ld hl,HIT_TANK_AT_EDGE
+	ld a,1				; (the edge's gaps)
 	call .pf
 	ld ix,dh_desc + DH_PLANE
 	ld de,pf_bank
 	ld hl,HIT_PLANE_BANK
+	ld a,2				; (the bank's)
 	call .pf
 	ld ix,dh_desc + DH_MISSILE
 	ld de,pf_under
 	ld hl,HIT_MISSILE_BANK
+	ld a,3				; (both)
 	call .pf
 	ld ix,dh_desc + DH_BULLET
 	ld de,pf_under
 	ld hl,HIT_BULLET_BANK
+	ld a,3
 	call .pf
 	ld ix,dh_desc + DH_PLANE
 	ld iy,dh_desc + DH_SHELL
@@ -257,23 +261,87 @@ dh_meet:
 	or a
 	ret
 
-; NZ: sprite IX's rows meet the playfield on a river line (DE: pf_edge, pf_bank, pf_under)
+; NZ: sprite IX's rows meet the playfield on a river line (DE: pf_edge, pf_bank, pf_under;
+; A: which gaps a line's box is looked up in first, bit 0 the edge's (eg_*), bit 1 the bank's
+; (bg_*): inside the gaps, nothing to look at on the line)
 dh_pf:
 	ld (.fn + 1),de
+	ld (.mode + 1),a
 	ld a,(ix + 7)
 	or a
 	ret z
 	ld c,a
+	ld a,(ix + 3)			; the box: X to X + its clocks
+	ld (.x0a + 1),a
+	ld (.x0b + 1),a
+	ld (.x0c + 1),a
+	ld (.x0d + 1),a
+	add a,(ix + 8)
+	jr nc,1F
+	xor a				; (past clock 255: none, the dots looked at)
+	ld (.mode + 1),a
+1:	ld (.x1a + 1),a
+	ld (.x1b + 1),a
+	ld (.x1c + 1),a
+	ld (.x1d + 1),a
 	ld b,(ix + 6)
 .l	ld a,b
 	cp RIVER_FIRST + RIVER_LINES
-	jr nc,.no
+	jp nc,.no
 	cp RIVER_FIRST
-	jr c,.n
+	jp c,.n
 	push bc
 	ld (bm_line),a
-	call dh_bits
+	call dh_bits			; (no dots on the line: nothing)
 	jr z,.n0
+	ld (.bits + 1),a
+	ld a,(bm_line)
+	sub RIVER_FIRST			; the line's span record (its gaps' index)
+	ld hl,span_top
+	add a,(hl)
+	ld l,a
+.mode	ld c,0
+	bit 0,c
+	jr z,.bank
+	ld h,high eg_e1
+.x0a	ld a,0
+	cp (hl)
+	jr c,.e2
+	inc h
+	ld a,(hl)
+.x1a	cp 0
+	jr nc,.bank
+.e2	ld h,high eg_e3
+.x0b	ld a,0
+	cp (hl)
+	jr c,.look
+	inc h
+	ld a,(hl)
+.x1b	cp 0
+	jr c,.look
+.bank	bit 1,c
+	jr z,.gap
+	ld h,high bg_e1
+.x0c	ld a,0
+	cp (hl)
+	jr c,.b2
+	inc h
+	ld a,(hl)
+.x1c	cp 0
+	jr nc,.gap
+.b2	ld h,high bg_e3
+.x0d	ld a,0
+	cp (hl)
+	jr c,.look
+	inc h
+	ld a,(hl)
+.x1d	cp 0
+	jr c,.look
+.gap	ld a,c				; (mode 0: no gaps, the dots looked at)
+	or a
+	jr nz,.n0
+.look
+.bits	ld a,0
 	ld d,a
 	ld e,(ix + 3)
 	ld a,(ix + 4)
@@ -286,7 +354,7 @@ dh_pf:
 .n0	pop bc
 .n	inc b
 	dec c
-	jr nz,.l
+	jp nz,.l
 .no	xor a
 	ret
 

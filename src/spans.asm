@@ -77,10 +77,13 @@ span_line:
 	inc de
 	inc a
 	jr nz,.copy
-	jr .gaps
+	call .gaps
+	jr .bgaps
 .full	dec de
 	ld a,$FF
 	ld (de),a
+	call .gaps
+	jr .bgaps
 ; The line's water gaps (ds_edge_test): with 2 runs of edge pixels the one between them,
 ; with 4 the 1st-2nd and the 3rd-4th (the island between); with none all of it; else none
 ; ($FF: the runs looked at)
@@ -173,18 +176,66 @@ span_line:
 	exx
 	ret
 
-; Screen memory cleared: no runs on any line (all a gap). Slot 2 is left with SPAN_PAGE.
-spans_clear:
-	ld hl,eg_e1
-.eg	ld (hl),0
-	inc h
-	ld (hl),$FF
-	inc h
-	ld (hl),$FF
-	dec h
-	dec h
+; The line's two widest gaps between its runs of bank pixels (from the playfield's first clock,
+; 32, before the first, to its end, 224, after the last), for dh_pf: bg_e1-bg_s2,
+; bg_e3-bg_s4 ($FF: none)
+.bgaps	ld a,(span_top)
+	ld (.bi + 1),a
+	span_rec
+	inc l				; (the bank's runs)
+	ld bc,$FF00			; B: the widest's start, C: its width;
+	ld de,$FF00			; D, E: the next's
+	ld a,32				; (the gap's start: the playfield's first clock)
+.bg	ld (.bs + 1),a
+	ld a,(hl)			; the next run's start: a gap to it
+	cp $FF
+	jr z,.blast
+	call .gap
 	inc l
-	jr nz,.eg
+	ld a,(hl)			; and on from its end
+	inc l
+	jr .bg
+.blast	ld a,224			; (to the playfield's end)
+	call .gap
+	push hl
+.bi	ld l,0
+	ld h,high bg_e1
+	ld (hl),b
+	inc h
+	ld a,b
+	add a,c
+	ld (hl),a
+	inc h
+	ld (hl),d
+	inc h
+	ld a,d
+	add a,e
+	ld (hl),a
+	pop hl
+	ret
+.gap	push hl				; the gap from .bs to A (width A - start): one of the two
+.bs	ld l,0				; widest?
+	sub l
+	jr c,.gx2
+	cp c
+	jr c,.g2nd
+	ld d,b
+	ld e,c
+	ld b,l
+	ld c,a
+	pop hl
+	ret
+.g2nd	cp e
+	jr c,.gx2
+	ld d,l
+	ld e,a
+.gx2	pop hl
+	ret
+
+; Screen memory cleared: no runs on any line. Slot 2 is left with SPAN_PAGE. (The lines' gaps,
+; eg_* and bg_*, are left as they are: they only let a line be passed over, and with no runs
+; there is nothing on it to touch; span_line makes them anew with each line's runs.)
+spans_clear:
 	nextreg $52,SPAN_PAGE
 	ld hl,SPANS
 	ld de,32 - 2
