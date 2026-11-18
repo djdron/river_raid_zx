@@ -376,6 +376,8 @@ tv_setup:
 	ld hl,$8000			; the scrolling line's ring and sprite: all written again
 	ld (pf_ring_lo),hl
 	ld (pf_spr_h),hl
+	ld a,60				; and the panel
+	ld (pf_dirty_n),a
 	jp rnd_tables			; random_step's tables for the standard
 
 init_video:
@@ -520,6 +522,8 @@ pf_h0:		ds 2			; its left edge's half character (X0 / 8),
 pf_ring_lo:	ds 2			; the first of the 40 halves in the tilemap's ring,
 pf_spr_h:	ds 2			; the sprite's half,
 pf_clip_y2:	ds 1			; the tilemap's last line (the clip window)
+pf_dirty_n:	ds 1			; the panel's positions changed (panel_put; 60: all)
+pf_dirty:	ds 60			; which
 logo_shown:	ds 1			; the logo's position this frame (before the VBI moves it)
 game_over_text:	ds 1			; A3B4: "Game over" scrolls past
 busy:		ds 1			; frames of sub $B0F1 still to come

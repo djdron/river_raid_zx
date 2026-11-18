@@ -705,13 +705,39 @@ apply:
 ; Called by apply (below the scrolling line).
 panel_frame:
 	nextreg $52,11
-	ld hl,PANEL			; the panel: 3 rows of 20 characters, each two tiles; a row
-	ld de,TILE_MAP + 20 * 80	; starts 8 dots left of the screen (the first tile is its
-	call .panel_row			; first character's right half) and ends 8 dots short
-	ld de,TILE_MAP + 22 * 80
-	call .panel_row
-	ld de,TILE_MAP + 23 * 80
-	call .panel_row
+	; the panel: 3 rows of 20 characters, each two tiles (2 x code + half, the colour bits as
+	; the palette offset); a row starts 8 dots left of the screen (its first tile is the first
+	; character's right half) and ends 8 dots short. Only the positions panel_put listed.
+	ld a,(pf_dirty_n)
+	or a
+	jr z,.panel_done
+	cp 60
+	jr c,.list
+	ld b,60				; all
+	ld e,0
+.all	ld a,e
+	push de
+	push bc
+	call .char
+	pop bc
+	pop de
+	inc e
+	djnz .all
+	jr .panel_end
+.list	ld b,a
+	ld de,pf_dirty
+.l	ld a,(de)
+	inc de
+	push de
+	push bc
+	call .char
+	pop bc
+	pop de
+	djnz .l
+.panel_end
+	xor a
+	ld (pf_dirty_n),a
+.panel_done
 
 	; the scrolling line: half character h (the character at $B800 + h / 2, its right half if h
 	; is odd) at 8 h - X0, X0 = 16 TEXT_LO + 38 - 2 FINE_SCROLL (the first character 38 - 2 x
@@ -989,38 +1015,60 @@ panel_frame:
 	jr nz,.sr
 	ret
 
-; HL: 20 characters as the 40 tiles of a row at DE
-.panel_row
-	ld a,(hl)
-	inc hl
-	ld c,1
-	call .entry
-	ld b,19
-.pc	ld a,(hl)
-	inc hl
-	ld c,0
-	call .entry
-	ld c,1
-	call .entry
-	djnz .pc
-	xor a
-	ld (de),a
-	inc de
-	ld (de),a
-	inc de
-	ret
-.entry	push af				; tile: 2 x code + half; attribute: colour (bits 7-6) as
-	and $3F				; the palette offset
+; the left half's cell of each panel position (the row's first: its right half's, bit 15)
+.cells
+	dw TILE_MAP + 20 * 80 | $8000, TILE_MAP + 20 * 80 + 2, TILE_MAP + 20 * 80 + 6, TILE_MAP + 20 * 80 + 10
+	dw TILE_MAP + 20 * 80 + 14, TILE_MAP + 20 * 80 + 18, TILE_MAP + 20 * 80 + 22, TILE_MAP + 20 * 80 + 26
+	dw TILE_MAP + 20 * 80 + 30, TILE_MAP + 20 * 80 + 34, TILE_MAP + 20 * 80 + 38, TILE_MAP + 20 * 80 + 42
+	dw TILE_MAP + 20 * 80 + 46, TILE_MAP + 20 * 80 + 50, TILE_MAP + 20 * 80 + 54, TILE_MAP + 20 * 80 + 58
+	dw TILE_MAP + 20 * 80 + 62, TILE_MAP + 20 * 80 + 66, TILE_MAP + 20 * 80 + 70, TILE_MAP + 20 * 80 + 74
+	dw TILE_MAP + 22 * 80 | $8000, TILE_MAP + 22 * 80 + 2, TILE_MAP + 22 * 80 + 6, TILE_MAP + 22 * 80 + 10
+	dw TILE_MAP + 22 * 80 + 14, TILE_MAP + 22 * 80 + 18, TILE_MAP + 22 * 80 + 22, TILE_MAP + 22 * 80 + 26
+	dw TILE_MAP + 22 * 80 + 30, TILE_MAP + 22 * 80 + 34, TILE_MAP + 22 * 80 + 38, TILE_MAP + 22 * 80 + 42
+	dw TILE_MAP + 22 * 80 + 46, TILE_MAP + 22 * 80 + 50, TILE_MAP + 22 * 80 + 54, TILE_MAP + 22 * 80 + 58
+	dw TILE_MAP + 22 * 80 + 62, TILE_MAP + 22 * 80 + 66, TILE_MAP + 22 * 80 + 70, TILE_MAP + 22 * 80 + 74
+	dw TILE_MAP + 23 * 80 | $8000, TILE_MAP + 23 * 80 + 2, TILE_MAP + 23 * 80 + 6, TILE_MAP + 23 * 80 + 10
+	dw TILE_MAP + 23 * 80 + 14, TILE_MAP + 23 * 80 + 18, TILE_MAP + 23 * 80 + 22, TILE_MAP + 23 * 80 + 26
+	dw TILE_MAP + 23 * 80 + 30, TILE_MAP + 23 * 80 + 34, TILE_MAP + 23 * 80 + 38, TILE_MAP + 23 * 80 + 42
+	dw TILE_MAP + 23 * 80 + 46, TILE_MAP + 23 * 80 + 50, TILE_MAP + 23 * 80 + 54, TILE_MAP + 23 * 80 + 58
+	dw TILE_MAP + 23 * 80 + 62, TILE_MAP + 23 * 80 + 66, TILE_MAP + 23 * 80 + 70, TILE_MAP + 23 * 80 + 74
+
+; Panel position A into the tilemap: the left half's cell from pf_cells (bit 7 of its high
+; byte: the row's first character, its right half only)
+.char	ld l,a
+	ld h,high PANEL
+	ld c,(hl)			; the character
 	add a,a
-	or c
-	ld (de),a
-	inc de
-	pop af
-	push af
+	ld l,a
+	ld h,0
+	ld de,.cells
+	add hl,de
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ld a,c
 	and $C0
 	rrca
 	rrca
+	ld b,a				; B: the attribute
+	ld a,c
+	and $3F
+	add a,a
+	ld c,a				; C: the left half's tile
+	bit 7,d
+	jr nz,.first
 	ld (de),a
 	inc de
-	pop af
+	ld a,b
+	ld (de),a
+	inc de
+	inc c
+.right	ld a,c
+	ld (de),a
+	inc de
+	ld a,b
+	ld (de),a
 	ret
+.first	res 7,d
+	inc c
+	jr .right

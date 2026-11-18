@@ -873,7 +873,7 @@ respawn_or_game_over:
 	ld b,4
 .text	ld a,(hl)
 	xor $C0
-	ld (de),a
+	call panel_put_de
 	inc hl
 	inc de
 	djnz .text
@@ -968,9 +968,11 @@ set_up_game:
 .one	call show_high_score
 	ld a,$DB
 	ld b,$D0
-.marks	ld (PANEL + PANEL_PLAYER1_MARK),a
+.marks	ld hl,PANEL + PANEL_PLAYER1_MARK
+	call panel_put
 	ld a,b
-	ld (PANEL + PANEL_PLAYER2_MARK),a
+	ld hl,PANEL + PANEL_PLAYER2_MARK
+	call panel_put
 	ld a,(GAME_NUMBER)		; the start: 2 games each
 	rra
 	and 3
@@ -1015,9 +1017,11 @@ select_game:
 	and 7
 	ld (GAME_NUMBER),a
 	add a,$D1			; digit 1-8
-	ld (PANEL + PANEL_GAME_NUMBER + 1),a
+	ld hl,PANEL + PANEL_GAME_NUMBER + 1
+	call panel_put
 	xor a
-	ld (PANEL + PANEL_GAME_NUMBER),a
+	ld hl,PANEL + PANEL_GAME_NUMBER
+	call panel_put
 	ld (IDLE_TIME),a
 	ld (ATTRACT_FLAGS),a
 	ld (LIVES),a
@@ -1050,6 +1054,35 @@ select_game:
 	ret
 
 ; ------------------------------------------------------------------------------------------
+; A character into the panel (at DE: panel_put_de; at HL: panel_put), only if it changed:
+; then its position is listed for panel_frame (pf_dirty; past 59 of them: all). AF only.
+panel_put_de:
+	ex de,hl
+	call panel_put
+	ex de,hl
+	ret
+panel_put:
+	cp (hl)
+	ret z
+	ld (hl),a
+	push hl
+	push de
+	ld e,l				; (PANEL at $1000: L is the position)
+	ld hl,pf_dirty_n
+	ld a,(hl)
+	cp 60
+	jr nc,.done
+	inc (hl)
+	ld hl,pf_dirty
+	add a,l
+	ld l,a
+	jr nc,1F
+	inc h
+1:	ld (hl),e
+.done	pop de
+	pop hl
+	ret
+
 ; The panel's characters ($1000, 40 per row)
 
 ; sub $AF5B: the lives as plane symbols (the newest blinks while the bonus sounds).
@@ -1070,7 +1103,7 @@ show_lives:
 	ld a,LIFE_SYMBOL
 	jr c,.w
 	xor a
-.w	ld (hl),a
+.w	call panel_put
 	inc hl
 	inc e
 	djnz .l
@@ -1131,11 +1164,11 @@ print_bcd:
 	or a
 	jr z,.show
 	xor a
-	ld (de),a
+	call panel_put_de
 	inc de
 	ret
 .show	add a,c
-	ld (de),a
+	call panel_put_de
 	inc de
 	xor a
 	ld (pb_leading),a
