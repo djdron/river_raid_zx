@@ -636,6 +636,7 @@ ds_shapes:	ds 2
 ds_colours:	ds 2
 ds_row:		ds 1
 ds_l1:		ds 1
+ds_rowp:	ds 2			; display: the object's first row's byte (its rows down from it)
 ds_le:		ds 1
 ds_bridge:	ds 1
 ds_bullet:	ds 1
@@ -733,24 +734,8 @@ ay_ch:		ds 1			; the POKEY channel in .one
 	align 256
 edge_lo:	ds 256			; a player's byte: its first dot (bit 7 dot 0; panel_init),
 edge_hi:	ds 256			; its last dot + 1
-dh_lists_mem:				; display_hits.asm: the scanlines of each collision (before
-		ds 1			; it, dh_seen's cursor: the first not yet passed; then a
-dh_tank_edge:	ds 17			; count, the scanlines in order; one page),
-		ds 1
-dh_plane_bank:	ds 17
-		ds 1
-dh_missile_bank: ds 17
-		ds 1
-dh_bullet_bank:	ds 17
-		ds 1
-dh_plane_shell:	ds 17
-		ds 1
-dh_missile_plane: ds 17
-dh_lists_end:
-	assert high dh_lists_mem == high (dh_lists_end - 1)
 dh_desc:	ds 5 * DH_SIZE		; the sprites
 pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
-dh_list:	ds 2
 	align 256
 obj_head:	ds 256			; obj_lookup: by the shape byte's address, its first entry + 1
 obj_e:		ds 3 * OBJ_ENTRIES	; the entries: colour byte's address, pattern (+ bank),

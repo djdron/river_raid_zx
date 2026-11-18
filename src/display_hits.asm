@@ -23,17 +23,8 @@ dh_template:
 dh_template_end:
 dh_ones:	db $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF	; the missiles' rows: all set
 
-; At the frame's start: the sprites, and the scanlines of P1PF (the tank, the edge), P2PF (the
-; plane, the bank), M0PF and M2PF (the missile, the bullet: either), P2PL (the plane and the
-; shell), M0PL (the missile and the plane)
+; At the frame's start: the other sprites' descriptors (their rows, boxes, positions)
 dh_lists:
-	xor a				; dh_seen's cursors back to each list's start
-	ld (dh_tank_edge - 1),a
-	ld (dh_plane_bank - 1),a
-	ld (dh_missile_bank - 1),a
-	ld (dh_bullet_bank - 1),a
-	ld (dh_plane_shell - 1),a
-	ld (dh_missile_plane - 1),a
 	ld hl,dh_template
 	ld de,dh_desc
 	ld bc,dh_template_end - dh_template
@@ -101,36 +92,57 @@ dh_lists:
 	ld (dh_desc + DH_PLANE + 7),a
 	ld (dh_desc + DH_MISSILE + 7),a
 	ld (dh_desc + DH_BULLET + 7),a
-1:
+1:	ret
+
+; At the frame's start the other sprites' collisions with the bank and each other, as plain
+; geometry (anywhere on their rows): HIT 0 where they touch. P1PF the tank and the edge, P2PF
+; the plane and the bank, M0PF and M2PF the missile and the bullet and either, P2PL the plane
+; and the shell, M0PL the missile and the plane.
+dh_sprites:
+	ld hl,HIT			; B510: none
+	ld b,9
+	ld a,$FF
+1:	ld (hl),a
+	inc hl
+	djnz 1B
 	ld ix,dh_desc + DH_TANK
-	ld hl,dh_tank_edge
 	ld de,pf_edge
-	call dh_pf
+	ld hl,HIT_TANK_AT_EDGE
+	call .pf
 	ld ix,dh_desc + DH_PLANE
-	ld hl,dh_plane_bank
 	ld de,pf_bank
-	call dh_pf
+	ld hl,HIT_PLANE_BANK
+	call .pf
 	ld ix,dh_desc + DH_MISSILE
-	ld hl,dh_missile_bank
 	ld de,pf_under
-	call dh_pf
+	ld hl,HIT_MISSILE_BANK
+	call .pf
 	ld ix,dh_desc + DH_BULLET
-	ld hl,dh_bullet_bank
 	ld de,pf_under
-	call dh_pf
+	ld hl,HIT_BULLET_BANK
+	call .pf
 	ld ix,dh_desc + DH_PLANE
 	ld iy,dh_desc + DH_SHELL
-	ld hl,dh_plane_shell
 	call dh_pair
-	ld ix,dh_desc + DH_MISSILE
+	jr z,1F
+	xor a
+	ld (HIT_PLANE_SHELL),a
+1:	ld ix,dh_desc + DH_MISSILE
 	ld iy,dh_desc + DH_PLANE
-	ld hl,dh_missile_plane
-	; (on to dh_pair)
-
-; The scanlines where sprites IX and IY touch, into list HL (a count, the scanlines)
-dh_pair:
+	call dh_pair
+	ret z
+	xor a
+	ld (HIT_MISSILE_PLANE),a
+	ret
+.pf	push hl
+	call dh_pf
+	pop hl
+	ret z
 	ld (hl),0
-	ld (dh_list),hl
+	ret
+
+; NZ: sprites IX and IY touch on a scanline both have
+dh_pair:
 	ld a,(ix + 6)			; from the later first line
 	cp (iy + 6)
 	jr nc,1F
@@ -148,7 +160,7 @@ dh_pair:
 	ld e,a
 .l	ld a,d
 	cp e
-	ret nc
+	jr nc,.no
 	push de
 	call dh_bits			; the first's bits
 	jr z,.n
@@ -170,19 +182,15 @@ dh_pair:
 	call dh_meet
 	jr z,.n
 	pop de
-	push de
-	ld hl,(dh_list)
-	inc (hl)
-	ld a,(hl)
-	add a,l
-	ld l,a
-	ld (hl),d
-	jr .n
+	or 1
+	ret
 .n2	pop af
 	pop ix
 .n	pop de
 	inc d
 	jr .l
+.no	xor a
+	ret
 
 ; Sprite IX's rows: frame A's shape from pointer table HL (as prepare: 2 * A & $FF)
 dh_shape:
@@ -249,12 +257,9 @@ dh_meet:
 	or a
 	ret
 
-; The scanlines where sprite IX's rows meet the playfield (DE: pf_edge, pf_bank, pf_under),
-; into list HL
+; NZ: sprite IX's rows meet the playfield on a river line (DE: pf_edge, pf_bank, pf_under)
 dh_pf:
 	ld (.fn + 1),de
-	ld (hl),0
-	ld (dh_list),hl
 	ld a,(ix + 7)
 	or a
 	ret z
@@ -262,7 +267,7 @@ dh_pf:
 	ld b,(ix + 6)
 .l	ld a,b
 	cp RIVER_FIRST + RIVER_LINES
-	ret nc
+	jr nc,.no
 	cp RIVER_FIRST
 	jr c,.n
 	push bc
@@ -276,71 +281,23 @@ dh_pf:
 	or a
 	jr z,.n0
 	pop bc
-	push bc
-	ld hl,(dh_list)
-	inc (hl)
-	ld a,(hl)
-	add a,l
-	ld l,a
-	ld (hl),b
+	or 1
+	ret
 .n0	pop bc
 .n	inc b
 	dec c
 	jr nz,.l
-	ret
-
-; NZ: list HL has a scanline from the last HITCLR's to A. The reads come down the screen
-; (ds_cleared only grows), so each list keeps a cursor (the byte before it) past the
-; scanlines above the last HITCLR: the first one not passed is the only one to look at.
-dh_seen:
-	ld c,a
-	ld a,(ds_cleared)
-	ld d,a
-	ld b,(hl)			; the count
-	dec l
-	ld e,(hl)			; the cursor
-	ld a,b
-	sub e
-	jr z,.no
-	ld b,a				; the scanlines left
-	push hl
-	ld a,l
-	add a,e
-	add a,2
-	ld l,a
-.skip	ld a,(hl)
-	cp d
-	jr nc,.found
-	inc l
-	inc e
-	djnz .skip
-	pop hl
-	ld (hl),e			; (all passed)
 .no	xor a
 	ret
-.found	ex (sp),hl
-	ld (hl),e
-	pop hl
-	ld a,c				; up to A?
-	cp (hl)
-	jr nc,.yes
-	xor a
-	ret
-.yes	or 1
-	ret
 
-; NZ: sprite IX touches the current object's rows (the last in ds_objs, if they are its) on
-; the scanlines from the last HITCLR's to C, bit by bit
+; NZ: sprite IX touches the current object's rows (display: ds_rowp, the first on the
+; scanline of X = ds_counter, ds_rows of them going down in memory, at ds_x, ds_size), bit
+; by bit on the scanlines both have, after their clocks
 dh_obj:
 	ld a,(ix + 7)			; (no rows)
 	or a
 	ret z
-	ld a,(ds_obj_slot)
-	ld hl,ds_current
-	cp (hl)
-	jp nz,.no
-	ld iy,(ds_obj_last)
-	ld a,(iy + 7)			; first their clocks: the object's 8, 16 or 32 from its X,
+	ld a,(ds_size)			; first their clocks: the object's 8, 16 or 32 from its X,
 	and 3				; the sprite's from its
 	ld b,8
 	rra
@@ -349,8 +306,10 @@ dh_obj:
 	or a
 	jr z,1F
 	ld b,32
-1:	ld a,(ix + 3)
-	sub (iy + 6)
+1:	ld a,(ds_x)
+	ld c,a
+	ld a,(ix + 3)
+	sub c
 	jr c,1F
 	cp b				; the sprite from the object's X on: before its end?
 	jp nc,.no
@@ -358,28 +317,19 @@ dh_obj:
 1:	neg				; before it: its end past the object's X?
 	cp (ix + 8)
 	jp nc,.no
-2:
-	ld a,c				; the lines: to min(through + 1, the sprite's end, the
-	inc a				; object's end)
-	jr nz,1F
-	dec a
-1:	ld e,a
-	call dh_end
-	cp e
-	jr nc,1F
+2:	call dh_end			; the lines: to min(the sprite's end, the object's end)
 	ld e,a
-1:	ld a,(iy + 0)
-	add a,(iy + 1)
+	ld a,(ds_counter)
+	sub $44
+	ld (ds_l1),a			; (the object's first)
+	ld hl,ds_rows
+	add a,(hl)
 	jr c,1F
 	cp e
 	jr nc,1F
 	ld e,a
-1:	ld a,(iy + 0)			; from max(the object's first, the sprite's, the HITCLR's)
+1:	ld a,(ds_l1)			; from max(the object's first, the sprite's)
 	ld d,(ix + 6)
-	cp d
-	jr c,1F
-	ld d,a
-1:	ld a,(ds_cleared)
 	cp d
 	jr c,1F
 	ld d,a
@@ -387,19 +337,20 @@ dh_obj:
 .l	cp e
 	jr nc,.no
 	push de
-	sub (iy + 0)			; the object's row there: (the first) - (line - first)
+	ld hl,ds_l1			; the object's row there: (the first) - (line - first)
+	sub (hl)
 	ld c,a
 	ld b,0
-	ld l,(iy + 2)
-	ld h,(iy + 3)
+	ld hl,(ds_rowp)
 	or a
 	sbc hl,bc
 	ld a,(hl)
 	or a
 	jr z,.n
 	ld d,a
-	ld e,(iy + 6)
-	ld a,(iy + 7)
+	ld a,(ds_x)
+	ld e,a
+	ld a,(ds_size)
 	ld b,3
 	call collide.add
 	pop de
@@ -420,41 +371,4 @@ dh_obj:
 	or 1
 	ret
 .no	xor a
-	ret
-
-; A late object's rows against the edge (P3PF; the rows' loop does it for the others)
-dh_edge:
-	ld a,(ds_edge_kind)
-	or a
-	ret z
-	ld iy,(ds_obj_last)
-	ld b,(iy + 1)
-	ld c,(iy + 0)
-	ld l,(iy + 2)
-	ld h,(iy + 3)
-.l	ld a,c
-	sub RIVER_FIRST
-	cp RIVER_LINES
-	jr nc,.n
-	ld a,(hl)
-	or a
-	jr z,.n
-	push bc
-	push hl
-	ld d,a
-	ld a,c
-	ld (bm_line),a
-	ld e,(iy + 6)
-	ld a,(iy + 7)
-	call pf_edge
-	pop hl
-	pop bc
-	or a
-	jr z,.n
-	ld hl,coll_ppf + 3
-	set 1,(hl)
-	ret
-.n	dec hl
-	inc c
-	djnz .l
 	ret

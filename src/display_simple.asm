@@ -10,17 +10,9 @@
 
 DS_OBJS		equ 16			; the objects' rows kept for the sprites (ds_objs)
 
-; line(c) into A: c - 69 + slip (c in A)
-ds_line	macro
-	ld hl,ds_slip
-	add a,(hl)
-	sub 69
-	endm
-
 display:
 	nextreg $52,SPAN_PAGE		; the lines' runs of bank and edge (pf_under)
-	call ds_lms			; the rows with a screen address: their start cycles
-	call dh_lists			; the sprites' collisions' scanlines
+	call dh_lists			; the other sprites' rows, and their collisions
 	ld hl,hpos_p			; registers cleared, then as B527-B55C set them
 	ld b,regs_end - hpos_p
 	xor a
@@ -46,109 +38,140 @@ display:
 	ld a,(SHELL_X)
 	ld (hpos_p),a
 	call bm_hitclr
-	ld hl,HIT			; B510
-	ld b,9
-	ld a,$FF
-.hit	ld (hl),a
-	inc hl
-	djnz .hit
-	xor a				; from the top
+	xor a
 	ld (ds_slip),a
 	ld (ds_bank_n),a
-	ld (ds_ended),a
 	ld (ds_obj_n),a
 	ld (ds_obj_over),a
 	dec a
 	ld (ds_obj_slot),a
-	ld a,24				; (the DLI starts on 23, past its draw)
-	ld (ds_cleared),a
-	ld a,$FF
-	ld (ds_end_line),a
-	ld a,$5D
-	ld (ds_counter),a
+	call dh_sprites			; HIT: the other sprites' collisions (bank, each other)
 	ld a,(FIRST_SLOT)
 	ld (ds_slot),a
 
-.slot_loop
-	ld a,(ds_slot)
+	; Each object at its own slot's y: its rows from X = max(y, $5D) + 3 (the scanline
+	; X - 69), row height[type] - (start - y) first (the shapes are kept bottom up), as many
+	; as come before X wraps (the river's end). Checked against the DLI's loop it replaces:
+	; that never fell behind an object (the C++ port's displayGeometry).
+.slot	ld a,(ds_slot)
+	cp SLOTS
+	jp nc,.end
 	ld (ds_current),a
-	call ds_slot_y			; B567: wait for the scanline where the slot's object starts
-	ld b,a
-	ld a,(ds_counter)
-.wait	cp b
-	jr nc,.there
-	inc a
-	jr nz,.wait
-	ld (ds_counter),a
-	jp .end
-.there	ld (ds_counter),a
-	ld (ds_start),a
-	call ds_inx			; B575 (HPOSP3, the blank rows above the object: not needed,
-	jp z,.end			; the object is drawn from its rows)
 	call ds_fields
-	call ds_inx			; B58D (SIZEP3)
-	jp z,.end
-	ld a,(ds_type)			; the shape row on the next scanline
+	ld a,(ds_y)			; the start
+	cp $5D
+	jr nc,1F
+	ld a,$5D
+1:	ld (ds_start),a
+	ld b,a
+	ld a,(ds_type)			; the first row
 	ld l,a
 	ld h,0
 	ld de,ROM_OBJECT_HEIGHT
 	add hl,de
 	ld a,(ds_y)
 	add a,(hl)
-	ld hl,ds_start
-	sub (hl)
+	sub b
 	ld (ds_row),a
-	call ds_inx			; B5B0
-	jp z,.end
-	ld a,(ds_row)
 	cp $80
-	jr c,.rows
-	ld a,(ds_current)		; B5C9: the object has gone: the next slot
-	inc a
-	ld (ds_slot),a
-	jp .slot_loop
-.rows	ld hl,(ds_shapes)		; B5B0-B5D1: 49 cycles, 50 when the first row's byte is on
-	ld a,(ds_row)			; the next page
-	add a,l
-	ld a,49
-	adc a,0
-	call ds_chunk
-	; B5CB: a row a scanline, the bottom row first, the rows before X wraps; X - $44 is the
-	; scanline a row shows on. DE: the shape's row, IY: its colour (ds_obj)
-	ld hl,(ds_shapes)
-	call ds_row_hl
-	ex de,hl
-	ld hl,(ds_colours)
-	call ds_row_hl
-	push hl
-	pop iy
-	ld a,(ds_counter)		; rows before X wraps: 256 - X
-	neg
+	jr nc,.next			; (gone above)
+	ld a,b				; its X: past 255, none from here on
+	add a,3
+	jp c,.end
+	ld (ds_counter),a
+	neg				; the rows: before X wraps
 	ld b,a
 	ld a,(ds_row)
 	inc a
 	cp b
 	jr c,1F
 	ld a,b
-1:	ld ixl,a
-	ld (ds_rows),a
-	call ds_obj			; (for the sprites and the collisions: ds_objs)
-	ld a,(ds_flags)			; a bridge: the road's colours by row (the bank's, from the
-	and $80				; scanline after the one each row is written on)
+1:	ld (ds_rows),a
+	ld ixl,a
+	ld hl,(ds_shapes)		; DE: the first row's byte, IY: its colour (ds_obj)
+	call ds_row_hl
+	ex de,hl
+	ld hl,(ds_colours)
+	call ds_row_hl
+	push hl
+	pop iy
+	ld (ds_rowp),de
+	call ds_obj			; (for the sprites: ds_objs)
+	ld a,(ds_flags)			; a bridge: the road's colours by row, the bank's back after
+	and $80
+	call nz,.road
+	ld a,(ds_edge_kind)		; P3PF: the edge, only for the kinds that turn at it
+	or a
+	call nz,ds_edge_test
+	call ds_set_flags
+	ld ix,dh_desc + DH_BULLET	; the bullet, the shell (not a bridge) and the plane against
+	call dh_obj			; its rows
 	jr z,1F
-	ld a,(ds_row)
-	ld (ds_l1),a
-	ld a,(ds_counter)
-	ds_line
+	ld a,(ds_current)
+	ld (HIT_BULLET_OBJECT),a
+1:	ld a,(ds_flags)
+	and $80
+	jr nz,1F
+	ld ix,dh_desc + DH_SHELL
+	call dh_obj
+	jr z,1F
+	ld a,(ds_current)
+	ld (HIT_SHELL_OBJECT),a
+1:	ld ix,dh_desc + DH_PLANE
+	call dh_obj
+	jr z,.next
+	ld a,(ds_current)
+	ld (HIT_PLANE_OBJECT),a
+.next	ld a,(ds_current)
 	inc a
+	ld (ds_slot),a
+	jp .slot
+.end
+	ifdef TEST
+	call test_ghost
+	endif
+	jp ds_bank_fill
+
+.road					; a bridge's rows: the road's colour from the scanline after
+	ld a,(ds_row)			; each row's, then the section's bank colour after the last
+	ld (ds_l1),a			; (unless X wrapped)
+	ld a,(ds_counter)
+	sub 69 - 1
 	ld c,a
 	ld a,(ds_rows)
 	ld b,a
-2:	call .road
+.rd	push bc
+	ld hl,ds_l1
+	ld a,(hl)
+	dec (hl)
+	add a,low ROM_ROAD_COLOURS
+	ld l,a
+	ld a,high ROM_ROAD_COLOURS
+	adc a,0
+	ld h,a
+	ld e,(hl)
+	ld a,c
+	call ds_bank
+	pop bc
 	inc c
-	djnz 2B
-1:	ld a,(ds_x)			; P3PF: the edge, only for the kinds that turn at it, not
-	ld (.pv_x + 1),a		; past clock 255 (none there), until set
+	djnz .rd
+	ld a,(ds_counter)
+	ld hl,ds_rows
+	add a,(hl)
+	ret c
+	sub 69 - 1
+	ld c,a
+	ld a,(SECTION_BANK_COLOUR)
+	ld e,a
+	ld a,c
+	jp ds_bank
+
+; The object's rows against the edge (P3PF): A = $02 if any of its dots is on an edge pixel,
+; else 0. Its rows from ds_rowp (going down in memory), the first on the scanline of X =
+; ds_counter, ds_rows of them; none past clock 255.
+ds_edge_test:
+	ld a,(ds_x)
+	ld (.pv_x + 1),a
 	ld (.ex1 + 1),a
 	ld (.ex2 + 1),a
 	ld a,(ds_size)
@@ -171,14 +194,8 @@ display:
 	ld a,(ds_x)
 	add a,c
 	ld (.pv_end + 1),a
-	jp c,.rows_done
-	jp z,.rows_done
-	ld a,(coll_ppf + 3)
-	and $02
-	jp nz,.rows_done
-	ld a,(ds_edge_kind)
-	or a
-	jp z,.rows_done
+	jp c,.none
+	jp z,.none
 	ld a,(ds_size)			; their dots' clocks: 1, 2 or 4 a dot (sizes 0 and 2, 1, 3)
 	and 3
 	ld hl,0				; (NOP NOP)
@@ -190,12 +207,12 @@ display:
 	ld h,$87
 2:	ld (.s1),hl
 	ld (.s2),hl
-	ld hl,(ds_shapes)		; DE: the row, L: its scanline
-	call ds_row_hl
-	ex de,hl
+	ld de,(ds_rowp)			; DE: the row, L: its scanline
 	ld a,(ds_counter)
 	sub $44
 	ld l,a
+	ld a,(ds_rows)
+	ld ixl,a
 .row	ld a,(de)			; the row's first and last dots (edge_lo, edge_hi), the
 	or a				; clocks from X
 	jr z,.row_on
@@ -245,9 +262,8 @@ display:
 	jr z,.row_off
 	pop hl
 	pop de
-	ld hl,coll_ppf + 3		; (touched: no more to test)
-	set 1,(hl)
-	jr .rows_done
+	ld a,$02
+	ret
 .row_off
 	pop hl
 	pop de
@@ -255,276 +271,7 @@ display:
 	dec de
 	dec ixl
 	jp nz,.row
-.rows_done
-	ld a,(ds_rows)			; X after them: wrapped, or the object's collisions
-	ld hl,ds_counter
-	add a,(hl)
-	ld (hl),a
-	jp z,.end
-	; B5E8: the object's collisions
-	ld a,(ds_counter)
-	ds_line
-	ld (ds_le),a			; the scanline of X = E
-	ld b,a
-	ld a,(ds_flags)
-	and $80
-	ld (ds_bridge),a
-	jr nz,1F
-	dec b				; M2PL: up to the scanline before (a bridge: this one)
-1:	ld c,b
-	ld ix,dh_desc + DH_BULLET
-	call dh_obj
-	ld (ds_bullet),a
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_BULLET_OBJECT),a
-1:	xor a
-	ld (ds_hits),a
-	ld a,(ds_bridge)
-	or a
-	jr z,.p3pl
-	ld c,46				; a bridge: the last row to B5F3 is 46 cycles (row 0 reads
-	ld a,(ds_bullet)		; no table across a page), 2 more for a bullet hit
-	or a
-	jr z,1F
-	ld c,48
-1:
-	ld a,(ds_le)
-	ld b,a
-	ld a,c
-	call ds_chunk_at
-	ld a,(SECTION_BANK_COLOUR)	; B5F3: the bank colour back from the next scanline
-	ld e,a
-	ld a,(ds_le)
-	inc a
-	call ds_bank
-	jr .b60a
-.p3pl	ld a,(ds_le)			; P3PL: the shell
-	ld c,a
-	ld ix,dh_desc + DH_SHELL
-	call dh_obj
-	jr z,.b60a
-	ld a,(ds_current)
-	ld (HIT_SHELL_OBJECT),a
-	ld hl,ds_hits
-	inc (hl)
-.b60a	call ds_inx			; B60A
-	jp z,.end
-	ld a,(ds_counter)
-	ds_line
-	ld (ds_le),a
-	dec a				; P2PL: the plane touched the shell, the object
-	ld (ds_l1),a
-	ld hl,dh_plane_shell
-	call dh_seen
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_PLANE_SHELL),a
-	ld hl,ds_hits
-	inc (hl)
-1:	ld a,(ds_l1)
-	ld c,a
-	ld ix,dh_desc + DH_PLANE
-	call dh_obj
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_PLANE_OBJECT),a
-	ld hl,ds_hits
-	inc (hl)
-1:	ld a,(coll_ppf + 3)		; P3PF: the object touched the bank edge (its rows)
-	and $02
-	call ds_edge_only
-	ld (ds_edge),a
-	ld a,(ds_hits)			; B5F3-B61F: 44 cycles (a bridge 43), 2 more a hit stored
-	add a,a
-	add a,44
-	ld c,a
-	ld a,(ds_bridge)
-	or a
-	jr z,1F
-	dec c
-1:	ld a,(ds_le)
-	ld b,a
-	ld a,c
-	call ds_chunk_at
-	ld a,(ds_edge)
-	call ds_set_flags
-	call ds_inx
-	jp z,.end
-	ld a,(ds_counter)
-	ds_line
-	ld (ds_le),a			; l
-	dec a				; M0PL: the missile touched the plane (up to l - 1)
-	ld hl,dh_missile_plane
-	call dh_seen
-	ld c,28				; M0PF 28 cycles after the WSYNC, 30 after a hit stored
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_MISSILE_PLANE),a
-	ld c,30
-1:	ld a,(ds_le)
-	call ds_after_draw		; after l's draw: it sees l too
-	ld a,(ds_le)
-	jr c,1F
-	dec a
-1:	ld hl,dh_missile_bank
-	call dh_seen
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_MISSILE_BANK),a
-1:	ld a,23				; (HITCLR 23 cycles after the WSYNC, 2 more a hit stored)
-	ld (ds_l1),a
-	ld a,(ds_le)			; P1PF, P2PF, M2PF: up to l
-	ld hl,dh_tank_edge
-	call dh_seen
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_TANK_AT_EDGE),a
-	call .stored
-1:	ld a,(ds_le)
-	ld hl,dh_plane_bank
-	call dh_seen
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_PLANE_BANK),a
-	call .stored
-1:	ld a,(ds_le)
-	ld hl,dh_bullet_bank
-	call dh_seen
-	jr z,1F
-	ld a,(ds_current)
-	ld (HIT_BULLET_BANK),a
-	call .stored
-1:	ld a,(ds_l1)
-	ld c,a
-	ld a,(ds_le)			; B65F HITCLR on l + 1, before or after its draw
-	inc a
-	call ds_after_draw
-	ld a,(ds_le)
-	inc a
-	jr nc,1F
-	inc a
-1:	ld (ds_cleared),a
-	call bm_hitclr
-	ld a,(ds_current)
-	inc a
-	ld (ds_slot),a
-	call ds_inx
-	jp nz,.slot_loop
-	ld a,1				; ended right after a HITCLR
-	ld (ds_ended),a
-
-.end	; B66B: the river's end (X wrapped to 0); the panel part reads the collisions of the
-	; object still in progress, unless the loop ended right after a HITCLR
-	xor a
-	ds_line
-	ld (ds_end_line),a
-	ld a,(ds_current)
-	cp SLOTS
-	jp nc,.no_reads
-	ld a,(ds_ended)
-	or a
-	jp nz,.no_reads
-	ld a,(coll_ppf + 3)		; (P3PF: the rows', zero since the HITCLR if none)
-	and $02
-	call ds_edge_only
-	call ds_set_flags
-	ld a,(ds_end_line)
-	add a,2
-	ld (ds_l1),a
-	ld hl,dh_missile_plane
-	ld de,HIT_MISSILE_PLANE
-	call .end_seen
-	ld hl,dh_missile_bank
-	ld de,HIT_MISSILE_BANK
-	call .end_seen
-	ld hl,dh_bullet_bank
-	ld de,HIT_BULLET_BANK
-	call .end_seen
-	ld hl,dh_plane_bank
-	ld de,HIT_PLANE_BANK
-	call .end_seen
-	ld hl,dh_plane_shell
-	ld de,HIT_PLANE_SHELL
-	call .end_seen
-	ld hl,dh_tank_edge
-	ld de,HIT_TANK_AT_EDGE
-	call .end_seen
-	ld ix,dh_desc + DH_PLANE
-	ld de,HIT_PLANE_OBJECT
-	call .end_obj
-	ld ix,dh_desc + DH_SHELL
-	ld de,HIT_SHELL_OBJECT
-	call .end_obj
-	ld hl,ds_l1
-	inc (hl)
-	ld ix,dh_desc + DH_BULLET
-	ld de,HIT_BULLET_OBJECT
-	call .end_obj
-.no_reads
-	ifdef TEST
-	call test_ghost
-	endif
-	jp ds_bank_fill
-.end_seen
-	push de
-	ld a,(ds_l1)
-	call dh_seen
-	pop de
-	ret z
-	jr .hit_current
-.end_obj
-	push de
-	ld a,(ds_l1)
-	ld c,a
-	call dh_obj
-	pop de
-	ret z
-.hit_current
-	ld a,(ds_current)
-	ld (de),a
-	ret
-.stored					; a hit stored: 2 cycles more to the HITCLR
-	ld hl,ds_l1
-	inc (hl)
-	inc (hl)
-	ret
-.road					; a bridge's row: the bank the road's colour from scanline C
-	push de
-	push hl
-	ld hl,ds_l1
-	ld a,(hl)
-	dec (hl)
-	add a,low ROM_ROAD_COLOURS
-	ld l,a
-	ld a,high ROM_ROAD_COLOURS
-	adc a,0
-	ld h,a
-	ld e,(hl)
-	ld a,c
-	call ds_bank
-	pop hl
-	pop de
-	ret
-
-; INX: Z when X wraps to 0
-ds_inx:
-	ld hl,ds_counter
-	inc (hl)
-	ret
-
-; A = the slot's y ($FF after the last)
-ds_slot_y:
-	ld a,(ds_slot)
-	cp SLOTS
-	ld a,$FF
-	ret nc
-	ld a,(ds_slot)
-	ld e,a
-	ld d,0
-	ld hl,SLOT_Y
-	add hl,de
-	ld a,(hl)
+.none	xor a
 	ret
 
 ; The slot's fields (beyond the last one: zeros), its shapes' and colours' addresses
@@ -621,39 +368,6 @@ ds_row_hl:
 	inc h
 	ret
 
-; The code from a WSYNC to the next one, A cycles with that STA, on scanline B (ds_chunk:
-; the scanline of X = ds_counter): past cycle 106 of it with its start and draw taken out,
-; the DLI falls a scanline behind: A + start(B) - after_draw(B) > 28.
-ds_chunk:
-	ld c,a
-	ld a,(ds_counter)
-	ds_line
-	ld b,a
-	ld a,c
-ds_chunk_at:
-	ld l,b
-	ld h,high line_start
-	add a,(hl)
-	inc h
-	sub (hl)
-	jr c,.no
-	cp DRAW_CYCLE + 1
-	ret c
-	ld hl,ds_slip
-	inc (hl)
-.no	ret
-
-; An access C cycles after a WSYNC, on scanline A: carry if it comes after A's draw
-; (C - 8 + start(A) >= 28)
-ds_after_draw:
-	ld l,a
-	ld h,high line_start
-	ld a,c
-	add a,(hl)
-	cp LINE_CYCLES - WSYNC_CYCLE + DRAW_CYCLE
-	ccf
-	ret
-
 ; The current object's edge bit (A: $02 set) into its slot's flags (bit 0)
 ds_set_flags:
 	ld b,a
@@ -744,56 +458,3 @@ ds_bank_fill:
 	inc hl
 	dec b
 	jr .seg
-
-; The rows of the river whose display list instruction has a screen address (the top row and
-; where screen memory goes on in the other block): 3 cycles at their start, the others 1.
-ds_lms:
-	ld hl,(SCREEN_TOP)
-	ld a,h
-	cp $30
-	ld de,$2F00
-	jr c,.block
-	ld de,$3F00
-.block	ex de,hl
-	or a
-	sbc hl,de			; bytes to the block's end (48 k, k < 80): k = (bytes / 16) / 3
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	ld d,h				; (H: bytes * 16 / 256 = bytes / 16; x 171 / 512 = / 3)
-	ld e,171
-	mul d,e
-	ld a,d
-	srl a
-	ld c,a
-	ld hl,line_start + RIVER_FIRST	; last frame's rows back to 1 cycle, this frame's 3
-	ld a,(lms_k1)
-	ld e,a
-	ld d,0
-	add hl,de
-	ld (hl),5 + 1
-	ld hl,line_start + RIVER_FIRST
-	ld a,(lms_k1 + 1)
-	cp RIVER_LINES
-	jr nc,.d3
-	ld e,a
-	add hl,de
-	ld (hl),5 + 1
-.d3	ld a,c
-	ld (lms_k1),a
-	ld hl,line_start + RIVER_FIRST
-	ld e,a
-	add hl,de
-	ld (hl),5 + 3
-	add a,80
-	ld (lms_k1 + 1),a
-	cp RIVER_LINES
-	jr nc,.d4
-	ld hl,line_start + RIVER_FIRST
-	ld e,a
-	add hl,de
-	ld (hl),5 + 3
-.d4	ld a,5 + 3			; and the top row
-	ld (line_start + RIVER_FIRST),a
-	ret
