@@ -46,7 +46,7 @@ The 30 most expensive routines (A / B):
 | `ds_obj` | 3 900 | 4 500 | display_objs |
 | `dh_bits` | 3 400 | 4 200 | display_hits |
 | `pf_line` | 2 600 | 4 200 | display |
-| `prepare` | 3 000 | 3 000 | game |
+| `prepare` | 3 000 (~2 000 without the copies) | 3 000 | game |
 | `move_objects` | 2 000 | 3 700 | game |
 | `draw_line` | 2 300 | 3 300 | river_gen |
 | `snd_fill` | 2 800 | 2 400 | sound |
@@ -136,7 +136,7 @@ the original's RAM addresses.
 | `steer`, `change_speed` | `fly_plane` | The plane's X with a sub-pixel fraction; the speed $40–$FE. | |
 | `explode` | `fly_plane` | A4E0–A589: the slot becomes an explosion, the points (BCD), a bridge's bonus. | |
 | `crash` | `fly_plane`, `explode` | sub $B1C0: the plane crashes, with an event sound; `section_checkpoint`. | |
-| `draw_bullet`, `move_bullet` | `fly_plane`, `crash` | The bullet's 8 rows into missile 2's memory. | 380 / 520 |
+| `draw_bullet`, `move_bullet` | `fly_plane`, `crash` | The bullet's 8 rows into missile 2's memory (`-DBEAM` only; otherwise `draw_bullet` returns at once). | 380 / 520 |
 | `new_game`, `reset` | START, game over, respawn | sub $B0F1: the river and the objects reset (`restore_checkpoint`), `clear_screen_memory`, `busy` = 13 or 8 frames. | |
 | `clear_layer2_page` | `main_frame` during `busy`, `restart` | One of Layer 2's 10 pages cleared a frame (`l2_clear` counts). ~1 100 a frame on average over A, but one page is 8 KB of writes in the frames it runs. | 1 100 / 570 |
 | `finish_reset`, `finish_respawn`, `respawn_or_game_over` | | After the reset: the river continues from the checkpoint, the next player or game over. | |
@@ -154,9 +154,9 @@ the original's RAM addresses.
 | `rnd_tables` | end of `tv_setup` | `rnd_tab` and `rnd_col16` from the standard's columns (`rnd_cols`): each entry the XOR of its value's columns. | |
 | `bank_colour` | `vbi`, `start_attract` | sub $AFD0: the bank's shade (switches while a bridge is drawn in near the top). | 200 / 200 |
 | `start_attract` | `restart` | The attract mode's state at its first line (game 1, no plane). | |
-| `draw_logo_and_needle` | `reset`, `start_attract` | The rainbow and the fuel needle into player-missile memory, as sub $B0F1 leaves them. | |
+| `draw_logo_and_needle` | `reset`, `start_attract` | The rainbow and the fuel needle into player-missile memory, as sub $B0F1 leaves them (`-DBEAM` only; the Next's are sprites). | |
 | `push_line` | `scroll_river`, `start_attract` | A new river line: `next_line` (river_gen) into `line_buf`, then at `line_done` the line into screen memory (48 bytes, the top line's address one line up), `render_line` (Layer 2), `plain_line` and `span_line` (the collisions' runs). | |
-| `prepare` | `main_frame` | AE99–AF38 at the frame's top: the shapes of the tank, the helicopter's missile, the tank's shell and the plane copied into player-missile memory ($0B00–$0FFF) from the ROM's tables. | 3 000 / 3 000 |
+| `prepare` | `main_frame` | AE99–AF38 at the frame's top: the tank and the shell gone below the screen, the shell's colour, the panel's lives, bridges and score. The shapes into player-missile memory ($0B00–$0FFF) only in the cycle model's build (`-DBEAM`): the Next's sprites and collisions take them from the ROM. | ~2 000 (3 000 with the copies) |
 | `drive_tank` | `main_loop` | A21B: the tank on the road drives, fires at the river's edge. | |
 | `move_objects` | `main_loop` | A26C–A2ED: the objects in the slots animate and move (ships and helicopters turn at the edge: the slot's edge flag from the display). | 2 000 / 3 700 |
 | `move_missile`, `move_shell` | `main_loop_end` | The helicopter's missile, the tank's shell. | |
@@ -249,9 +249,16 @@ count, shape and colour pointers, x, size), `scan_bank` (the bank colour by rive
 ## display_hits.asm: collisions from the sprites' rows
 
 No collision registers: each read is answered from rows. Five other sprites are described
-by 9-byte descriptors in `dh_desc` (copied from `dh_template` each frame and filled in):
-page, mask, rotations, x, size, sprite number, first line, rows, clock width (`DH_SIZE` = 9;
-`DH_SHELL`, `DH_TANK`, `DH_PLANE`, `DH_MISSILE`, `DH_BULLET`).
+by 10-byte descriptors in `dh_desc` (copied from `dh_template` each frame and filled in):
+the rows' base (low), mask, rotations, x, size, sprite number, first line, rows, clock width,
+the base (high) (`DH_SIZE` = 10; `DH_SHELL`, `DH_TANK`, `DH_PLANE`, `DH_MISSILE`, `DH_BULLET`).
+A row of line L is the byte at base + L: the ROM's shape for the frame (base = its address −
+the first line, `dh_shape`, `dh_base`), so the same bytes `prepare` used to copy into
+player-missile memory; the missile's and the bullet's rows are `dh_ones` (all set) under
+their masks ($03; the bullet $20, the one bit `draw_bullet` writes). After a reset
+(`pm_empty`, until the next `prepare`) no rows. The shapes are already 1-bit masks (a bit a
+colour clock), so nothing else is made at the start for the collisions; the boxes come
+first (the lines both have, the X range in `collide.pair`), the bits only where they meet.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
@@ -366,7 +373,7 @@ ring (see NOTES: the crackle).
 - **Unrolled entry points**: `snd_sum` jumps into the middle of a `rept` block for the remainder.
 - **Slot 2** is a scratch window: a routine that needs a page there maps it and does not restore it; the next user maps its own. **Slot 3** must stay page 12 while the sound plays.
 - **Tables are page-aligned** so that `ld h,high table / ld l,index` is the lookup: `pix_tab`, `span_masks`, `span_class`, `edge_lo/edge_hi`, `obj_head`, the palette.
-- **The checks**: after any change, `nxcheck` compares state, screen and player-missile memory, the bank colour per line, the objects as drawn, the Copper's list and memory every frame, and the picture at the end, against the C++ port. The full set takes ~25 minutes on 2 cores (HANDOFF.md, *Method*). A failed assembly leaves the old pages: check the build output first.
+- **The checks**: after any change, `nxcheck` compares state and screen memory, the bank colour per line, the objects as drawn, the Copper's list and memory every frame, and the picture at the end, against the C++ port. The full set takes ~25 minutes on 2 cores (HANDOFF.md, *Method*). A failed assembly leaves the old pages: check the build output first.
 - **Measuring**: `NXHISTALL=file` (all frames) or `NXHIST=file` (one frame) and `tools/prof.py`; `NXSLOW=T` lists the frames over T ticks. `NXHISTAPPLY=file` does the same for `apply` (from the end of `wait_frame`) and prints its average and maximum; `tools/prof_local.py build/test.sym file frames [routine…]` splits the time by local labels too (`display.rows`, `panel_frame.entry`, …).
 - **apply** (~42 500 a frame on both runs, not in the tables above): `panel_frame` ~38 000 of it (the panel's 3 rows of 40 tiles rewritten every frame ~21 000, the scrolling line's 39 tiles ~10 000, tile 256 ~5 000), the sprites' attributes ~1 800, the Copper's list ~1 200.
 - **display's own time** by part (A / B): the edge test's row loop (`.row` … `.row_on`) ~8 000 / ~25 000 (the line's record found per row, `.ex2` to `.run`, 2 700 / 8 700; the runs walked, `.run`, 1 600 / 5 800); the reads after an object (`.b60a` on) 8 400 / 9 400; the object's rows set up (`.rows`) 6 400 / 8 000; the slot's fields (`.there`) 2 400 / 2 800.

@@ -600,19 +600,24 @@ remove_plane_things:
 	call draw_bullet
 	ld a,NO_SLOT
 	ld (SHOOTER_SLOT),a
+	ifdef BEAM
 	ld a,(MISSILE_Y)
 	ld l,a
 	ld h,high PM_MISSILES
 	ld a,(hl)
 	and $FC
 	ld (hl),a
+	endif
 	ld a,1
 	ld (BULLET_Y),a
 	ret
 
 ; sub $B221 / $B223: the bullet, A as bits, into the 8 rows of missile 2 from row BULLET_Y
-; (at least $1C); none while BULLET_Y is 1.
+; (at least $1C); none while BULLET_Y is 1. (The cycle model's build only: dh_lists.)
 draw_bullet:
+	ifndef BEAM
+	ret
+	else
 	ld c,a
 	ld a,(BULLET_Y)
 	cp 1
@@ -627,6 +632,7 @@ draw_bullet:
 	inc hl
 	djnz .d
 	ret
+	endif
 
 ; A5AA-A5B4: the bullet to row A.
 move_bullet:
@@ -691,6 +697,10 @@ reset:
 	ld (SHELL_X),a
 	ld (SHELL_X_FRAC),a
 	ld (CRASH_PITCH),a
+	inc a				; (the collisions see none: dh_lists)
+	ld (pm_empty),a
+	xor a
+	ifdef BEAM
 	ld h,high PM_MISSILES		; player-missile memory rows 1-$BB cleared
 .pm	ld l,1
 	ld b,$BB
@@ -700,6 +710,7 @@ reset:
 	inc h
 	bit 4,h				; up to page $0F
 	jr z,.pm
+	endif
 	ld (SCREEN_ON),a		; B101: colours off while clearing
 	call clear_screen_memory
 	ld a,(tv_pal)			; 13 frames (8 on PAL: a longer frame, fewer of them)

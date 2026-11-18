@@ -97,8 +97,9 @@ start_bridges_hi: db 0			; the starting bridge's hundreds and thousands, BCD (nx
 					; NXBRIDGE patches the ROM's starts and this)
 snd_passed:	dw 0			; the frames whose samples the DMA had passed (sound.asm)
 test_ghost_on:	db 0
-ob_miss:	dw 0			; objects whose picture obj_lookup did not find (not drawn)			; nxcheck NXGHOST: after the display, the plane cannot crash
-test_ghost:				; and never runs out of fuel (as the C++ port's display_bench)
+ob_miss:	dw 0			; objects whose picture obj_lookup did not find (not drawn)
+test_ghost:				; nxcheck NXGHOST: after the display, the plane cannot crash
+					; and never runs out of fuel (as the C++ port's display_bench)
 	ld a,(test_ghost_on)
 	or a
 	ret z
@@ -731,6 +732,7 @@ dh_bullet_bank:	ds 17
 dh_plane_shell:	ds 17
 dh_missile_plane: ds 17
 dh_desc:	ds 5 * DH_SIZE		; the sprites
+pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
 dh_list:	ds 2
 	align 256
 obj_head:	ds 256			; obj_lookup: by the shape byte's address, its first entry + 1

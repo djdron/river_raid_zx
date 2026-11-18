@@ -4,21 +4,24 @@
 ; frame (dh_lists); an object's at its reads, against its rows in ds_objs (dh_obj). A read
 ; counts a collision if its scanline is between the last HITCLR's (ds_cleared) and its own.
 
-; The sprites (9 bytes each): page of their bytes, mask, rotations to bit 7, X, size, sprite
-; (collide's), first line, rows, clocks wide
-DH_SIZE		equ 9
+; The sprites (10 bytes each): their rows' base (low byte; a row of line L at base + L: the
+; ROM's shape, as prepare puts it into player-missile memory, from the first line), mask,
+; rotations to bit 7, X, size, sprite (collide's), first line, rows, clocks wide, the base's
+; high byte
+DH_SIZE		equ 10
 DH_SHELL	equ 0
 DH_TANK		equ DH_SIZE
 DH_PLANE	equ 2 * DH_SIZE
 DH_MISSILE	equ 3 * DH_SIZE
 DH_BULLET	equ 4 * DH_SIZE
 dh_template:
-	db high PM_SHELL, $FF, 0, 0, 0, 0, 0, 16, 8	; the shell 16 rows from shellY,
-	db high PM_TANK, $FF, 0, 0, 0, 1, 0, 11, 8	; the tank 11 from tankY,
-	db high PM_PLANE, $FF, 0, 0, 0, 2, $AA, 14, 8	; the plane 14 from $AA,
-	db high PM_MISSILES, $03, 6, 0, 1, 4, 0, 1, 4	; the missile (M0, double) its row,
-	db high PM_MISSILES, $30, 2, 0, 0, 6, 0, 8, 2	; the bullet (M2) 8 below bulletY
+	db 0, $FF, 0, 0, 0, 0, 0, 16, 8, 0	; the shell 16 rows from shellY,
+	db 0, $FF, 0, 0, 0, 1, 0, 11, 8, 0	; the tank 11 from tankY,
+	db 0, $FF, 0, 0, 0, 2, $AA, 14, 8, 0	; the plane 14 from $AA,
+	db 0, $03, 6, 0, 1, 4, 0, 1, 4, 0	; the missile (M0, double) its row,
+	db 0, $20, 2, 0, 0, 6, 0, 8, 2, 0	; the bullet (M2's bit 5) 8 below bulletY
 dh_template_end:
+dh_ones:	db $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF	; the missiles' rows: all set
 
 ; At the frame's start: the sprites, and the scanlines of P1PF (the tank, the edge), P2PF (the
 ; plane, the bank), M0PF and M2PF (the missile, the bullet: either), P2PL (the plane and the
@@ -48,6 +51,10 @@ dh_lists:
 	jr nc,1F
 	xor a
 	ld (dh_desc + DH_MISSILE + 7),a
+1:	ld a,(MISSILE_X)		; (no position: its bits clear)
+	or a
+	jr nz,1F
+	ld (dh_desc + DH_MISSILE + 7),a
 1:	ld a,(BULLET_Y)
 	cp 2
 	jr nc,2F
@@ -60,7 +67,35 @@ dh_lists:
 	ld a,$1B
 1:	inc a
 	ld (dh_desc + DH_BULLET + 6),a
-3:	ld ix,dh_desc + DH_TANK
+3:	ld ix,dh_desc + DH_SHELL	; the rows: the shapes of the frames prepare drew
+	ld a,(SHELL_FRAME)
+	ld hl,ROM_SHELL_SHAPE
+	call dh_shape
+	ld ix,dh_desc + DH_TANK
+	ld a,(TANK_KIND)
+	ld hl,ROM_TANK_SHAPE
+	call dh_shape
+	ld ix,dh_desc + DH_PLANE
+	ld a,(PLANE_FRAME)
+	ld hl,ROM_PLANE_SHAPE
+	call dh_shape
+	ld ix,dh_desc + DH_MISSILE
+	ld de,dh_ones
+	call dh_base
+	ld ix,dh_desc + DH_BULLET
+	ld de,dh_ones
+	call dh_base
+	ld a,(pm_empty)			; a reset cleared them, no prepare since: none
+	or a
+	jr z,1F
+	xor a
+	ld (dh_desc + DH_SHELL + 7),a
+	ld (dh_desc + DH_TANK + 7),a
+	ld (dh_desc + DH_PLANE + 7),a
+	ld (dh_desc + DH_MISSILE + 7),a
+	ld (dh_desc + DH_BULLET + 7),a
+1:
+	ld ix,dh_desc + DH_TANK
 	ld hl,dh_tank_edge
 	ld de,pf_edge
 	call dh_pf
@@ -142,6 +177,27 @@ dh_pair:
 	inc d
 	jr .l
 
+; Sprite IX's rows: frame A's shape from pointer table HL (as prepare: 2 * A & $FF)
+dh_shape:
+	add a,a
+	add a,l
+	ld l,a
+	jr nc,1F
+	inc h
+1:	ld e,(hl)
+	inc hl
+	ld d,(hl)
+; Sprite IX's rows from DE on its first line: base = DE - the first line
+dh_base:
+	ld l,(ix + 6)
+	ld h,0
+	ex de,hl
+	or a
+	sbc hl,de
+	ld (ix + 0),l
+	ld (ix + 9),h
+	ret
+
 ; The end of sprite IX's rows (the line after the last; past 255: 255)
 dh_end:
 	ld a,(ix + 6)
@@ -152,8 +208,11 @@ dh_end:
 
 ; Sprite IX's bits on line A, at the top (Z: none). D kept.
 dh_bits:
+	add a,(ix + 0)
 	ld l,a
-	ld h,(ix + 0)
+	ld a,(ix + 9)
+	adc a,0
+	ld h,a
 	ld a,(hl)
 	and (ix + 1)
 	ret z

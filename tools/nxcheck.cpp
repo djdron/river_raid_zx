@@ -5,7 +5,7 @@
 // now and then; it crashes often enough to lose its planes and start again.
 //   - after every frame: the river generator's state (RiverGen::diffWithRam), the game's
 //     state (the fields of game_ram.cpp but the scrolling line's), the high scores and the
-//     panel's characters, player-missile memory, screen memory, the bank colour per river
+//     panel's characters, screen memory, the bank colour per river
 //     line (Game::scan) and the objects as drawn (Game::drawn);
 //   - at the end, the picture of the last frame, pixel by pixel: Game::drawRiver in the
 //     Next's colours, black around the river.
@@ -643,11 +643,6 @@ int main(int argc, char **argv) {
 					std::snprintf(b, sizeof b, "%s[%d] $%04X: z80=%02X c++=%02X", ar.name, i, ar.addr + i, ram[ar.addr + i], ref[ar.addr + i]);
 					diffs.push_back(b);
 				}
-		for (int a = 0x0B00; a < 0x1000; a++)
-			if (ram[a] != ref[a]) {
-				std::snprintf(b, sizeof b, "pm $%04X: z80=%02X c++=%02X", a, ram[a], ref[a]);
-				diffs.push_back(b);
-			}
 		uint16_t addr = uint16_t(ram[0x3F04] | (ram[0x3F05] << 8));
 		for (size_t k = 0; k < game.screen.size() && k < size_t(kRiverLines); k++) {
 			if (std::memcmp(ram + addr, game.screen[k].data(), rr::kLineBytes)) {

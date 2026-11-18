@@ -275,8 +275,11 @@ start_attract:
 	jp push_line
 
 ; sub $B0F1 leaves the rainbow under the logo and the fuel gauge's needle in player-missile
-; memory.
+; memory (the cycle model's build only: the Next's are sprites, panel_init).
 draw_logo_and_needle:			; (PAL: B133-B15C, 12 and 7 rows lower)
+	ifndef BEAM
+	ret
+	else
 	ld a,(tv_pal)
 	or a
 	ld a,$DB
@@ -305,6 +308,7 @@ draw_logo_and_needle:			; (PAL: B133-B15C, 12 and 7 rows lower)
 	inc l
 	djnz .needle
 	ret
+	endif
 
 ; ------------------------------------------------------------------------------------------
 ; A new river line at the top of the screen (Game::pushLine): the generator, screen memory
@@ -353,8 +357,12 @@ line_done:				; the checks look at the generator here
 
 ; ------------------------------------------------------------------------------------------
 ; AE99-AF38, at the top of the frame: the shapes of the tank, the helicopter missile, the
-; tank shell and the plane into player-missile memory.
+; tank shell and the plane into player-missile memory (only the cycle model's build, -DBEAM,
+; reads it: the sprites' pictures and the collisions' rows come from the ROM's shapes, at
+; the start, pl_pics, and dh_lists).
 prepare:
+	xor a				; (the collisions' rows: dh_lists)
+	ld (pm_empty),a
 	ld a,(TANK_Y)			; the tank: gone once below the screen
 	ld c,a
 	cp $BC
@@ -362,13 +370,16 @@ prepare:
 	xor a
 	ld (TANK_KIND),a
 	ld (TANK_Y),a
-.tank	ld a,(TANK_KIND)
+.tank
+	ifdef BEAM
+	ld a,(TANK_KIND)
 	ld hl,ROM_TANK_SHAPE
 	call .shape
 	ld h,high PM_TANK
 	ld l,c
 	ld b,11
 	call .copy
+	endif
 	ld a,(FRAME_COUNT)		; the shell's colour
 	rrca
 	rrca
@@ -379,6 +390,7 @@ prepare:
 	ld h,high ROM_SHELL_COLOUR
 	ld a,(hl)
 	ld (shell_colour),a
+	ifdef BEAM
 	ld a,(MISSILE_Y)		; the helicopter's missile: one row, the two above cleared
 	cp $1C
 	jr c,.shell
@@ -403,6 +415,7 @@ prepare:
 	ld a,3
 .m	or b
 	ld (hl),a
+	endif
 .shell	ld a,(SHELL_Y)			; the shell: gone below the screen
 	ld c,a
 	cp $BC
@@ -412,7 +425,9 @@ prepare:
 	xor a
 	ld (SHELL_FRAME),a
 	ld (SHELL_Y),a
-.s1	ld a,(SHELL_FRAME)
+.s1
+	ifdef BEAM
+	ld a,(SHELL_FRAME)
 	ld hl,ROM_SHELL_SHAPE
 	call .shape
 	ld h,high PM_SHELL
@@ -425,6 +440,7 @@ prepare:
 	ld hl,PM_PLANE + $AA
 	ld b,14
 	call .copy
+	endif
 	ld a,(ATTRACT_TIMER)		; AF3A-AF58: lives, bridges and score into the panel
 	or a
 	call z,show_lives

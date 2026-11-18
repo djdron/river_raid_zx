@@ -113,7 +113,7 @@ game, presses START, flies towards the middle of the water, dodges enemies ahead
 depots when low on fuel, fires, pauses now and then (`-bot N` for other choices, `-seed N`
 for another POKEY counter, `-attract` for no player). After every frame it compares the
 river generator's state (`RiverGen::diffWithRam`), the game's state (the scrolling line's
-too), the high scores and the panel's characters, player-missile memory, screen memory, the
+too), the high scores and the panel's characters, screen memory, the
 bank colour per line (`Game::scan`) and the objects as drawn (`Game::drawn`), the Copper's
 memory and list; at the end the
 picture of the last frame, pixel by pixel, the river, the panel and the scrolling line
@@ -137,9 +137,10 @@ and the fields.
 
 Each frame (`src/river_raid.asm`):
 
-1. `src/game.asm`, `prepare`: the shapes of the tank, its shell, the missile and the plane
-   into player-missile memory, the lives, bridges and score into the panel's characters
-   (`Game::prepare`).
+1. `src/game.asm`, `prepare`: the tank and its shell gone below the screen, the shell's
+   colour, the lives, bridges and score into the panel's characters (`Game::prepare`). The
+   Next writes no player-missile memory: the sprites' pictures and the collisions' rows
+   come from the ROM's shapes.
 2. `src/display_simple.asm`, `src/display_hits.asm`: the DLI's work (`Game::displaySimple`
    on the C++ port's `dli_removal` branch). Its loop is kept as a schedule: which rows of
    each object the Atari shows and on which lines, where each collision read and the
