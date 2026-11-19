@@ -1,6 +1,6 @@
 # How River Raid works on the ZX Spectrum Next
 
-English | [Русский](HOW_IT_WORKS.ru.md)
+English | [Русский](HOW_IT_WORKS.ru.md) | [Українська](HOW_IT_WORKS.uk.md) | [Deutsch](HOW_IT_WORKS.de.md) | [Polski](HOW_IT_WORKS.pl.md) | [Italiano](HOW_IT_WORKS.it.md) | [Español](HOW_IT_WORKS.es.md) | [中文](HOW_IT_WORKS.zh.md) | [日本語](HOW_IT_WORKS.ja.md)
 
 This is for anyone curious, no programming needed. How the game itself works (the river, enemies, bridges, why it gets harder) is told in the C++ port's [docs/HOW_IT_WORKS.md](https://github.com/djdron/river_raid/blob/main/docs/HOW_IT_WORKS.md). Here: how the Atari's picture and its collisions are made on a different computer, the ZX Spectrum Next.
 

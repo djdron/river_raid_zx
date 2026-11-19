@@ -1,0 +1,101 @@
+# Wie River Raid auf dem ZX Spectrum Next funktioniert
+
+[English](HOW_IT_WORKS.md) | [Русский](HOW_IT_WORKS.ru.md) | [Українська](HOW_IT_WORKS.uk.md) | Deutsch | [Polski](HOW_IT_WORKS.pl.md) | [Italiano](HOW_IT_WORKS.it.md) | [Español](HOW_IT_WORKS.es.md) | [中文](HOW_IT_WORKS.zh.md) | [日本語](HOW_IT_WORKS.ja.md)
+
+Für alle Neugierigen, ohne Programmierkenntnisse. Wie das Spiel selbst funktioniert (der Fluss, die Gegner, die Brücken, warum es schwerer wird), erzählt [docs/HOW_IT_WORKS.de.md](https://github.com/djdron/river_raid/blob/main/docs/HOW_IT_WORKS.de.md) des C++-Ports. Hier: wie das Bild des Atari und seine Kollisionen auf einem anderen Computer entstehen, dem ZX Spectrum Next.
+
+## Zwei verschiedene Maschinen
+
+Der Atari 800 von 1979 hat einen 6502-Prozessor mit 1,79 MHz; der Next einen Z80 mit bis zu 28 MHz. Beide sind 8-Bit-Computer, aber ihre Videochips arbeiten sehr verschieden.
+
+Der **Atari** zeichnet den Bildschirm Zeile für Zeile, so wie der Strahl des Fernsehers läuft. Für bewegte Dinge hat er nur acht „Sprites“: vier **Player** (je 8 Punkte breit) und vier **Missiles** (je 2 Punkte breit). Acht sind viel zu wenige für das Flugzeug von River Raid, die Jets, Hubschrauber, Schiffe, Panzer, Ballons, Treibstoffdepots und Brücken, also trickst das Spiel: Es verwendet einen Player für jeden Gegner den Bildschirm hinunter. Während der Strahl den Bildschirm zeichnet, wacht vor jedem Objekt ein kleines Stück Code auf (der *Display-List-Interrupt*, DLI), setzt Player 3 an die Stelle des Objekts, gibt ihm Zeile für Zeile Form und Farbe des Objekts, und wenn das Objekt fertig ist, setzt er denselben Player weiter nach unten zum nächsten Objekt. Zehn Objekte auf dem Bildschirm sind in Wahrheit ein Player, zehnmal während eines Bildes versetzt.
+
+Was ist ein DLI? Ein *Interrupt* ist die Hardware, die dem Prozessor auf die Schulter tippt: Der Prozessor legt weg, was er gerade tat, führt ein kurzes Stück Code aus und macht weiter. Der Videochip des Atari folgt einer *Display List*, einem kleinen Programm, das sagt, was jeder Streifen des Bildschirms zeigt. Jede ihrer Zeilen kann eine Markierung tragen; erreicht der Strahl eine markierte Zeile, wird der Prozessor unterbrochen: ein Display-List-Interrupt. Der Haupt-DLI von River Raid beginnt knapp über dem Fluss und hält den Prozessor bis zum unteren Ende des Flusses fest. In jeder Zeile wartet er auf den Strahl (der Chip kann den Prozessor bis zum Beginn der nächsten Zeile anhalten) und ändert Player 3 gerade rechtzeitig. Erst dann kehrt der Prozessor zum Spiel zurück.
+
+Der **Next** hat einen viel großzügigeren Videochip: eine vollfarbige Hintergrundebene (*Layer 2*), bis zu 128 Hardware-Sprites mit 16×16 Punkten, eine Ebene aus Kacheln für Text und einen Helfer namens *Copper*, der in jeder Zeile des Bildschirms Farben ändern kann. Was der Atari tut, kann er nicht: einen Sprite wiederverwenden, während das Bild gezeichnet wird. Aber das braucht er auch nicht: Er hat einfach genug Sprites.
+
+Der Port kopiert also nicht, was die Chips des Atari tun. Er kopiert, **was der Atari zeigt**, und baut dann dasselbe Bild aus den Teilen des Next.
+
+## Jedes Bild: zuerst die Arbeit des Atari
+
+Fünfzigmal pro Sekunde (sechzigmal auf einer amerikanischen NTSC-Maschine) macht der Next genau die Arbeit, die der Atari für dieses Bild machte: Er schiebt den Fluss weiter, bewegt die Gegner, das Flugzeug, das Geschoss, liest den Joystick, zählt Treibstoff und Punkte. Er hält all das im selben Speicher, an denselben Stellen wie der Atari. Das macht es überprüfbar: Die Kopie des Atari-Speichers im Next lässt sich nach jedem Bild Byte für Byte mit einem echten Atari (einem Emulator davon) und mit dem C++-Port vergleichen.
+
+Dann kommt das Bild.
+
+## Der Fluss
+
+Der Fluss, seine Ufer, Inseln, Straßen und Häuser sind das **Playfield** des Atari: der Hintergrund. Auf dem Atari ist jede Zeile des Flusses 48 Bytes Bildschirmspeicher, vier Punkte pro Byte, jeder Punkt eine von vier Farben: Hintergrund (schwarz), Ufer (grün oder grau), Uferkante, Wasser (blau).
+
+Auf dem Next liegt der Fluss in Layer 2, einem Bild von 320×256. Jede neue Flusszeile, die das Spiel macht, wird in eine Zeile von Layer 2 kopiert, jeder Atari-Punkt als zwei Next-Punkte nebeneinander (die Punkte des Atari sind breit). Die Farben werden nicht als Farben gespeichert, sondern als „Farbe 1, 2 oder 3“, und die Palette des Next sagt, was Farbe 1, 2 und 3 sind. So kann ein ganzer Fluss rot werden, wenn eine Brücke getroffen wird: Ein Paletteneintrag ändert sich.
+
+Der Fluss scrollt nach unten. Der Atari macht das, indem er seine Anzeige auf anderen Speicher zeigen lässt; der Next, indem er Layer 2 sagt, ab einer anderen Zeile zu zeigen. Pro Flusszeile wird nur eine neue Zeile geschrieben; nichts wird umkopiert.
+
+Bei einer Brücke ändert sich die Uferfarbe von Zeile zu Zeile (die Straße). Das macht der Copper: Bevor eine solche Zeile gezeichnet wird, ändert er „Farbe 1“ der Palette.
+
+## Die Gegner: von einem Player zu vielen Sprites
+
+Der Next spielt den DLI des Atari nicht mehr nach, nicht einmal seinen Zeitplan. Jeder Gegner steht einfach in der Höhe, die ihm sein Slot gibt, abgeschnitten dort, wo der Fluss beginnt und endet. (Der DLI des Atari könnte ein Objekt im Prinzip ein paar Zeilen zu spät erreichen, wenn es zu dicht unter dem vorherigen kommt; über Hunderttausende Bilder gemessen geschah das nie, also ergibt die einfache Regel dasselbe Bild.)
+
+Jedes Objekt wird dann ein fertiger Sprite des Next (zwei, wenn es höher als 16 Zeilen ist). Der Atari ändert die Farbe von Player 3 in jeder Zeile (so haben Gegner Streifen); ein Sprite des Next kann in jedem Punkt eine eigene Farbe haben, also werden die Streifen einfach hineingezeichnet. Jeder Atari-Punkt wird zu zwei Punkten des Sprites (die Punkte des Atari sind breit), und doppelte oder vierfache Breite ist der Sprite zwei- oder viermal so breit gezeichnet. Ein Objekt, das von oben hereinkommt, wird ganz gezeichnet, und der Teil über dem Fluss wird vom Clip-Fenster der Sprites abgeschnitten.
+
+Die Bilder aller Gegner (jede Art, jedes Animationsbild, jede Explosion, auch gespiegelt) werden einmal beim Programmstart gemacht: etwa sechzig. Jedes Bild sagt dann nur noch, welches Bild jeder Sprite zeigt und wo; während des Spiels wird nichts gezeichnet.
+
+Das Flugzeug, sein Geschoss, die Panzer an den Ufern, die Granate des Panzers und die Rakete des Hubschraubers verwenden die anderen Player und Missiles des Atari, die je eine Farbe haben und den ganzen Bildschirm hindurch an einer Stelle bleiben. Das Spiel setzt jeden an eine bekannte Zeile (das Flugzeug immer in dieselbe Höhe, die Granate dorthin, wo der Panzer sie abgefeuert hat …), also ist jeder ein Sprite, aus seinen Zeilen dort gemacht.
+
+## Kollisionen: wer was berührt hat
+
+Auf dem Atari rechnet das Spiel Kollisionen nie selbst aus. Das macht der Videochip: Während er zeichnet, setzt er jedes Mal, wenn ein Punkt eines Players auf einen farbigen Punkt des Playfields oder auf den Punkt eines anderen Players fällt, ein Bit in einem Kollisionsregister („Player 2 hat Farbe 1 berührt“, „Missile 2 hat Player 3 berührt“). Der DLI liest diese Register nach jedem Objekt: So weiß das Spiel, dass das Geschoss genau dieses Schiff getroffen hat, dass das Flugzeug ins Ufer geflogen ist, dass ein Jet die Kante erreicht hat und umkehren muss.
+
+Diese Bits werden immer nur gesetzt, der Chip löscht sie nie: Sie bleiben, bis das Programm sie alle auf einmal löscht (durch einen Schreibzugriff auf ein Register namens HITCLR). Und Player 3 ist der Reihe nach jeder Gegner. Einmal am Ende des Bildes gelesen, würden die Register nur sagen „Player 3 hat etwas berührt“, nicht welches Schiff. Deshalb kopiert der DLI nach jedem Objekt die Register in den Speicher des Spiels, neben dieses Objekt („das Geschoss hat das Objekt in Slot 5 getroffen“), löscht sie und setzt Player 3 weiter zum nächsten Objekt. Das Spiel schaut später dort nach.
+
+Der Videochip des Next hat nichts dergleichen, also rechnet der Next es selbst aus, und nur das, was das Spiel liest: das Flugzeug mit dem Ufer, das Geschoss mit dem Ufer und mit Objekten, die Objekte mit der Uferkante, den Panzer mit der Kante, die Rakete des Hubschraubers mit dem Flugzeug und dem Ufer, die Granate mit dem Flugzeug und Objekten.
+
+Ein Hardware-Flag dieser Art hat der Next doch: „zwei Sprites haben sich überlappt“. Hier hilft es nicht. Es sagt weder welche Sprites noch irgendetwas über den Fluss (die Ufer liegen in Layer 2, nicht in Sprites). Bei bis zu sechzig Sprites pro Bild würden es Sprites setzen, die der Atari nie verglichen hätte (das Logo, die Nadel). Und es wird nur gesetzt, während der Strahl die Sprites tatsächlich zeichnet, ein Bild später, wo das Spiel es in diesem wissen muss.
+
+Jedes bewegte Ding ist dort, wo das Spiel es hingesetzt hat, also ist jede Kollision eine Frage über ein paar Zeilen. Für jeden Sprite: Berühren seine Punkte auf seinen Zeilen das Ufer (oder die Kante)? Für zwei Sprites: Treffen sich ihre Punkte auf den Zeilen, auf denen beide sind? Die Arbeit geht „zuerst billig, genau nur wenn nötig“: zuerst, ob sich ihre Rechtecke überhaupt treffen; erst dann die Punkte, eine Zeile nach der anderen: die Punkte jeder Zeile auf die des anderen ausgerichtet (der Prozessor des Next kann eine Reihe von Punkten mit einem Befehl um beliebig viele Stellen schieben) und alle auf einmal verglichen (Formen haben Lücken, durch die ein Geschoss passt). Für einen Hubschrauber, Ballon oder ein Schiff gegen die Uferkante genügen die Enden jeder seiner Zeilen: Eine Kante dazwischen zählt als Berührung. Das Ufer wird ohne seine Häuser und Straßen betrachtet: Dann ist jede Flusszeile nur Ufer, Kante, Wasser, Kante, Ufer (zweimal mit einer Insel), eine Handvoll Zahlen, die beim Machen der Zeile behalten wurden. Und Wasser ist in River Raid nie eine Kollision.
+
+Hier folgt der Next nicht mehr dem Timing des Atari. Der DLI des Atari liest die Register des Chips direkt nach jedem Objekt und löscht sie, also sieht er eine Berührung nur innerhalb eines Fensters von Zeilen; ein Geschoss, das zum Beispiel nur die letzte Zeile eines Objekts berührt, fällt zwischen zwei Fenster und wird ein Bild später gezählt, wenn das Geschoss tiefer drin ist. Der Next zählt eine Berührung, wo immer sie geschieht. In etwa einem Bild von tausend (einem von vierhundert bei den fernen Brücken, wo jeder Gegner-Slot belegt ist) entscheidet das anders: immer ein Treffer oder ein Absturz ein Bild früher als auf dem Atari. Kein Spieler würde es merken, aber das Spiel folgt dem Original nicht mehr Bild für Bild. Es ist der Preis der Geschwindigkeit: Der Zeitplan und seine Lesezugriffe machten mehr als die Hälfte der Arbeit der vollsten Bilder aus.
+
+Was es kostet: das Platzieren der Gegner und alle Kollisionen etwa 45 000 Takte des Next-Prozessors im vollsten Bild, etwa 8% einer fünfzigstel Sekunde. Das meiste wird durch „ist es überhaupt nah?“ vermieden: Jede Flusszeile merkt sich, wo ihr Wasser beginnt und endet, also wird ein Sprite oder Gegner weit im Wasser mit zwei Vergleichen übergangen, und nur bei einem nahe am Ufer werden die Punkte angesehen. Als der DLI noch mit Zeitplan und Lesezugriffen nachgespielt wurde, brauchte das vollste Bild dafür etwa 145 000; Takt für Takt, mit den Registern des Chips Zeile für Zeile emuliert, etwa 210 000 im Schnitt.
+
+## Die Anzeige und die Laufschrift
+
+Unter dem Fluss zeigt der Atari eine Anzeige in großen Buchstaben (Punkte, Spielnummer, Tankanzeige, Rekord, Brücke) und eine Zeile, die den Abspann scrollt, mit einem Activision-Logo in Regenbogenfarben.
+
+Auf dem Next bestehen sie aus *Kacheln* (Tiles): kleinen 8×8-Bildern in einem Raster, wie Buchstaben auf einer Seite. Beim Start baut das Programm die eigenen Buchstaben des Atari (die das Spiel aus dem Zeichensatz des Computers und seinen eigenen Symbolen macht) und macht aus jedem zwei Kacheln. Danach wird ein Buchstabe der Anzeige nur dann ins Raster geschrieben, wenn er sich ändert (eine Ziffer der Punkte, ein Leben). Die Laufschrift ist ein Ring: Die ganze Kachelzeile gleitet zwei Punkte pro Bild seitwärts, und nur der Buchstabe, der rechts hereinkommt, wird in die Spalte geschrieben, die gerade links hinausgeglitten ist. Weil die Kachelebene genau so breit ist wie der Bildschirm, ist diese Spalte auch am rechten Rand zu sehen; dort wird sie verborgen, und ein einzelner Sprite zeigt stattdessen den hereinkommenden Buchstaben.
+
+Der graue Hintergrund der Anzeige ist die eigene Ebene des Flusses, deren vier Farben der Copper für die Zeilen der Anzeige grau macht, also ist er genau so breit wie der Fluss, und die Tankanzeige (ein Sprite) erscheint über dem Grau, aber unter den Buchstaben, wie auf dem Atari. Das Regenbogenlogo sind fünf Sprites.
+
+Das Bild des Next ist 320 Punkte breit: Alles, was er zeichnen kann, liegt darin, und drumherum nur eine einzige Farbe (der Rand). Das Bild des Atari ist etwas breiter: Fluss und Anzeige um 8 seiner Pixel links, die Laufschrift um etwa 3 seiner Buchstaben. Also wird im Attract-Modus der Lauftext an den Rändern abgeschnitten. Ein Farbstreifen im Rand würde nicht helfen: Dorthin kann kein Bild, und die Flugzeuge würden darüber verschwinden.
+
+## Ton
+
+Der Soundchip des Atari, POKEY, hat vier Kanäle. Jeder zählt einen schnellen Takt (64 000 Ticks pro Sekunde) von einer Zahl herunter, die das Spiel setzt, und jedes Mal, wenn die Zählung abgelaufen ist, gibt er einen Impuls; was ein Impuls tut, hängt von einer anderen Einstellung ab: den Ausgang des Kanals umschalten (ein sauberer Ton, umso höher, je kleiner die Zahl) oder ein Bit aus einem der Schieberegister des POKEY nehmen, die einen langen, zufällig aussehenden Strom von Bits liefern (Rauschen: der Motor, Explosionen). Jeder Kanal hat auch eine Lautstärke. Das Spiel selbst setzt diese Zahlen nur einmal pro Bild: die Tonhöhe des Motors aus der Geschwindigkeit, ein fallendes Pfeifen für die Granate des Panzers, ein Zischen für eine Explosion.
+
+Der Next hat keinen POKEY, aber einen DAC: einen Port, an dem eine Zahl zu einer Spannung wird, also ist ein Strom von Zahlen eine Schallwelle. Also rechnet der Next die Ausgabe des POKEY selbst aus, 15 909 Zahlen pro Sekunde, etwa 320 pro Bild, und legt sie in einem Ring im Speicher ab. Sie einzeln, genau zur richtigen Zeit, an den DAC zu schicken, würde die ganze Zeit des Prozessors kosten; stattdessen macht es der DMA des Next, ein Stück Hardware, das von selbst alle 1/15 909 Sekunde ein Byte aus dem Speicher an den Port kopiert, immer im Kreis um den Ring. Der Prozessor muss den Ring nur ein wenig im Voraus gefüllt halten und den Ring dort lassen, wo der DMA hinschaut (der Ton ist so laut, wie der Mixer des Next einen DAC sein lässt: etwa halb so laut wie der C++-Port bei denselben Einstellungen, darunter derselbe Ton; und mono, wie beim Atari): Der DMA liest den Speicher durch dieselben Fenster wie der Prozessor, und als der Code kurz ein anderes Speicherstück in das Fenster des Rings legte, spielte der DMA das stattdessen, ein Klicken in jedem Bild.
+
+Die reinen Töne (die Pieptöne, das Tanken, das Schießen, das Pfeifen der Granate) überspringen all das: Der Next hat auch AY-Soundchips, die genau diese Rechteckwelle selbst erzeugen, also werden diese POKEY-Kanäle einfach an einen AY gegeben, mit umgerechneter Tonhöhe und Lautstärke. Nur die Geräusche (der Motor, Explosionen, die Rakete des Hubschraubers) werden für den DAC ausgerechnet.
+
+Die Welle Tick für Tick auszurechnen wäre viel zu langsam. Stattdessen springt jeder Kanal von Impuls zu Impuls: Er weiß, wie viele Samples sein nächster Impuls entfernt ist, und zwischen den Impulsen ändert sich sein Ausgang nicht. Wo der Ausgang an- oder ausgeht, schreibt er „+ Lautstärke“ oder „− Lautstärke“ in den Ring; am Ende addiert ein Durchgang sie zur Welle auf. Das kostet etwa 25 000 Takte des Prozessors pro Bild, 4% einer fünfzigstel Sekunde; das vollste (Motor, Explosion, Schießen und eine Rakete gleichzeitig) mehr als das Doppelte. Der Ring wird etwa zweieinhalb Bilder vor dem DMA gehalten, also kann ein Bild mit viel anderer Arbeit weniger Zahlen machen und den Rest den nächsten Bildern überlassen; und wenn das Spiel mehr Arbeit als Zeit hat, weicht der Ton, nicht das Spiel.
+
+## Warum nicht die Zeileninterrupts des Next
+
+Der Next kann seinen Prozessor ebenfalls in jeder gewählten Zeile des Bildschirms unterbrechen. Der Port nutzt das nicht, weil er nicht mit dem Strahl Schritt halten muss. Was der DLI des Atari tat, wird vorab ausgerechnet, als Rechnung, während noch das vorige Bild gezeigt wird. Was sich in einer bestimmten Zeile des echten Bildschirms ändern muss (die Farbe der Straße), wird in die Liste des Coppers geschrieben, und der Copper, der nie eine Zeile verpasst, erledigt es; die Liste wird nur dann neu an den Copper geschickt, wenn sie sich ändert. Der Prozessor muss nur darauf achten, in welcher Zeile der Strahl ist, um unter der Laufschrift, wo sich auf dem Bildschirm nichts ändert, auf das neue Bild umzuschalten (Interrupts bleiben aus). Der Ton, Sample für Sample über den DAC des Next gespielt, braucht sie auch nicht: Das macht der DMA des Next ohne den Prozessor (siehe Ton).
+
+## Zeit
+
+All das muss innerhalb einer fünfzigstel Sekunde geschehen. Der Next läuft mit 28 MHz, etwa sechzehnmal schneller als der Atari. Ein durchschnittliches Bild braucht jetzt etwa 21% der Zeit, die es darf; das vollste, das man dem Programm abverlangen kann (jeder Gegner-Slot belegt, mit voller Geschwindigkeit fliegend und ständig schießend, an Brücke 80), etwa 41%. Also liefe es auch mit 14 MHz.
+
+Das war nicht immer so. Den DLI des Atari Takt für Takt nachzuspielen, mit seinen Kollisionsregistern Zeile für Zeile emuliert, brauchte im Schnitt etwa 60% des Bildes und bis zu 88%; an den vollen Brücken kam ein Bild oft zu spät. Dann, Schritt für Schritt, zuerst im C++-Port und jedes Mal gegen das Original geprüft: Die Takte fielen weg bis auf ein paar Regeln; die Gegner wurden fertige mehrfarbige Sprites; die anderen Sprites wurden dort genommen, wo das Spiel sie hingesetzt hatte, statt gesucht; die Kollisionen wurden aus den Zeilen der Sprites ausgerechnet; die Schleife des DLI wurde ein Zeitplan; alle Bilder der Sprites wurden beim Start gemacht; die Anzeige und die Laufschrift wurden nur dort geschrieben, wo sie sich ändern; und schließlich verschwand der DLI ganz, die Kollisionen reine Geometrie mit „ist es überhaupt nah?“ zuerst.
+
+Wohin die Zeit in den vollsten Bildern jetzt geht: die zwei neuen Flusszeilen in Layer 2 etwa 31 000 Takte, der Ton bis zu 40 000, das Platzieren der Gegner und die Kollisionen etwa 45 000, die Sprites etwa 13 000, das Spiel selbst etwa 14 000.
+
+Das Programm schaltet den Next selbst auf 28 MHz. Davon hängt nur die Geschwindigkeit ab, nicht was im Spiel geschieht, und ein verspätetes Bild wird einfach zweimal gezeigt. Jeder Next und seine Emulatoren laufen mit einem aktuellen Kern mit 28 MHz. Bei 28 MHz lässt ein echter Next den Prozessor ab und zu auf den Speicher warten; der Emulatorkern, auf dem die Geschwindigkeit gemessen wurde, sollte das berücksichtigen, aber auf echter Hardware geprüft ist es nicht.
+
+## Woher wir wissen, dass es stimmt
+
+Jede Änderung dessen, was das Spiel tut, wird zuerst im C++-Port gemacht und dort mit dem Originalspiel verglichen, das in einem Atari-Emulator läuft: nach jedem Bild der gesamte Speicher des Atari (der Fluss, jedes Objekt, die Punkte, der Treibstoff, die Kollisionen), und der Fluss, wie er gezeichnet wird, gegen den Bildschirm des Originals, Punkt für Punkt.
+
+Dann der Next: Nach jedem Bild wird seine Kopie des Atari-Speichers mit dem C++-Port verglichen, ebenso die Objekte, die er zeichnet, die Uferfarben Zeile für Zeile und die Liste des Coppers; am Ende das ganze Bild, Punkt für Punkt. Hunderttausende Bilder von Spielen eines einfachen Roboterspielers, auf PAL und NTSC, von der ersten Brücke bis zu Brücke 200 (der Roboter lässt sich, auf beiden Seiten, unfähig zum Absturz machen, um so weit zu kommen), sind gleich.
+
+Ein Unterschied zum Original ist bekannt und gewählt: die Kollisionen (oben, ein Treffer oder Absturz ein Bild früher in etwa einem Bild von tausend). Die eigene Art des Atari bleibt im C++-Port erhalten, der sich weiterhin gegen das Original prüfen lässt.

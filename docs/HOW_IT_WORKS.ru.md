@@ -1,6 +1,6 @@
 # Как River Raid работает на ZX Spectrum Next
 
-[English](HOW_IT_WORKS.md) | Русский
+[English](HOW_IT_WORKS.md) | Русский | [Українська](HOW_IT_WORKS.uk.md) | [Deutsch](HOW_IT_WORKS.de.md) | [Polski](HOW_IT_WORKS.pl.md) | [Italiano](HOW_IT_WORKS.it.md) | [Español](HOW_IT_WORKS.es.md) | [中文](HOW_IT_WORKS.zh.md) | [日本語](HOW_IT_WORKS.ja.md)
 
 Это для всех, кому интересно, программировать уметь не нужно. Как устроена сама игра (река, враги, мосты, почему становится труднее), рассказано в [docs/HOW_IT_WORKS.ru.md](https://github.com/djdron/river_raid/blob/main/docs/HOW_IT_WORKS.ru.md) C++-порта. Здесь — как картинка Atari и её столкновения получаются на совсем другом компьютере, ZX Spectrum Next.
 
