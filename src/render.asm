@@ -7,8 +7,9 @@ WINDOW_FIRST	equ 20		; the first colour clock shown (the water never comes neare
 
 WINDOW_END	equ WINDOW_FIRST / 4 + 40	; the byte after the last shown
 
-; By draw_line's pieces (dl_seg): bytes of one value are one colour, 8 columns each, written
-; without the table; an edge's bytes and a decoration's row through pix_tab.
+; By draw_line's pieces (dl_seg), not from the line's bytes: bytes of one value are one
+; colour, 8 columns each, written without the table; an edge's bytes (from its piece in the
+; table at $B800) and a decoration's row (from its bitmap) through pix_tab.
 render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	ld (wr_row),a			; 32 columns per 8K page)
 	ld l,a
@@ -17,34 +18,41 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	ld (rl_page),a
 	nextreg $52,a
 	ld iy,dl_seg
-	ld d,high line_buf
-.seg	ld a,(iy+0)
+	jr .seg
+.next	ld bc,4
+	add iy,bc
+.seg	ld a,(iy+0)			; B: its first byte, C: past its last, in the window
 	cp WINDOW_END
 	ret nc				; (the end: byte 48)
-	ld e,a
-	ld a,(iy+2)			; C: its end, B: its kind
+	ld b,a
+	ld a,(iy+4)
 	cp WINDOW_END
-	jr c,.e
+	jr c,1F
 	ld a,WINDOW_END
-.e	ld c,a
-	ld b,(iy+1)
-	inc iy
-	inc iy
-	ld a,e
-	cp WINDOW_FIRST / 4
-	jr nc,.s
-	ld e,WINDOW_FIRST / 4
-.s	ld a,c
-	sub e
-	jr c,.seg
-	jr z,.seg
-	ld c,a				; C: its bytes in the window
-	djnz .table			; (kind 1: one value)
-	ld a,(de)
+1:	ld c,a
+	ld e,(iy+2)			; DE: its data
+	ld d,(iy+3)
+	ld a,b
+	sub WINDOW_FIRST / 4
+	jr nc,2F
+	neg				; (bytes before the window: past them in its data)
+	ld b,WINDOW_FIRST / 4
+	bit 0,(iy+1)
+	jr nz,2F
+	add a,e
 	ld e,a
+	jr nc,2F
+	inc d
+2:	ld a,c
+	sub b
+	jr c,.next
+	jr z,.next
+	ld c,a				; C: its bytes in the window
+	ld a,(iy+1)
+	dec a
+	jr nz,.table			; (kind 1: one value, E)
 	ld d,high pix_tab
 	ld a,(de)
-	ld d,high line_buf
 	ld e,a				; E: the colour
 .chunk	ld a,$60			; bytes to the page's end (1-4)
 	sub h
@@ -58,7 +66,7 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	call rl_fill
 	bit 5,h
 	call nz,rl_next
-	jp .seg
+	jp .next
 .part	ld b,a				; to the page's end, the rest in the next
 	ld a,c
 	sub b
@@ -67,10 +75,14 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	call rl_fill
 	call rl_next
 	jr .chunk
-.table	ld ixl,c
+.table	ld a,(iy+1)			; an edge's bytes: in the table's page
+	or a
+	jr nz,.t
+	ld d,high ROM_EDGE_PIECES
+.t	ld ixl,c
 .byte	ld a,(de)
 	ld c,a
-	inc e
+	inc de
 	ld b,high pix_tab
 	ld a,(bc)
 	ld (hl),a
@@ -99,7 +111,7 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	call nz,rl_next
 	dec ixl
 	jr nz,.byte
-	jp .seg
+	jp .next
 
 ; B bytes' columns (8 each) of colour A
 rl_fill:

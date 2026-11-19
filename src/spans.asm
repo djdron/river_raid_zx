@@ -6,10 +6,11 @@
 ; pixel p is clock 32 + p), in order. Water and the background (colours 3, 0) are never
 ; looked at. (The river has at most 13 runs of the two on a line: 28 bytes.)
 
-; The new line (line_buf): its record, from draw_line's pieces (dl_seg): bytes of one value
-; are one colour, a decoration's row is the bank's (as the C++ port's bankRuns has it, the
-; line without decoration); in an edge's bytes each pixel is looked at, unless a byte's are
-; one colour (span_class). Slot 2 is left with SPAN_PAGE.
+; The new line: its record, from draw_line's pieces (dl_seg), not from the line's bytes:
+; bytes of one value are one colour, a decoration's row is the bank's (as the C++ port's
+; bankRuns has it, the line without decoration); in an edge's bytes (its piece in the table
+; at $B800) each pixel is looked at, unless a byte's are one colour (span_class). Slot 2 is
+; left with SPAN_PAGE.
 span_line:
 	nextreg $52,SPAN_PAGE
 	ld hl,span_top
@@ -22,50 +23,55 @@ span_line:
 	ld hl,span_tmp
 	exx				; DE': where the bank's runs go, HL': the edge's (span_tmp)
 	ld iy,dl_seg
-	ld h,high line_buf
 	ld d,high span_class
 	ld c,0				; C: the colour of the run going on (0 none)
+	jr .seg
+.next	ld de,4
+	add iy,de
+	ld d,high span_class
 .seg	ld a,(iy+0)
 	cp 48
 	jp nc,.end
-	ld l,a
 	ld a,(iy+1)
-	inc iy
-	inc iy
 	or a
 	jr z,.edge
 	dec a
-	ld e,(hl)			; bytes of one value
+	ld e,(iy+2)			; bytes of one value
 	jr z,.one
 	ld a,(dl_bank_fill)		; a row of decoration: the bank
 	ld e,a
 .one	ld a,(de)
 	cp c
-	jr z,.seg
+	jr z,.next
 	ld e,a
-	ld a,l				; a run starts at its first clock
+	ld a,(iy+0)			; a run starts at its first clock
 	add a,a
 	add a,a
 	add a,32
 	ld b,a
 	ld a,e
 	call .change
-	jr .seg
-.edge	ld a,(iy+0)			; an edge's bytes, up to the next piece
-	cp 48
+	jr .next
+.edge	ld a,(iy+4)			; an edge's bytes (its piece's, in the table at $B800), up
+	cp 48				; to the next piece
 	jr c,.e48
 	ld a,48
-.e48	sub l
+.e48	sub (iy+0)
 	ld b,a
+	ld a,(iy+0)
+	ld ixh,a			; (IXH: the byte's place in the line)
+	ld l,(iy+2)
+	ld h,high ROM_EDGE_PIECES
 .byte	ld e,(hl)
 	ld a,(de)
 	cp c
 	jr nz,.mixed
 	inc l
+	inc ixh
 	djnz .byte
-	jr .seg
+	jr .next
 .mixed	push bc
-	ld a,l				; B: the byte's first clock
+	ld a,ixh			; B: the byte's first clock
 	add a,a
 	add a,a
 	add a,32
@@ -88,8 +94,9 @@ span_line:
 	pop bc
 	ld c,a
 	inc l
+	inc ixh
 	djnz .byte
-	jp .seg
+	jp .next
 .end	ld b,224			; the last run ends at 224
 	xor a
 	call .change

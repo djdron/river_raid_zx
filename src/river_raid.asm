@@ -767,10 +767,12 @@ span_class:	ds 256			; span_line: a byte's colour if its pixels are one, $FF if 
 span_masks:	ds 64			; pf_find: bits i..j of a sprite's byte at 8i + j
 span_tmp:	ds 32			; span_line: the edge's runs
 	assert high span_tmp == high (span_tmp + 31)
-dl_seg:		ds 48			; draw_line: the line's pieces in order, (byte, kind): 0 bytes
-	assert high dl_seg == high (dl_seg + 47)	; to look at (an edge), 1 bytes of one value,
-					; 2 a row of decoration (bank for the collisions); ended by
-					; byte 48 (render_line, span_line)
+dl_seg:		ds 4 * 19		; draw_line: the line's pieces in order (byte, kind, data 2): 0
+	assert high dl_seg == high (dl_seg + 4 * 19 - 1)	; an edge (its piece in the table at
+					; $B800: the low byte), 1 bytes of one value (it), 2 a
+					; decoration's row (its bitmap's address); ended by byte 48
+					; (render_line, span_line: the line's bytes in line_buf only
+					; with screen memory, SCREEN_MEMORY)
 	align 256
 snd_tables:	ds 256			; the sound (sound.asm): POKEY's 5-bit counter at the ticks,
 					; its 4-bit one at +$40, a bit's mask at +$80 (sound_init),

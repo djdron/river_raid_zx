@@ -606,13 +606,21 @@ dl_fill:
 	inc l
 	ld (hl),1
 	inc l
+	ld (hl),c
+	inc l
+	ld (hl),0
+	inc l
 	ld (dl_seg_p),hl
+	ifdef SCREEN_MEMORY		; (the line's bytes: only for screen memory)
 	ld l,a
 	ld h,high line_buf
 .loop	ld (hl),c
 	inc l
 	djnz .loop
 	ld a,l
+	else
+	add a,b
+	endif
 	ld (DRAW_POS),a
 	ret
 
@@ -625,14 +633,19 @@ dl_fill_bank:
 ; sub $B03B: the edge piece A (2 bytes from the table at $B800)
 dl_edge:
 	ld e,a
-	ld d,high ROM_EDGE_PIECES
 	ld a,(DRAW_POS)
 	ld hl,(dl_seg_p)		; a piece of kind 0 from here
 	ld (hl),a
 	inc l
 	ld (hl),0
 	inc l
+	ld (hl),e
+	inc l
+	ld (hl),0
+	inc l
 	ld (dl_seg_p),hl
+	ifdef SCREEN_MEMORY
+	ld d,high ROM_EDGE_PIECES
 	ld l,a
 	ld h,high line_buf
 	ld a,(de)
@@ -643,6 +656,9 @@ dl_edge:
 	ld (hl),a
 	inc l
 	ld a,l
+	else
+	add a,2
+	endif
 	ld (DRAW_POS),a
 	ret
 
@@ -662,15 +678,19 @@ dl_deco_row:
 	or a
 	ret z
 	ld b,a
+	ld de,(DECO_BITMAP)
 	ld a,(DRAW_POS)
 	ld hl,(dl_seg_p)		; a piece of kind 2 from here
 	ld (hl),a
 	inc l
 	ld (hl),2
 	inc l
+	ld (hl),e
+	inc l
+	ld (hl),d
+	inc l
 	ld (dl_seg_p),hl
-	ld de,(DECO_BITMAP)
-	ld a,(DRAW_POS)
+	ifdef SCREEN_MEMORY
 	ld l,a
 	ld h,high line_buf
 .loop	ld a,(de)
@@ -680,6 +700,14 @@ dl_deco_row:
 	djnz .loop
 	ld (DECO_BITMAP),de
 	ld a,l
+	else
+	add a,b
+	ex de,hl			; (the bitmap: the next row's)
+	ld e,b
+	ld d,0
+	add hl,de
+	ld (DECO_BITMAP),hl
+	endif
 	ld (DRAW_POS),a
 	ret
 
