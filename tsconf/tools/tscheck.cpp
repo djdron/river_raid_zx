@@ -4,9 +4,11 @@
 //   - after every frame: the river generator's state (RiverGen::diffWithRam), the game's
 //     state (the fields of game_ram.cpp but the scrolling line's), the panel's characters,
 //     screen memory, the bank colour's changes by line (the INT's list against Game::scan);
-//   - at the end, the picture of the last frame, pixel by pixel: the river's playfield as
-//     the C++ port's Game::drawRiver colours it (no objects: the viewer has no sprites yet),
-//     in the TS-Conf's colours, black above and below it.
+//   - at the end, the picture of the last frame, pixel by pixel: the river and its objects
+//     and players as the C++ port's Game::drawRiver draws them,
+//     in the TS-Conf's colours, black above and below it;
+//   - the machine's picture of every frame against the C++ port's of the frame it shows (the
+//     one whose apply came in the machine's frame before it).
 //
 // usage: tscheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N]
 //        tscheck -sna <river_raid.sna> <frames> <frame.ppm>: the snapshot, run for so many frames
@@ -195,20 +197,12 @@ int main(int argc, char **argv) {
 	game.startAttract(true);
 	random.nextFrame();
 	std::vector<uint8_t> rows(size_t(kRiverLines) * 320);   // the last frame's river (Atari colours)
-	auto takePicture = [&] {
-		const rr::GameState &g = game.g;
-		for (int k = 0; k < kRiverLines; k++) {
-			const uint8_t colours[4] = {0x00, game.scan[size_t(kRiverFirstLine + k)].bankColour, g.colourEdge, g.colourWater};
-			for (int x = 0; x < 320; x++) {
-				uint8_t c = 0;
-				const int clock = kWindowFirst + x / 2;
-				if (size_t(k) < game.screen.size()) {
-					const uint8_t v = game.screen[size_t(k)][size_t(clock / 4)];
-					c = colours[(v >> (6 - 2 * (clock & 3))) & 3];
-				}
-				rows[size_t(k) * 320 + size_t(x)] = c;
-			}
-		}
+	static uint8_t picture[rr::kScreenHeight][rr::kScreenWidth];
+	auto takePicture = [&] {   // as the C++ port's game shows the frame: the river and its sprites
+		std::memset(picture, 0, sizeof picture);
+		game.drawRiver(picture);
+		for (int k = 0; k < kRiverLines; k++)
+			std::memcpy(&rows[size_t(k) * 320], &picture[rr::kRiverTop + k][2 * kWindowFirst], 320);
 	};
 	game.afterDisplay = takePicture;   // the river as the display sees it (before the new lines)
 	auto runTo = [&](uint16_t hook) {
@@ -219,6 +213,22 @@ int main(int argc, char **argv) {
 		return false;
 	};
 	const uint16_t evShow = symbol(dir, "ev_built");
+	std::vector<std::vector<uint8_t>> history;   // the C++ port's river of the frames before
+	std::vector<int> applySwaps;   // per frame: the machine's frames done at its apply
+	long picBad = 0, picCompared = 0;
+	int picFirstBad = 0;
+	auto shownBad = [&](const std::vector<uint8_t> &want) {   // the machine's last frame against it
+		const int x0 = comp->vid->tsconf.xPos * 2, y0 = comp->vid->tsconf.yPos;
+		for (int y = 0; y < 240; y++)
+			for (int x = 0; x < 320; x++) {
+				uint8_t rgb[3] = {0, 0, 0};
+				const int r = y - kRiverTop;
+				if (r >= 0 && r < kRiverLines) rrts::cramRgb(rrts::cramWord(want[size_t(r) * 320 + size_t(x)]), rgb);
+				const uint8_t *p = bufimg + (y0 + y) * bytesPerLine + (x0 + 2 * x) * 4;
+				if (std::memcmp(p, rgb, 3)) return y * 1000 + x + 1;
+			}
+		return 0;
+	};
 	static uint8_t ref[0x4000], mine[0x4000];
 	int errors = 0;
 	long evBad = 0;
@@ -233,6 +243,33 @@ int main(int argc, char **argv) {
 			const long long w = comp->tickTotal - applyTick;
 			workSum += w;
 			if (w > workMax) { workMax = w; workMaxFrame = f; }
+		}
+		// the machine's last whole frame (bufSwaps of them) shows the apply of the frame whose
+		// apply came 2 frames before its end: the one with applySwaps = bufSwaps - 2
+		int shown = -1;
+		for (size_t i = 0; i < applySwaps.size(); i++)
+			if (applySwaps[i] == bufSwaps - 2) shown = int(i);
+		if (shown >= 0 && size_t(shown) < history.size() && !history[size_t(shown)].empty()) {
+			picCompared++;
+			const int at = shownBad(history[size_t(shown)]);
+			if (at && !picBad++) picFirstBad = f;
+			if (at && std::getenv("TSDIFF") && std::atoi(std::getenv("TSDIFF")) == f) {   // both pictures
+				FILE *o = std::fopen("/tmp/tsdiff.ppm", "wb");
+				std::fprintf(o, "P6\n640 240\n255\n");
+				const std::vector<uint8_t> &want = history[size_t(shown)];
+				for (int y = 0; y < 240; y++) {
+					for (int x = 0; x < 320; x++)
+						std::fwrite(bufimg + (comp->vid->tsconf.yPos + y) * bytesPerLine + (comp->vid->tsconf.xPos * 2 + 2 * x) * 4, 1, 3, o);
+					for (int x = 0; x < 320; x++) {
+						uint8_t rgb[3] = {0, 0, 0};
+						const int r = y - kRiverTop;
+						if (r >= 0 && r < kRiverLines) rrts::cramRgb(rrts::cramWord(want[size_t(r) * 320 + size_t(x)]), rgb);
+						std::fwrite(rgb, 1, 3, o);
+					}
+				}
+				std::fclose(o);
+			}
+			if (at && picBad <= 3) std::printf("frame %d: the picture of frame %d differs from (%d, %d) on\n", f, shown + 1, (at - 1) % 1000, (at - 1) / 1000);
 		}
 		rr::Input input;
 		input.start = f == startAt;
@@ -253,6 +290,8 @@ int main(int argc, char **argv) {
 		int reads = 0;
 		game.frame(input, [&] { return reads++ ? random.read(249, 13) : random.read(191, 24); });
 		random.nextFrame();
+		history.push_back(rows);   // (by frame, from frame 1)
+		if (history.size() > 6) history[history.size() - 7].clear();
 		for (int a = 0; a < 0x4000; a++) mine[a] = readZ80(comp, uint16_t(a));
 		std::memset(ref, 0, sizeof ref);
 		game.saveToRam(ref);
@@ -309,8 +348,9 @@ int main(int argc, char **argv) {
 		}
 		if (!runTo(applyHook)) { std::printf("frame %d: the program never got to apply_done\n", f); return 1; }
 		applyTick = comp->tickTotal;
+		applySwaps.push_back(bufSwaps);
 	}
-	std::printf("%d frames took %d of the machine's (%s)\n", frames, bufSwaps - swaps0, bufSwaps - swaps0 > frames + 4 ? "late" : "in time; the start takes 4");
+	std::printf("%d frames took %d of the machine's (%s)\n", frames, bufSwaps - swaps0, bufSwaps - swaps0 > frames + 16 ? "late" : "in time; the start takes a few");
 	std::printf("a frame's work: %lld ticks on average, %lld at most (frame %d), of %lld a frame\n",
 		frames > 1 ? workSum / (frames - 1) : 0, workMax, workMaxFrame, (comp->tickTotal - tick0) / std::max(1, bufSwaps - swaps0));
 	std::printf("%d frames compared: %s\n", frames, errors ? "with differences" : "the same");
@@ -382,6 +422,7 @@ int main(int argc, char **argv) {
 			std::fclose(o);
 		}
 	}
+	std::printf("pictures: %ld frames compared, %ld differ\n", picCompared, picBad);
 	if (evBad) std::printf("the bank colour's list differed in %ld frames\n", evBad);
 	if (bad) {
 		std::printf("FAIL: the picture differs in %d pixels, the first at (%d, %d)\n", bad, firstBadX, firstBadY);

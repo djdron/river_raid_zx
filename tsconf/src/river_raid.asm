@@ -103,7 +103,9 @@ INT_X		equ 208			; HSINT: 416 dots from the line's blanking (x 384 + 32)
 ROW_LINE	equ 56 - 1		; VSINT for screen row r: ROW_LINE + r
 FRAME_LINE	equ ROW_LINE + RIVER_TOP + RIVER_LINES + 2	; the frame's work starts: below
 					; the river
-CRAM_SHADOW	equ $E000		; the FM window's 512 bytes of CRAM (the writes go on to
+SGPAGE_REG	equ $19AF
+CRAM_SHADOW	equ $E000		; the FM window's 512 bytes of CRAM, then the SFILE's 512
+SFILE_SHADOW	equ CRAM_SHADOW + $200	; (the writes go on to
 					; the memory under it too: a page of its own)
 SPANS		equ $4000		; (WORK_PAGE) the river lines' runs of bank and edge
 					; pixels, 32 bytes a line, a ring of 256 (spans.asm)
@@ -181,6 +183,8 @@ start:
 	endif
 	call init_tables
 	call init_video
+	call obj_pics			; the sprites' pictures
+	call pl_pics
 	ld hl,(rnd_init)
 	ld (rnd_state),hl
 	ld a,(rnd_init + 2)
@@ -236,6 +240,7 @@ main_frame:
 	jr nz,.busy
 	call prepare
 	call display
+	call build_sprites
 	call build_events
 	call main_loop
 	call vbi
@@ -246,6 +251,7 @@ main_frame:
 	jr nz,.b
 	ld (SCREEN_ON),a		; colours back on
 .b	call display
+	call build_sprites
 	call build_events
 	call clear_layer2_page
 	ld a,(busy)
@@ -321,15 +327,35 @@ apply:
 	out (c),l
 	inc b
 	out (c),h
+	ld bc,FMADDR			; CRAM and the SFILE through the FM window
+	ld a,$10 | high CRAM_SHADOW >> 4
+	out (c),a
+	ld a,(shell_colour)		; the shell's colour (and the helicopter missile's)
+	ld l,a
+	ld h,high palette_lo
+	ld a,(hl)
+	ld (CRAM_SHADOW + 2 * (SHELL_PAL * 16 + 1)),a
+	inc h
+	ld a,(hl)
+	ld (CRAM_SHADOW + 2 * (SHELL_PAL * 16 + 1) + 1),a
+	ld a,(show_player)		; the plane's: COLPM2 (B542)
+	or a
+	ld l,$1E
+	jr z,1F
+	ld l,$8E
+1:	dec h
+	ld a,(hl)
+	ld (CRAM_SHADOW + 2 * (PLANE_PAL * 16 + 1)),a
+	inc h
+	ld a,(hl)
+	ld (CRAM_SHADOW + 2 * (PLANE_PAL * 16 + 1) + 1),a
+	call sfile_put			; the sprites
 	ld a,(l2_wait)
 	or a
 	jr nz,.shown
 	ld a,(l2_clear)
 	or a
 	jr z,.shown
-	ld bc,FMADDR
-	ld a,$10 | high CRAM_SHADOW >> 4
-	out (c),a
 	ld hl,CRAM_SHADOW + 2		; colours 1-3 black
 	xor a
 	ld b,6
@@ -340,11 +366,7 @@ apply:
 	out (c),a
 	ld hl,ev_none + 2		; no changes: the frame INT only
 	jr .events
-.shown
-	ld bc,FMADDR
-	ld a,$10 | high CRAM_SHADOW >> 4
-	out (c),a
-	ld h,high palette_lo
+.shown	ld h,high palette_lo
 	ld a,(show_edge)
 	ld l,a
 	ld a,(hl)
@@ -366,9 +388,10 @@ apply:
 	inc hl
 	ld a,(hl)
 	ld (CRAM_SHADOW + 3),a
+	inc hl
+	ld bc,FMADDR
 	xor a
 	out (c),a
-	inc hl
 .events	di
 	ld (ev_ptr),hl
 	ld a,(hl)
@@ -381,6 +404,44 @@ apply:
 	ld hl,(ev_built)		; the other buffer for the next list
 	ld (ev_show),hl
 	ret
+
+; The SFILE (through the FM window): the river's sprites (S0), the end of S0 and of S1 (an
+; entry with LEAP each), the entries after them up to last frame's end cleared
+sfile_put:
+	ld hl,spr_list
+	ld de,SFILE_SHADOW
+	ld a,(sb_count)
+	or a
+	jr z,1F
+	ld b,a				; x 6
+	add a,a
+	add a,b
+	add a,a
+	ld c,a
+	ld b,0
+	ldir
+1:	ld hl,sf_leaps
+	ld bc,2 * SPR_SIZE
+	ldir
+	ld hl,(sf_end)			; DE: this frame's end; the rest of last frame's cleared
+	ld (sf_end),de
+	or a
+	sbc hl,de
+	ret c
+	ret z
+	ld b,h
+	ld c,l
+	ex de,hl
+.clr	ld (hl),0
+	inc hl
+	dec bc
+	ld a,b
+	or c
+	jr nz,.clr
+	ret
+sf_leaps:
+	db 0, $40, 0, 0, 0, 0		; S0's end
+	db 0, $40, 0, 0, 0, 0		; S1's
 
 ; The bank's colour by line (as the Next's build_copper: from ds_bank_ev): at ev_built the
 ; colour at the river's top (a CRAM word), then the changes (VSINT line, CRAM word), 0 after
@@ -708,20 +769,54 @@ init_video:
 	out (c),a
 	inc b
 	out (c),a
-	ld bc,TSCONFIG			; tile layer 0 on
-	ld a,$20
+	ld bc,SGPAGE_REG		; the sprites' pictures: SGPAGE's 128K cleared (DMA fill)
+	ld a,SGPAGE
+	out (c),a
+	ld bc,DMADADDRX
+	out (c),a
+	xor a
+	dec b
+	out (c),a
+	dec b
+	out (c),a
+	ld bc,DMASADDRX
+	ld a,HIGH_PAGE
+	out (c),a
+	dec b
+	ld a,high (dma_zero - $C000)
+	out (c),a
+	dec b
+	ld a,low dma_zero
+	out (c),a
+	ld bc,DMALEN			; 256 words a burst, 256 of them
+	ld a,255
+	out (c),a
+	ld bc,DMANUM
+	out (c),a
+	ld bc,DMACTRL
+	ld a,$04
+	out (c),a
+	call dma_wait
+	ld bc,TSCONFIG			; tile layer 0 and the sprites on
+	ld a,$A0
 	out (c),a
 	ld bc,FMADDR			; CRAM black (and $31, the tile's)
 	ld a,$10 | high CRAM_SHADOW >> 4
 	out (c),a
-	ld hl,CRAM_SHADOW
+	ld hl,CRAM_SHADOW		; (and the SFILE: no sprite)
 	ld de,CRAM_SHADOW + 1
-	ld bc,$1FF
+	ld bc,$3FF
 	ld (hl),0
 	ldir
 	ld bc,FMADDR
 	xor a
 	out (c),a
+	ld a,TANK_PAL			; the tank's colour: black
+	ld b,1
+	ld e,0
+	call cram_set
+	ld hl,SFILE_SHADOW
+	ld (sf_end),hl
 	ld bc,HSINT
 	ld a,INT_X
 	out (c),a
@@ -749,6 +844,7 @@ init_video:
 	include "spans.asm"
 	include "display_hits.asm"
 	include "panel.asm"
+	include "sprites.asm"
 	ifdef SPG
 	include "load_rom.asm"
 	endif
@@ -761,7 +857,7 @@ random_columns:
 ; ------------------------------------------------------------------------------------------
 ; Buffers and variables ($E000)
 	org CRAM_SHADOW
-	ds 512
+	ds 1024
 	align 256
 palette_lo:				; Atari colour -> CRAM word: low bytes, then high
 	include "palette_ts.inc"
@@ -769,16 +865,7 @@ palette_lo:				; Atari colour -> CRAM word: low bytes, then high
 line_buf:	ds 256			; for screen memory only
 	endif
 pix_tab:	ds 4 * 256		; render_line: pixel k (bits 7-6 first) of a line byte
-line_start:	ds 256			; per scanline: ANTIC's cycles at its start
-line_after_draw: ds 256			; and the cycles left after it is drawn
 span_class:	ds 256			; span_line: a byte's colour if its pixels are one, $FF if not
-edge_lo:	ds 256			; a player's byte: its first dot (bit 7 dot 0),
-edge_hi:	ds 256			; its last dot + 1
-rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
-bg_e1:		ds 256			; per span record (line), its two widest gaps between runs
-bg_s2:		ds 256			; of bank pixels (dh_pf; spans.asm)
-bg_e3:		ds 256
-bg_s4:		ds 256
 span_masks:	ds 64			; pf_find: bits i..j of a sprite's byte at 8i + j
 span_tmp:	ds 32			; span_line: the edge's runs
 	assert high span_tmp == high (span_tmp + 31)
@@ -949,6 +1036,63 @@ ds_edge_skip:	ds 1
 sb_count:	ds 1
 pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
 dh_desc:	ds 5 * DH_SIZE		; the sprites
+; the sprites (sprites.asm)
+	align 256
+obj_head:	ds 256			; obj_lookup: by the shape byte's address, its first entry + 1
+obj_e:		ds 3 * OBJ_ENTRIES	; the entries: colour byte's address, picture (+ palette),
+					; the next with the same shape byte + 1
+	align 256
+pic_h:		ds PIC_MAX		; per picture: its YS (bits 3-1),
+	align 256
+pic_tn16_lo:	ds PIC_MAX		; its first tile at 16 dots across,
+	align 256
+pic_tn16_hi:	ds PIC_MAX
+	align 256
+pic_tn32_lo:	ds PIC_MAX		; 32,
+	align 256
+pic_tn32_hi:	ds PIC_MAX
+	align 256
+pic_tn64_lo:	ds PIC_MAX		; 64
+	align 256
+pic_tn64_hi:	ds PIC_MAX
+spr_list:	ds SPR_SIZE * SPRITES_MAX	; the river's SFILE entries for apply
+sf_end:		ds 2			; the SFILE's bytes written last frame
+ob_line:	ds 1			; ob_attr: the sprite's first line,
+ob_pat:		ds 1			; its picture,
+ob_palv:	ds 1			; its palette,
+ob_x:		ds 1
+ob_size:	ds 1
+op_t:		ds 1			; obj_pics (at the start): the type,
+op_k:		ds 1			; the kind,
+op_s:		ds 1			; the top row's shape byte (low; $B9xx),
+op_c:		ds 1			; its colour (low; $B7xx),
+op_left:	ds 1			; the rows left,
+op_rows:	ds 1
+op_sp:		ds 2			; the next row's shape byte,
+op_cp:		ds 2			; and colour,
+op_p:		ds 1			; the next picture,
+op_bank:	ds 1			; the palette (0 A, 1 B),
+op_reach:	ds 16			; the kinds the type can have,
+op_bankn:	ds 2			; the colours in each palette,
+op_bankc:	ds 32			; and which (place 1-15 in each 16)
+obj_count:	ds 1			; obj_lookup's entries
+op_tab:		ds 2			; pl_pics: the shapes' pointers,
+op_out:		ds 2			; the pictures' table,
+op_buf:		ds 8			; rows of a missile
+gfx_cx:		ds 2			; gfx_alloc: where the next picture goes,
+gfx_cy:		ds 2
+gfx_rh:		ds 1			; the lines' height so far,
+gfx_x:		ds 2			; the picture's place
+gfx_y:		ds 2
+gfx_once:	ds 1			; gfx_row: one width only
+pl_plane:	ds 10			; the plane's frames' pictures ($FF none)
+pl_tank:	ds 8			; the tank's
+pl_shell:	ds 7			; the shell's
+pl_bullet:	ds 1			; the bullet's
+pl_missile:	ds 1			; the helicopter missile's
+pl_first:	ds 1			; build_sprites: the players' first sprite,
+pl_kept:	ds 1			; how many, last frame,
+pl_attrs:	ds SPR_SIZE * 5		; and their entries
 pokey_audf:	ds 4			; what the sound driver wrote: AUDF1-4,
 pokey_audc:	ds 4			; AUDC1-4
 	ifdef SPG			; load_rom: the card, the volume, the walk
@@ -1006,6 +1150,15 @@ eg_e1:		ds 256			; per span record (line), the water's gaps between its
 eg_s2:		ds 256			; runs of edge pixels
 eg_e3:		ds 256
 eg_s4:		ds 256
+bg_e1:		ds 256			; per span record (line), its two widest gaps between runs
+bg_s2:		ds 256			; of bank pixels (dh_pf; spans.asm)
+bg_e3:		ds 256
+bg_s4:		ds 256
+line_start:	ds 256			; per scanline: ANTIC's cycles at its start
+line_after_draw: ds 256			; and the cycles left after it is drawn
+edge_lo:	ds 256			; a player's byte: its first dot (bit 7 dot 0),
+edge_hi:	ds 256			; its last dot + 1
+rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
 	assert $ <= $8000
 
 	mmu 2,CODE_PAGE
