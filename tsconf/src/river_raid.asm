@@ -195,6 +195,8 @@ restart:
 	call tv_setup
 	ld a,L2_PAGES			; the picture black
 	ld (l2_clear),a
+	xor a
+	ld (l2_wait),a
 .cl2	call clear_layer2_page
 	ld a,(l2_clear)
 	or a
@@ -307,13 +309,34 @@ irq:
 	ret
 
 ; At the frame's start (below the river): the scroll, the playfield's colours, the bank's
-; changes for the frame to come
+; changes for the frame to come; all black while the picture is being cleared (from the
+; reset's second frame)
 apply:
 	ld hl,(show_scroll)
 	ld bc,GYOFFSL
 	out (c),l
 	inc b
 	out (c),h
+	ld a,(l2_wait)
+	or a
+	jr nz,.shown
+	ld a,(l2_clear)
+	or a
+	jr z,.shown
+	ld bc,FMADDR
+	ld a,$10 | high CRAM_SHADOW >> 4
+	out (c),a
+	ld hl,CRAM_SHADOW + 2		; colours 1-3 black
+	xor a
+	ld b,6
+1:	ld (hl),a
+	inc hl
+	djnz 1B
+	ld bc,FMADDR
+	out (c),a
+	ld hl,ev_none + 2		; no changes: the frame INT only
+	jr .events
+.shown
 	ld bc,FMADDR
 	ld a,$10 | high CRAM_SHADOW >> 4
 	out (c),a
@@ -342,7 +365,7 @@ apply:
 	xor a
 	out (c),a
 	inc hl
-	di
+.events	di
 	ld (ev_ptr),hl
 	ld a,(hl)
 	or a
@@ -433,7 +456,13 @@ dma_wait:
 ; Half of the picture cleared (256 lines), while there are any left and the DMA is free
 ; (frames of the reset)
 clear_layer2_page:
-	ld a,(l2_clear)
+	ld hl,l2_wait			; (none in the reset's first frame: its picture is still
+	ld a,(hl)			; being shown)
+	or a
+	jr z,1F
+	ld (hl),0
+	ret
+1:	ld a,(l2_clear)
 	or a
 	ret z
 	ld bc,DMACTRL
@@ -792,6 +821,7 @@ game_over_text:	ds 1			; A3B4: "Game over" scrolls past
 busy:		ds 1			; frames of sub $B0F1 still to come
 resume:		ds 1			; what the main loop does after them
 l2_clear:	ds 1			; halves of the picture still to clear
+l2_wait:	ds 1			; the reset's first frame: the clearing waits a frame
 rs_full:	ds 1
 tv_pal:		ds 1			; 1 PAL
 rnd_cols:	ds 2			; random_step's map for the standard

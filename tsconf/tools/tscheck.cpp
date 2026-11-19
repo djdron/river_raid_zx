@@ -128,9 +128,11 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 	uint32_t seed = 12345;
+	int startAt = -1;   // -start N: START pressed in frame N (a game: the plane flies straight on)
 	const char *ppm = nullptr;
 	for (int i = 4; i < argc; i++) {
 		if (!std::strcmp(argv[i], "-seed") && i + 1 < argc) seed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
+		else if (!std::strcmp(argv[i], "-start") && i + 1 < argc) startAt = std::atoi(argv[++i]);
 		else ppm = argv[i];
 	}
 	const std::string dir = argv[2];
@@ -202,14 +204,31 @@ int main(int argc, char **argv) {
 	long long workSum = 0, workMax = 0, applyTick = -1;
 	int workMaxFrame = 0;
 	for (int f = 1; f <= frames; f++) {
+		ram[kCodePage * 0x4000 + 15] = f == startAt ? 1 : 0;   // in_console: START
 		if (!runTo(frameHook)) { std::printf("frame %d: the program never got to frame_done (PC %04X)\n", f, comp->cpu->regPC); return 1; }
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
 			const long long w = comp->tickTotal - applyTick;
 			workSum += w;
 			if (w > workMax) { workMax = w; workMaxFrame = f; }
 		}
+		rr::Input input;
+		input.start = f == startAt;
+		{   // TSSHOT=k: the machine's frames from frame k on, to /tmp/tsshot_N.ppm (8 of them)
+			static const int shotFrom = std::getenv("TSSHOT") ? std::atoi(std::getenv("TSSHOT")) : -1;
+			if (shotFrom > 0 && f >= shotFrom && f < shotFrom + 8) {
+				char fn[64];
+				std::snprintf(fn, sizeof fn, "/tmp/tsshot_%d.ppm", f - shotFrom);
+				FILE *o = std::fopen(fn, "wb");
+				std::fprintf(o, "P6\n320 240\n255\n");
+				for (int y = 0; y < 240; y++)
+					for (int x = 0; x < 320; x++)
+						std::fwrite(bufimg + (comp->vid->tsconf.yPos + y) * bytesPerLine + (comp->vid->tsconf.xPos * 2 + 2 * x) * 4, 1, 3, o);
+				std::fclose(o);
+			}
+		}
+		if (getenv("TSBUSY") && game.busy()) std::printf("frame %d: busy\n", f);
 		int reads = 0;
-		game.frame(rr::Input(), [&] { return reads++ ? random.read(249, 13) : random.read(191, 24); });
+		game.frame(input, [&] { return reads++ ? random.read(249, 13) : random.read(191, 24); });
 		random.nextFrame();
 		for (int a = 0; a < 0x4000; a++) mine[a] = readZ80(comp, uint16_t(a));
 		std::memset(ref, 0, sizeof ref);
