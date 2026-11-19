@@ -1,6 +1,6 @@
 # River Raid на ZX Spectrum Next — нотатки
 
-[English](NOTES.md) | [Русский](NOTES.ru.md) | Українська
+[English](NOTES.md) | [Русский](NOTES.ru.md) | Українська | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | [中文](NOTES.zh.md) | [日本語](NOTES.ja.md)
 
 Як зроблено порт і що з'ясувалося дорогою, з цифрами. Адреси на кшталт A205 — код оригіналу; $xxxx — в адресному просторі Z80, якщо не сказано інше. Файли C++-порту — у `deps/river_raid/port/src`.
 

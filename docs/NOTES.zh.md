@@ -1,6 +1,6 @@
 # ZX Spectrum Next 上的 River Raid — 笔记
 
-[English](NOTES.md) | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | 中文
+[English](NOTES.md) | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | 中文 | [日本語](NOTES.ja.md)
 
 移植是怎样做的，以及一路上发现了什么，附带数字。A205 这样的地址指原版代码；$xxxx 指 Z80 地址空间，另有说明的除外。C++ 移植的文件在 `deps/river_raid/port/src`。
 

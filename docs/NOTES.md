@@ -1,6 +1,6 @@
 # River Raid on the ZX Spectrum Next — notes
 
-English | [Русский](NOTES.ru.md)
+English | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | [中文](NOTES.zh.md) | [日本語](NOTES.ja.md)
 
 How the port is done and what was found on the way, with numbers. Addresses like A205 are the original's code; $xxxx in the Z80's address space unless said otherwise. The C++ port's files are in `deps/river_raid/port/src`.
 
