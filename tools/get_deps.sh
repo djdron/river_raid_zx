@@ -21,7 +21,7 @@ fetch() {   # name url commit
 }
 
 fetch sjasmplus https://github.com/z00m128/sjasmplus 5c44beafc76d541091e59ced98048c2367d32935
-fetch river_raid https://github.com/djdron/river_raid 69d00e87fbc4845c946fd9a692b3520ffa957841   # branch dli_removed
+fetch river_raid https://github.com/djdron/river_raid 85bd254953bc15b1313d87310a0d19ec496afc66   # branch dli_removed
 fetch xpeccy-plus https://github.com/dotkoval/xpeccy-plus 0ec06e33d891a0598cf68b061d20ba2d440d1fcf
 
 if [ ! -x deps/sjasmplus/sjasmplus ]; then

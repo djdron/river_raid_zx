@@ -201,36 +201,27 @@ display:
 	ld a,c
 	jp ds_bank
 
-; The object's rows against the edge (P3PF): A = $02 if any of its dots is on an edge pixel,
-; else 0. Its rows from ds_rowp (going down in memory), the first on the scanline of X =
+; The object's rows against the edge (P3PF): A = $02 if a row's span (its first dot to its
+; last) meets a run of edge pixels on its line, else 0 (the C++ port's edgeTouches). Its rows from ds_rowp (going down in memory), the first on the scanline of X =
 ; ds_counter, ds_rows of them; none past clock 255.
 ds_edge_test:
 	ld a,(iy + 22)
-	ld (.pv_x + 1),a
 	ld (.ex1 + 1),a
 	ld (.ex2 + 1),a
-	ld a,(iy + 33)
-	and 3				; the edge test's variant for its size (pf_size)
-	cp 3
-	ld de,pf_v4
-	ld hl,pf_v4_bits + 1
-	ld c,32
-	jr z,1F
-	dec a
-	ld de,pf_v2
-	ld hl,pf_v2_bits + 1
-	ld c,16
-	jr z,1F
-	ld de,pf_v1
-	ld hl,pf_v1_bits + 1
-	ld c,8
-1:	ld (.pv + 1),de
-	ld (.pv_bits + 1),hl
-	ld a,(iy + 22)
 	ld (.bx1 + 1),a
 	ld (.bx2 + 1),a
+	ld b,a
+	ld a,(iy + 33)			; its width: 8, 16 or 32 clocks (sizes 0 and 2, 1, 3)
+	and 3
+	ld c,32
+	cp 3
+	jr z,1F
+	ld c,16
+	dec a
+	jr z,1F
+	ld c,8
+1:	ld a,b
 	add a,c
-	ld (.pv_end + 1),a
 	ld (.be1 + 1),a
 	ld (.be2 + 1),a
 	jp c,.none
@@ -304,20 +295,8 @@ ds_edge_test:
 	cp (hl)
 	inc l
 	jr nc,.run2
-	dec l				; one between: the dots themselves (the rows have gaps)
-	dec l
-	push de
-	ld a,(de)			; the row's bits into the size's variant (pf_v*)
-.pv_bits
-	ld (0),a
-.pv_end	ld b,0				; the object's end and first clocks (pf_size)
-.pv_x	ld c,0
-	ld d,high span_masks
-.pv	call 0
-	pop de
-	jr z,.off
-	pop bc
-	ld a,$02
+	pop bc				; one between: touched (the row's first and last dots decide,
+	ld a,$02			; as the C++ port's edgeTouches: no dot by dot)
 	ret
 .off	pop bc
 .row_on	dec de
