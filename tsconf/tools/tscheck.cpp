@@ -338,6 +338,8 @@ int main(int argc, char **argv) {
 	if (!compSetHardware(comp, "TSConf")) { std::fprintf(stderr, "no TSConf core\n"); return 1; }
 	compSetBaseFrq(comp, 3.5);
 	memSetSize(comp->mem, MEM_4M, -1);   // the board's 4 MB (the core starts with 128K)
+	comp->ts->type = TS_NEDOPC;          // and its TurboSound: two AYs
+	chip_set_type(comp->ts->chipB, SND_AY);
 	compReset(comp, RES_DEFAULT);
 	bytesPerLine = comp->vid->full.x * 8;
 	bufSize = bytesPerLine * comp->vid->full.y;
@@ -557,6 +559,35 @@ int main(int argc, char **argv) {
 					break;
 				}
 			}
+		}
+		{   // the pure tones on the AY (sound_ay.asm): the registers the apply before this
+			// frame put out, against the C++ port's POKEY of the frame before
+			static uint8_t prevAudf[4], prevAudc[4];
+			static bool havePrev = false;
+			static const int vol[16] = {0, 8, 10, 12, 13, 13, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15};
+			// each POKEY channel's AY channel: 1 the second chip's A, 2 its B, 3 the first's B, 4 its
+			// C (the first: selected by #FF, Xpeccy+'s chipB; the second by #FE, its chipA)
+			aymChip *chips[4] = {comp->ts->chipA, comp->ts->chipA, comp->ts->chipB, comp->ts->chipB};
+			const int slot[4] = {0, 1, 1, 2};
+			for (int c = 0; havePrev && c < 4; c++) {
+				int n = 0, v = 0;
+				const bool tone = ((prevAudc[c] & 0xF0) == 0xA0 || (prevAudc[c] & 0xF0) == 0xE0) && (prevAudc[c] & 15);
+				if (tone) {
+					const int a = prevAudf[c] + 1;
+					n = a == 256 ? 884 : 3 * a + ((a * 116 + 128) >> 8);
+					v = vol[prevAudc[c] & 15];
+				}
+				aymChip *ay = chips[c];
+				const int k = slot[c];
+				const int zn = ay->reg[2 * k] | ((ay->reg[2 * k + 1] & 15) << 8), zv = ay->reg[8 + k] & 15;
+				const bool toneOn = !(ay->reg[7] & (1 << k));
+				if (zv != v || (v && (zn != n || !toneOn))) {
+					std::snprintf(b, sizeof b, "ay %d: period %d volume %d, expected %d %d", c + 1, zn, zv, n, v);
+					diffs.push_back(b);
+				}
+			}
+			for (int c = 0; c < 4; c++) { prevAudf[c] = game.g.pokey.audf[c]; prevAudc[c] = game.g.pokey.audc[c]; }
+			havePrev = true;
 		}
 		if (!diffs.empty()) {
 			std::printf("frame %d (level %d): %zu differences\n", f, game.gen.s.level, diffs.size());

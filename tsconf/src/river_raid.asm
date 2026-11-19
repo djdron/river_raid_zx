@@ -191,6 +191,7 @@ start:
 	call obj_pics			; the sprites' pictures
 	call pl_pics
 	call panel_init			; the panel: its character sets, colours, sprites
+	call ay_quiet
 	ld hl,(rnd_init)
 	ld (rnd_state),hl
 	ld a,(rnd_init + 2)
@@ -254,6 +255,7 @@ main_frame:
 	call build_events
 	call main_loop
 	call vbi
+	call ay_frame			; the sound's pure tones (sound_ay.asm)
 	jr .done
 .busy	dec a				; sub $B0F1 is clearing memory: the main loop is stuck,
 	ld (busy),a			; only the interrupts run
@@ -268,6 +270,7 @@ main_frame:
 	or a
 	call z,finish_reset
 	call vbi
+	call ay_frame
 .done
 frame_done:
 	call wait_frame
@@ -405,6 +408,7 @@ apply:
 	out (c),a
 	inc b
 	out (c),a
+	call ay_out			; the frame's tones
 	call panel_frame
 	ld hl,(pf_gx)			; the panel's events: its picture, the scrolling line's X
 	ld (ev_panel + 6),hl
@@ -1016,6 +1020,7 @@ init_video:
 	include "render.asm"
 	include "play.asm"
 	include "sound.asm"
+	include "sound_ay.asm"
 	include "display_objs.asm"
 	include "panel.asm"
 random_columns:
@@ -1303,6 +1308,8 @@ pl_kept:	ds 1			; how many, last frame,
 pl_attrs:	ds SPR_SIZE * 5		; and their entries
 pokey_audf:	ds 4			; what the sound driver wrote: AUDF1-4,
 pokey_audc:	ds 4			; AUDC1-4
+ay_regs:	ds AYR			; ay_frame: the AY's registers for apply
+ay_ch:		ds 1			; the POKEY channel in .one
 	ifdef SPG			; load_rom: the card, the volume, the walk
 lr_lfn_buf	equ pix_tab		; (a long name: filled at the start, after it)
 lr_part:	ds 4			; the volume's first sector,

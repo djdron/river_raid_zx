@@ -5,7 +5,7 @@ the ZX Spectrum Next's (the repository's top). It shares only `../deps` (sjasmpl
 port, Xpeccy+: `make deps` at the top).
 
 The game as the Next's runs it (the same game logic, display and river generator, copied into
-`src/`), shown the TS-Conf's way; no sound yet. 50 Hz (PAL) only: the board's frame.
+`src/`), shown the TS-Conf's way. 50 Hz (PAL) only: the board's frame.
 
 - The river: the 16-colour mode, 320x240, a picture line of 256 bytes (160 at its start), 512
   lines a ring scrolled by the hardware (GYOFFS); a new river line is written straight into
@@ -26,6 +26,10 @@ The game as the Next's runs it (the same game logic, display and river generator
   characters across the picture's 512 dots, shown from GXOFFS.
 - Tile layer 0 also black above the river.
 - The controls: Q A O P, Space or M to fire, Enter START, G SELECT, H pause; Kempston.
+- The sound: so far the pure tones (the engine, the beeps, firing, the bonus, the shell's
+  whistle) on TurboSound's two AYs, as the Next plays them (`sound_ay.asm`): POKEY's channels
+  1 and 2 the second chip's A and B, 3 and 4 the first's B and C. The noises (explosions,
+  the helicopter's missile) not yet.
 
 At 14 MHz a frame's work takes ~70 000 ticks on average in the attract mode, ~120 000 at full
 speed always firing (-stress), ~185 000 at most, of ~287 000; at 7 MHz it still fits (~133 000
@@ -58,6 +62,6 @@ red border.
 host folder as the SD card (`-img file`: a card's image); `-sna build/river_raid.sna 600
 out.ppm` the snapshot.
 
-Next: the sound.
+Next: the noises.
 
 Russian: [README.ru.md](README.ru.md).
