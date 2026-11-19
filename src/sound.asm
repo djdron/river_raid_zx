@@ -24,6 +24,7 @@ SND_PRESCALER	equ 55
 SND_LEAD	equ 760			; samples ahead of the DMA: 2.4 frames (48 ms), as many
 SND_MIN_LEAD	equ 200			; as the time left allows, but 0.6 frames at least
 SND_CAP		equ 700			; samples a frame at most
+	assert 4 * SND_CAP < 4096	; (pk_channel's division: 12 bits)
 SND_HOLD	equ 400			; past them, the last level held, when they are less than
 SND_HOLD_PAST	equ 600			; this far ahead
 DAC_PORT	equ $DF			; DAC A and D (SpecDrum)

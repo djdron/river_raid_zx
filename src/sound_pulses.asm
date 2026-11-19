@@ -88,18 +88,23 @@ pk_channel:
 	ld l,h				; (256)
 	ld h,0
 	jr .k
-.div	push bc
-	ld c,a
+.div	push bc				; (HL below 4096: 4 x SND_CAP ticks at most, so 12 bits:
+	ld c,a				; 12 rounds, unrolled)
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
 	xor a
-	ld b,16
-.d	add hl,hl
+	rept 12
+	add hl,hl
 	rla
-	jr c,.s
+	jr c,1F
 	cp c
-	jr c,.d1
-.s	sub c
+	jr c,2F
+1:	sub c
 	inc l
-.d1	djnz .d
+2:
+	endr
 	pop bc
 .k	inc hl
 	ld b,l				; B, and rounds of 256 after it
