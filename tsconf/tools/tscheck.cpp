@@ -31,6 +31,8 @@
 #include "cpu/Z80/z80.h"
 
 #include "game.h"
+#include "os_font.h"
+#include "status_bar.h"
 #include "pokey_counter.h"
 #include "pokey_random.h"
 #include "ts_palette.h"
@@ -42,6 +44,7 @@ constexpr int kAtariPage = 1, kCodePage = 2, kHighPage = 6;
 constexpr int kVidPage = 32;
 constexpr int kWindowFirst = 20;   // first colour clock shown
 constexpr int kRiverLines = 160;
+constexpr int kPictureLines = 216;   // the river and the panel: the C++ port's rows 20-235
 constexpr int kRiverFirstLine = 28;
 constexpr int kRiverTop = 24;      // the screen's row of the river's top line (of 240)
 constexpr int kRowLine = 55;       // VSINT for screen row r: kRowLine + r
@@ -188,6 +191,11 @@ int main(int argc, char **argv) {
 	std::memset(ram, 0, MEM_4M);
 	std::memcpy(ram + kCodePage * 0x4000, code.data(), 0x4000);
 	std::memcpy(ram + kHighPage * 0x4000, high.data(), 0x4000);
+	{   // the work page's font ($7C00-$7FFF)
+		std::vector<uint8_t> work;
+		if (!readFile(dir + "/ts_page5.bin", work) || work.size() != 0x400) { std::fprintf(stderr, "cannot read %s/ts_page5.bin\n", dir.c_str()); return 2; }
+		std::memcpy(ram + 5 * 0x4000 + 0x3C00, work.data(), 0x400);
+	}
 	memSetBank(comp->mem, 0x80, MEM_RAM, kCodePage, MEM_16K, NULL, NULL, NULL);
 	memSetBank(comp->mem, 0xC0, MEM_RAM, kHighPage, MEM_16K, NULL, NULL, NULL);
 	comp->cpu->regPC = 0x8000;
@@ -196,15 +204,22 @@ int main(int argc, char **argv) {
 	rr::PokeyRandom random(seed, rr::tvSystem(true));
 	game.startAttract(true);
 	random.nextFrame();
-	std::vector<uint8_t> rows(size_t(kRiverLines) * 320);   // the last frame's river (Atari colours)
+	std::vector<uint8_t> rows(size_t(kPictureLines) * 320);   // the last frame's picture (Atari colours)
+	uint8_t osFont[rr::kOsFontBytes];
+	rr::builtinOsFont(osFont);
+	const rr::Charsets charsets = rr::buildCharsets(rom, osFont);
 	static uint8_t picture[rr::kScreenHeight][rr::kScreenWidth];
-	auto takePicture = [&] {   // as the C++ port's game shows the frame: the river and its sprites
+	auto riverPicture = [&] {   // after the display: the river and its sprites
 		std::memset(picture, 0, sizeof picture);
 		game.drawRiver(picture);
-		for (int k = 0; k < kRiverLines; k++)
+	};
+	auto takePicture = [&] {   // after the frame: the panel (as the C++ port's game shows the frame)
+		const rr::GameState &g = game.g;
+		rr::drawStatusBar(rom, charsets, g.panel, g.fuel, g.scroller, g.logoShown, picture, true);
+		for (int k = 0; k < kPictureLines; k++)
 			std::memcpy(&rows[size_t(k) * 320], &picture[rr::kRiverTop + k][2 * kWindowFirst], 320);
 	};
-	game.afterDisplay = takePicture;   // the river as the display sees it (before the new lines)
+	game.afterDisplay = riverPicture;   // the river as the display sees it (before the new lines)
 	auto runTo = [&](uint16_t hook) {
 		for (long n = 0; n < 50000000L; n++) {
 			compExec(comp);
@@ -223,7 +238,7 @@ int main(int argc, char **argv) {
 			for (int x = 0; x < 320; x++) {
 				uint8_t rgb[3] = {0, 0, 0};
 				const int r = y - kRiverTop;
-				if (r >= 0 && r < kRiverLines) rrts::cramRgb(rrts::cramWord(want[size_t(r) * 320 + size_t(x)]), rgb);
+				if (r >= 0 && r < kPictureLines) rrts::cramRgb(rrts::cramWord(want[size_t(r) * 320 + size_t(x)]), rgb);
 				const uint8_t *p = bufimg + (y0 + y) * bytesPerLine + (x0 + 2 * x) * 4;
 				if (std::memcmp(p, rgb, 3)) return y * 1000 + x + 1;
 			}
@@ -233,12 +248,14 @@ int main(int argc, char **argv) {
 	int errors = 0;
 	long evBad = 0;
 	const int swaps0 = bufSwaps;
+	int swapsFirst = 0, lateShown = 0;
 	const long long tick0 = comp->tickTotal;
 	long long workSum = 0, workMax = 0, applyTick = -1;
 	int workMaxFrame = 0;
 	for (int f = 1; f <= frames; f++) {
 		ram[kCodePage * 0x4000 + 15] = f == startAt ? 1 : 0;   // in_console: START
 		if (!runTo(frameHook)) { std::printf("frame %d: the program never got to frame_done (PC %04X)\n", f, comp->cpu->regPC); return 1; }
+		if (f == 1) swapsFirst = bufSwaps;   // (the start's frames before it: not counted)
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
 			const long long w = comp->tickTotal - applyTick;
 			workSum += w;
@@ -263,7 +280,7 @@ int main(int argc, char **argv) {
 					for (int x = 0; x < 320; x++) {
 						uint8_t rgb[3] = {0, 0, 0};
 						const int r = y - kRiverTop;
-						if (r >= 0 && r < kRiverLines) rrts::cramRgb(rrts::cramWord(want[size_t(r) * 320 + size_t(x)]), rgb);
+						if (r >= 0 && r < kPictureLines) rrts::cramRgb(rrts::cramWord(want[size_t(r) * 320 + size_t(x)]), rgb);
 						std::fwrite(rgb, 1, 3, o);
 					}
 				}
@@ -290,6 +307,7 @@ int main(int argc, char **argv) {
 		int reads = 0;
 		game.frame(input, [&] { return reads++ ? random.read(249, 13) : random.read(191, 24); });
 		random.nextFrame();
+		takePicture();
 		history.push_back(rows);   // (by frame, from frame 1)
 		if (history.size() > 6) history[history.size() - 7].clear();
 		for (int a = 0; a < 0x4000; a++) mine[a] = readZ80(comp, uint16_t(a));
@@ -320,16 +338,18 @@ int main(int argc, char **argv) {
 			if ((addr >> 8) == 0x3F) addr = 0x2000;
 		}
 		{   // the bank's colour by line, as the INTs will set it: the top's, then the changes
+			// (EV_CRAM events: kind 0, the VSINT line, the CRAM word)
 			const uint16_t list = uint16_t(readZ80(comp, evShow) | readZ80(comp, uint16_t(evShow + 1)) << 8);
 			uint16_t p = list;
 			uint16_t w = uint16_t(readZ80(comp, p) | readZ80(comp, uint16_t(p + 1)) << 8);
 			p = uint16_t(p + 2);
-			int next = readZ80(comp, p);
+			auto next = [&] { return readZ80(comp, p) == 0 ? readZ80(comp, uint16_t(p + 1)) | readZ80(comp, uint16_t(p + 2)) << 8 : 0; };
+			int line = next();
 			for (int k = 0; k < kRiverLines; k++) {
-				while (next && next - kRowLine <= kRiverTop + k) {
-					w = uint16_t(readZ80(comp, uint16_t(p + 1)) | readZ80(comp, uint16_t(p + 2)) << 8);
-					p = uint16_t(p + 3);
-					next = readZ80(comp, p);
+				while (line && line - kRowLine <= kRiverTop + k) {
+					w = uint16_t(readZ80(comp, uint16_t(p + 3)) | readZ80(comp, uint16_t(p + 4)) << 8);
+					p = uint16_t(p + 5);
+					line = next();
 				}
 				const uint8_t want = game.scan[size_t(kRiverFirstLine + k)].bankColour;
 				if (w != rrts::cramWord(want)) {
@@ -346,19 +366,27 @@ int main(int argc, char **argv) {
 			if (++errors >= 2) return 1;
 			game.loadFromRam(mine);   // go on from the Z80's state
 		}
+		const long long beforeApply = comp->tickTotal;
 		if (!runTo(applyHook)) { std::printf("frame %d: the program never got to apply_done\n", f); return 1; }
+		if (std::getenv("TSTIME") && std::abs(f - std::atoi(std::getenv("TSTIME"))) <= 2)
+			std::printf("frame %d: work %lld, then to apply_done %lld\n", f, applyTick >= 0 ? beforeApply - applyTick : 0, comp->tickTotal - beforeApply);
 		applyTick = comp->tickTotal;
-		applySwaps.push_back(bufSwaps);
+		applySwaps.push_back(bufSwaps);   // (one machine's frame a frame: else late)
+		if (applySwaps.size() > 1 && applySwaps.back() - applySwaps[applySwaps.size() - 2] > 1 && lateShown++ < 5)
+			std::printf("frame %d: late (its apply %d of the machine's frames after the last)\n", f, applySwaps.back() - applySwaps[applySwaps.size() - 2]);
 	}
-	std::printf("%d frames took %d of the machine's (%s)\n", frames, bufSwaps - swaps0, bufSwaps - swaps0 > frames + 16 ? "late" : "in time; the start takes a few");
+	std::printf("%d frames: %d late (an apply more than one machine's frame after the one before); the start took %d of the machine's\n",
+		frames, lateShown, swapsFirst - swaps0);
 	std::printf("a frame's work: %lld ticks on average, %lld at most (frame %d), of %lld a frame\n",
 		frames > 1 ? workSum / (frames - 1) : 0, workMax, workMaxFrame, (comp->tickTotal - tick0) / std::max(1, bufSwaps - swaps0));
 	std::printf("%d frames compared: %s\n", frames, errors ? "with differences" : "the same");
 
 	// The last frame went live at the apply just run; the frame after shows it. The program
-	// stops there (JR $ at apply_done).
-	ram[kCodePage * 0x4000 + (applyHook - 0x8000)] = 0x18;
-	ram[kCodePage * 0x4000 + (applyHook - 0x8000) + 1] = 0xFE;
+	// stops when its panel is drawn (JR $ at panel_done).
+	const uint16_t panelDone = symbol(dir, "panel_done");   // (after the panel's characters)
+	runTo(panelDone);
+	ram[kCodePage * 0x4000 + (panelDone - 0x8000)] = 0x18;
+	ram[kCodePage * 0x4000 + (panelDone - 0x8000) + 1] = 0xFE;
 	for (int i = 0; i < 2; i++) {
 		const int swaps = bufSwaps;
 		while (bufSwaps == swaps) compExec(comp);
@@ -391,7 +419,7 @@ int main(int argc, char **argv) {
 		for (int x = 0; x < 320; x++) {
 			uint8_t want[3] = {0, 0, 0};
 			const int r = y - kRiverTop;
-			if (r >= 0 && r < kRiverLines) rrts::cramRgb(rrts::cramWord(rows[size_t(r) * 320 + size_t(x)]), want);
+			if (r >= 0 && r < kPictureLines) rrts::cramRgb(rrts::cramWord(rows[size_t(r) * 320 + size_t(x)]), want);
 			for (int h = 0; h < 2; h++) {
 				const uint8_t *p = pixel(x, y) + 4 * h;
 				if (p[0] != want[0] || p[1] != want[1] || p[2] != want[2])
@@ -416,7 +444,7 @@ int main(int argc, char **argv) {
 				for (int x = 0; x < 320; x++) {
 					uint8_t rgb[3] = {0, 0, 0};
 					const int r = y - kRiverTop;
-					if (r >= 0 && r < kRiverLines) rrts::cramRgb(rrts::cramWord(rows[size_t(r) * 320 + size_t(x)]), rgb);
+					if (r >= 0 && r < kPictureLines) rrts::cramRgb(rrts::cramWord(rows[size_t(r) * 320 + size_t(x)]), rgb);
 					std::fwrite(rgb, 1, 3, o);
 				}
 			std::fclose(o);

@@ -70,6 +70,8 @@ SYSCONFIG	equ $20AF
 MEMCONFIG	equ $21AF
 HSINT		equ $22AF
 VSINTL		equ $23AF
+GXOFFSL		equ $02AF
+GXOFFSH		equ $03AF
 VSINTH		equ $24AF
 DMALEN		equ $26AF
 DMACTRL		equ $27AF
@@ -91,17 +93,18 @@ VID_PAGE	equ 32			; (VPAGE: a multiple of 16) 16 pages, 512 lines
 L2_PAGES	equ 2			; the picture cleared in two halves (DMA, clear_layer2_page)
 RIVER_LINES	equ 160
 RIVER_TOP	equ 24			; the screen's row of the river's top line (of 240)
-MASK_TOP	equ RIVER_TOP / 8	; the tile rows above the river,
-MASK_BOTTOM	equ (RIVER_TOP + RIVER_LINES) / 8	; the first below it
 	assert RIVER_TOP % 8 == 0 && (RIVER_TOP + RIVER_LINES) % 8 == 0
-MASK_TILE	equ $3001		; tile 1, its colour (dots 1) $31: black
 ; The frame INT's lines (VSINT): line 0 is the one after the last of the 288 the border
 ; frame has; the 240 rows start 56 lines on (32 to the border's top, 24 more to the rows).
 ; Each INT comes at the right border of the line before the one it is for (HSINT), so its
 ; colour is there before that line's dots.
 INT_X		equ 208			; HSINT: 416 dots from the line's blanking (x 384 + 32)
 ROW_LINE	equ 56 - 1		; VSINT for screen row r: ROW_LINE + r
-FRAME_LINE	equ ROW_LINE + RIVER_TOP + RIVER_LINES + 2	; the frame's work starts: below
+FRAME_LINE	equ ROW_LINE + 241		; the frame's work starts: below the panel (9 bits)
+EV_CRAM		equ 0			; the INT's events: colour 1's CRAM word,
+EV_PANEL	equ 1			; the panel's picture from its row (VPAGE, GYOFFS, GFXOVR),
+EV_GX		equ 2			; GXOFFS,
+EV_END		equ $FF			; the frame's INT after them
 					; the river
 SGPAGE_REG	equ $19AF
 CRAM_SHADOW	equ $E000		; the FM window's 512 bytes of CRAM, then the SFILE's 512
@@ -185,6 +188,7 @@ start:
 	call init_video
 	call obj_pics			; the sprites' pictures
 	call pl_pics
+	call panel_init			; the panel: its character sets, colours, sprites
 	ld hl,(rnd_init)
 	ld (rnd_state),hl
 	ld a,(rnd_init + 2)
@@ -221,9 +225,8 @@ restart:
 	ld hl,ev_none
 	ld (ev_ptr),hl
 	ld (ev_show),hl
-	ld bc,VSINTL
-	ld a,FRAME_LINE
-	out (c),a
+	ld hl,FRAME_LINE
+	call vsint_set
 	ei
 	call start_attract		; frame 0: the attract mode starts, its first line
 main_frame:
@@ -263,6 +266,8 @@ frame_done:
 	call wait_frame
 	call apply
 apply_done:
+	call panel_draw			; the panel's characters (after the INT's events are set:
+panel_done:				; it may take a while)
 	jp main_frame
 
 ; The frame INT below the river (frame_flag, irq)
@@ -276,18 +281,22 @@ wait_frame:
 	ld (frame_flag),a
 	ret
 
-; The frame INT and the bank's colour changes: each event (ev_ptr) its VSINT line, then the
-; CRAM word of colour 1; a line of 0 ends them (the frame INT, at FRAME_LINE).
+; The frame INT and the events of the frame (ev_ptr): each its kind, its VSINT line (2 bytes),
+; its data (2): EV_CRAM colour 1's CRAM word, EV_PANEL the panel's picture from the next row
+; (VPANEL, its line 0, the bitmap over the tiles and sprites), EV_GX GXOFFS; EV_END: the
+; frame's INT (FRAME_LINE). Events on the same line are taken together.
 irq:
 	push af
 	push bc
 	push hl
-	ld hl,(ev_ptr)
+.ev	ld hl,(ev_ptr)
 	ld a,(hl)
 	or a
-	jr z,.frame
+	jr nz,.other
+	inc hl				; EV_CRAM: CRAM through the FM window
 	inc hl
-	ld bc,FMADDR			; CRAM through the FM window
+	inc hl
+	ld bc,FMADDR
 	ld a,$10 | high CRAM_SHADOW >> 4
 	out (c),a
 	ld a,(hl)
@@ -298,13 +307,57 @@ irq:
 	xor a
 	out (c),a
 	inc hl
-	ld (ev_ptr),hl
-	ld a,(hl)			; the next event's line, or the frame's
-	or a
-	jr nz,1F
-	ld a,FRAME_LINE
-1:	ld bc,VSINTL
+	jr .next
+.other	inc a
+	jr z,.frame
+	dec a
+	dec a
+	jr nz,.gx
+	ld bc,VPAGE			; EV_PANEL
+	ld a,VPANEL
 	out (c),a
+	ld bc,GYOFFSL
+	xor a
+	out (c),a
+	inc b
+	out (c),a
+	ld bc,VCONFIG
+	ld a,$8A
+	out (c),a
+	ld bc,5
+	add hl,bc
+	jr .next
+.gx	inc hl				; EV_GX
+	inc hl
+	inc hl
+	ld bc,GXOFFSL
+	ld a,(hl)
+	out (c),a
+	inc hl
+	inc b
+	ld a,(hl)
+	out (c),a
+	inc hl
+.next	ld (ev_ptr),hl
+	ld a,(hl)			; the next event's line, or the frame's
+	cp EV_END
+	jr z,.last
+	inc hl
+	ld a,(ev_line)
+	cp (hl)
+	jr nz,1F
+	inc hl
+	ld a,(ev_line + 1)
+	cp (hl)
+	jr z,.ev			; (the same line: now)
+	dec hl
+1:	ld a,(hl)
+	inc hl
+	ld h,(hl)
+	ld l,a
+	jr 2F
+.last	ld hl,FRAME_LINE
+2:	call vsint_set
 	pop hl
 	pop bc
 	pop af
@@ -318,15 +371,40 @@ irq:
 	ei
 	ret
 
+; The frame INT at line HL (9 bits): VSINT, ev_line
+vsint_set:
+	ld (ev_line),hl
+	ld bc,VSINTL
+	out (c),l
+	inc b
+	ld a,h
+	and 1
+	out (c),a
+	ret
+
 ; At the frame's start (below the river): the scroll, the playfield's colours, the bank's
 ; changes for the frame to come; all black while the picture is being cleared (from the
 ; reset's second frame)
 apply:
-	ld hl,(show_scroll)
-	ld bc,GYOFFSL
+	ld hl,(show_scroll)		; the river's picture again from the top, the panel's (its
+	ld bc,GYOFFSL			; INT's) after it
 	out (c),l
 	inc b
 	out (c),h
+	ld bc,VPAGE
+	ld a,VID_PAGE
+	out (c),a
+	ld bc,VCONFIG
+	ld a,$82
+	out (c),a
+	ld bc,GXOFFSL
+	xor a
+	out (c),a
+	inc b
+	out (c),a
+	call panel_frame
+	ld hl,(pf_gx)			; the panel's events: its picture, the scrolling line's X
+	ld (ev_panel + 8),hl
 	ld bc,FMADDR			; CRAM and the SFILE through the FM window
 	ld a,$10 | high CRAM_SHADOW >> 4
 	out (c),a
@@ -364,7 +442,7 @@ apply:
 	djnz 1B
 	ld bc,FMADDR
 	out (c),a
-	ld hl,ev_none + 2		; no changes: the frame INT only
+	ld hl,ev_panel			; no changes: the panel's events only
 	jr .events
 .shown	ld h,high palette_lo
 	ld a,(show_edge)
@@ -388,18 +466,28 @@ apply:
 	inc hl
 	ld a,(hl)
 	ld (CRAM_SHADOW + 3),a
-	inc hl
 	ld bc,FMADDR
 	xor a
 	out (c),a
+	ld hl,ev_panel			; the panel's after the bank's changes
+	ld de,(ev_tail)
+	ld bc,EV_PANEL_SIZE
+	ldir
+	ld hl,(ev_built)
+	inc hl
+	inc hl
 .events	di
 	ld (ev_ptr),hl
 	ld a,(hl)
-	or a
+	cp EV_END
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ex de,hl
 	jr nz,1F
-	ld a,FRAME_LINE
-1:	ld bc,VSINTL
-	out (c),a
+	ld hl,FRAME_LINE
+1:	call vsint_set
 	ei
 	ld hl,(ev_built)		; the other buffer for the next list
 	ld (ev_show),hl
@@ -420,8 +508,14 @@ sfile_put:
 	ld c,a
 	ld b,0
 	ldir
-1:	ld hl,sf_leaps
-	ld bc,2 * SPR_SIZE
+1:	ld hl,sf_leaps			; S0's end, S1 (the panel's sprites), its end
+	ld bc,SPR_SIZE
+	ldir
+	ld hl,spr_s1
+	ld bc,3 * SPR_SIZE
+	ldir
+	ld hl,sf_leaps
+	ld bc,SPR_SIZE
 	ldir
 	ld hl,(sf_end)			; DE: this frame's end; the rest of last frame's cleared
 	ld (sf_end),de
@@ -440,11 +534,11 @@ sfile_put:
 	jr nz,.clr
 	ret
 sf_leaps:
-	db 0, $40, 0, 0, 0, 0		; S0's end
-	db 0, $40, 0, 0, 0, 0		; S1's
+	db 0, $40, 0, 0, 0, 0		; an end (LEAP)
 
 ; The bank's colour by line (as the Next's build_copper: from ds_bank_ev): at ev_built the
-; colour at the river's top (a CRAM word), then the changes (VSINT line, CRAM word), 0 after
+; colour at the river's top (a CRAM word), then the changes (EV_CRAM events; apply puts the
+; panel's after them, ev_tail)
 build_events:
 	ld hl,ev_a			; the buffer the INTs are not reading
 	ld de,(ev_show)
@@ -480,9 +574,13 @@ build_events:
 	cp b
 	jr z,.same
 	ld b,a
+	ld (ix + 0),EV_CRAM
 	ld a,e
 	add a,ROW_LINE + RIVER_TOP - RIVER_FIRST
-	ld (ix + 0),a
+	ld (ix + 1),a
+	ld (ix + 2),0
+	inc ix
+	inc ix
 	inc ix
 	call .word
 .same	pop af
@@ -495,7 +593,8 @@ build_events:
 	inc hl
 	dec d
 	jr .seg
-.end	ld (ix + 0),0
+.end	ld (ev_tail),ix			; (apply puts the panel's events there)
+	ld (ix + 0),EV_END
 	ret
 .word	push hl				; the CRAM word of colour C at IX, IX on
 	ld h,high palette_lo
@@ -693,8 +792,8 @@ tv_setup:
 	ld (rnd_cols),hl
 	jp rnd_tables			; random_step's tables for the standard
 
-; The picture: 256 colours, 320x240, from VID_PAGE; tile layer 0 the black above and below
-; the river (tile 1 in the map's rows outside it); the frame INT; the colours
+; The picture: 256 colours, 320x240, from VID_PAGE; tile layer 0 the black above the river
+; and the panel's grey and black below it (panel_ts.asm); the frame INT; the colours
 init_video:
 	ld bc,VPAGE
 	ld a,VID_PAGE
@@ -713,42 +812,41 @@ init_video:
 	ld bc,$3FFF
 	ld (hl),0
 	ldir
-	ld hl,$4000			; the map's rows (256 bytes: layer 0's 64 entries first)
-	ld b,30
-	ld c,0
-.row	ld a,c
-	cp MASK_TOP
-	jr c,.mask
-	cp MASK_BOTTOM
-	jr c,.next
-.mask	push bc
+	ld hl,$4000			; the map's rows (256 bytes: layer 0's 64 entries first):
+	ld de,.map			; their tiles (tile 1 black, 2 the panel's grey, 3 a black
+	ld b,30				; line then grey; colours $31, $32), 0 none
+.row	ld a,(de)
+	inc de
+	or a
+	jr z,.next
+	push bc
 	push hl
 	ld b,40
-.tile	ld (hl),low MASK_TILE
+.tile	ld (hl),a
 	inc l
-	ld (hl),high MASK_TILE
+	ld (hl),$30
 	inc l
 	djnz .tile
 	pop hl
 	pop bc
 .next	inc h
-	inc c
 	djnz .row
-	ld bc,PAGE1			; tile 1's dots: colour 1 (4 bytes a line, 256 bytes a line
-	ld a,TGFX_PAGE			; of the page)
+	ld bc,PAGE1			; the tiles' dots (4 bytes a line, 256 bytes a line of the
+	ld a,TGFX_PAGE			; page): tile N at 4 N
 	out (c),a
 	ld hl,$4000 + 4
 	ld b,8
-.gfx	ld (hl),$11
-	inc l
-	ld (hl),$11
-	inc l
-	ld (hl),$11
-	inc l
-	ld (hl),$11
-	dec l
-	dec l
-	dec l
+.gfx	ld a,$11			; tile 1: colour 1
+	call .four
+	ld a,$22			; tile 2: colour 2
+	call .four
+	ld a,b				; tile 3: line 0 colour 1, the others 2
+	cp 8
+	ld a,$11
+	jr z,1F
+	ld a,$22
+1:	call .four
+	ld l,4
 	inc h
 	djnz .gfx
 	ld bc,PAGE1
@@ -827,12 +925,26 @@ init_video:
 	ld a,1
 	out (c),a
 	ret
+.four	ld (hl),a			; a tile's line: 4 bytes of A
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ret
+.map	db 1, 1, 1			; rows 0-23: black above the river
+	ds 20				; the river
+	db 3, 2, 2, 2, 2		; 184 black, 185-223 grey
+	db 1, 1				; 224-239 black
 
 	include "river_gen.asm"
 	include "render.asm"
 	include "play.asm"
 	include "sound.asm"
 	include "display_objs.asm"
+	include "panel.asm"
 
 	display "page $8000 end: ",$
 	assert $ <= $A000		; the cartridge from there
@@ -843,8 +955,8 @@ init_video:
 	include "display.asm"
 	include "spans.asm"
 	include "display_hits.asm"
-	include "panel.asm"
 	include "sprites.asm"
+	include "panel_ts.asm"
 	ifdef SPG
 	include "load_rom.asm"
 	endif
@@ -872,9 +984,28 @@ span_tmp:	ds 32			; span_line: the edge's runs
 dl_seg:		ds 4 * 19		; draw_line: the line's pieces in order (byte, kind, data 2)
 	assert high dl_seg == high (dl_seg + 4 * 19 - 1)
 rnd_col16:	ds 3			; random_step's bit 16's column
-ev_a:		ds 2 + 3 * 48 + 1	; the bank's colour by line (build_events): two buffers
-ev_b:		ds 2 + 3 * 48 + 1
-ev_none:	db 0, 0, 0
+EV_PANEL_SIZE	equ 11
+ev_a:		ds 2 + 5 * 48 + EV_PANEL_SIZE	; the bank's colour by line (build_events): two
+ev_b:		ds 2 + 5 * 48 + EV_PANEL_SIZE	; buffers
+ev_none:	db EV_END
+ev_panel:	db EV_PANEL			; the panel's events: its picture from its row (latched:
+		dw ROW_LINE + PANEL_ROW - 1, 0	; a line before),
+		db EV_GX			; the scrolling line's X
+		dw ROW_LINE + PANEL_ROW + SCROLL_LINE - 1, 0
+		db EV_END
+ev_tail:	ds 2			; build_events: where its list ends
+ev_line:	ds 2			; the INT's line now
+pf_gx:		ds 2			; panel_frame: the scrolling line's X (GXOFFS)
+pf_ring:	ds 1			; its text's first character in the ring
+pf_pal:		ds 1			; .spr's palette (x 16)
+pc_glyph:	ds 2			; pc_draw: the glyph's next row,
+pc_colour:	ds 1			; its colour,
+pc_x:		ds 2			; its dot,
+pc_line:	ds 1			; its next line
+pp_needle:	ds 1			; the needle's picture, the logo's
+pp_logo3:	ds 1
+pp_logo2:	ds 1
+spr_s1:		ds 3 * SPR_SIZE		; the needle and the logo (S1)
 ev_ptr:		ds 2			; the INT's next event
 ev_show:	ds 2			; the list the frame shown reads
 ev_built:	ds 2			; the one made this frame
@@ -1159,6 +1290,10 @@ line_after_draw: ds 256			; and the cycles left after it is drawn
 edge_lo:	ds 256			; a player's byte: its first dot (bit 7 dot 0),
 edge_hi:	ds 256			; its last dot + 1
 rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
+	display "work page end: ",$
+	assert $ <= $7D00
+	org $7D00			; the OS font, for panel_init (at the start)
+	include "font.inc"
 	assert $ <= $8000
 
 	mmu 2,CODE_PAGE
@@ -1166,11 +1301,16 @@ rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
 	savebin "build/ts_page2.bin",$8000,$4000
 	mmu 3,HIGH_PAGE
 	savebin "build/ts_page6.bin",$C000,$4000
+	mmu 1,WORK_PAGE
+	savebin "build/ts_page5.bin",$7C00,$400
 	else
-	ifdef SPG			; the pages for tools/mkspg.py: $8000-$9FFF, $C000-$FFFF
+	ifdef SPG			; the pages for tools/mkspg.py: $8000-$9FFF, $C000-$FFFF,
+					; $7C00-$7FFF (the font)
 	savebin "build/spg_page2.bin",$8000,$2000
 	mmu 3,HIGH_PAGE
 	savebin "build/spg_page6.bin",$C000,$4000
+	mmu 1,WORK_PAGE
+	savebin "build/spg_page5.bin",$7C00,$400
 	else
 	org $A000			; the cartridge
 	incbin ROM_FILE,0,$2000
