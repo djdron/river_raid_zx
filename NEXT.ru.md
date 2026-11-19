@@ -1,6 +1,6 @@
 # River Raid для ZX Spectrum Next
 
-[English](NEXT.md) | Русский
+[English](NEXT.md) | Русский | [Українська](NEXT.uk.md) | [Deutsch](NEXT.de.md) | [Polski](NEXT.pl.md) | [Italiano](NEXT.it.md) | [Español](NEXT.es.md) | [中文](NEXT.zh.md) | [日本語](NEXT.ja.md)
 
 Часть [River Raid для современных ZX Spectrum](README.ru.md); другой порт: [TS-Conf](tsconf/README.ru.md). Лицензия: [README.ru.md](README.ru.md#лицензия).
 
