@@ -934,6 +934,16 @@ int main(int argc, char **argv) {
 		std::fclose(hf);
 	}
 	std::printf("%d frames: state, screen, bank colours and objects the same\n", frames);
+	if (getenv("NXG4")) {   // a -DG4CHECK build: pk_g4's counters checked by stepping, and its table
+		const uint16_t bad = symbol(argv[2], "g4c_bad"), n = symbol(argv[2], "g4c_n"), tab = symbol(argv[2], "g4_tab"), st = symbol(argv[2], "snd_tables");
+		int tabBad = 0;
+		for (int m = 0; m < 930; m++) {
+			const int k = m % 465;
+			const uint8_t want = readZ80(comp, uint16_t(st + k % 31)) ? (readZ80(comp, uint16_t(st + 0x40 + k % 15)) ? 1 : 0) : 0xFF;
+			if (readZ80(comp, uint16_t(tab + m)) != want) tabBad++;
+		}
+		std::printf("g4: %d of %d calls wrong, %d table bytes wrong\n", readZ80(comp, bad) | (readZ80(comp, uint16_t(bad + 1)) << 8), readZ80(comp, n) | (readZ80(comp, uint16_t(n + 1)) << 8), tabBad);
+	}
 	std::string numbers;
 	for (int n = 0; n < 8; n++)
 		if (gameNumbers >> n & 1) numbers += (numbers.empty() ? "" : ",") + std::to_string(n + 1);

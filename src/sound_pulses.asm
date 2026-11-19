@@ -370,39 +370,51 @@ pk_other:
 	jr .cont
 
 ; The 4-bit counter, a pulse let through by the 5-bit one (AUDC bits 7-5 010: the
-; helicopter's missile), straight: in the other registers B the 5-bit counter, D its step,
-; E the 4-bit counter, C its step, HL the tables (the 17-bit counter's kept on the stack)
-pk_g4:	exx
+; helicopter's missile), by g4_tab: the two counters as one, m (0-464: m mod 31 the 5-bit
+; one, m mod 15 the 4-bit one), a pulse m + s. In the other registers HL g4_tab + m, DE s,
+; BC 465 (the 17-bit counter's kept on the stack; the counters back at the end, pk_done).
+pk_g4:
+	ifdef G4CHECK			; (-DG4CHECK: the counters at the end checked by stepping)
+	ld a,(pk_kh)
+	ld (g4c_kh),a
+	ld a,b
+	ld (g4c_b),a
+	exx
+	ld a,b
+	ld (g4c_p31),a
+	ld a,e
+	ld (g4c_p15),a
+	exx
+	endif
+	exx
 	push hl
 	ld a,c
 	push af
-	ld h,high snd_tables
+	push de				; (D: the 5-bit counter's step)
+	ld c,e				; m
+	call g4_crt
+	ld bc,g4_tab
+	add hl,bc
+	ex (sp),hl
+	ld b,h				; s
 	ld a,(snd_s15)
 	ld c,a
+	call g4_crt
+	ex de,hl
+	pop hl
+	ld bc,465
 	exx
 .loop	exx
-	ld a,b
-	add a,d
-	cp 31
-	jr c,.b
-	sub 31
-.b	ld b,a
-	ld a,e
-	add a,c
-	cp 15
-	jr c,.e
-	sub 15
-.e	ld e,a
-	ld l,b				; let through?
-	ld a,(hl)
-	or a
-	jr z,.none
-	ld a,e
-	add a,$40
-	ld l,a
-	ld a,(hl)
+	add hl,de
+	ld a,h
+	cp high (g4_tab + 465)
+	jr c,.m
+	sbc hl,bc
+.m	ld a,(hl)
 	exx
-	or a
+	inc a
+	jr z,.pos			; not let through
+	dec a
 	jr z,.zero
 	ld a,d
 	or a
@@ -411,8 +423,6 @@ pk_g4:	exx
 .zero	ld a,d
 	or a
 	call nz,pk_off
-	jr .pos
-.none	exx
 .pos	ld a,e				; the next pulse's sample
 .pf	add a,0
 	ld e,a
@@ -433,10 +443,98 @@ pk_g4:	exx
 	or high SND_RING
 	ld h,a
 	jr .cont
-.end	exx
+.end	exx				; the counters from m: B m mod 31, E m mod 15
+	ld bc,-g4_tab
+	add hl,bc
+	ld de,-31
+	ld c,0				; (C: m / 31)
+.d31	ld a,h
+	or a
+	jr nz,.s31
+	ld a,l
+	cp 31
+	jr c,.r31
+.s31	add hl,de
+	inc c
+	jr .d31
+.r31	ld b,l
+	add a,c				; m mod 15 = (m mod 31 + m / 31) mod 15
+.d15	cp 15
+	jr c,.r15
+	sub 15
+	jr .d15
+.r15	ld e,a
 	pop af
 	ld c,a
 	pop hl
+	ifdef G4CHECK
+	push hl
+	push bc
+	push de
+	ld a,(g4c_b)			; K = B + 256 pk_kh pulses (B 0: 256)
+	ld l,a
+	ld a,(g4c_kh)
+	ld h,a
+	ld a,l
+	or a
+	jr nz,.ck
+	inc h
+.ck	ld a,(snd_s15)
+	ld c,a
+	ld a,(snd_s31)
+	ld d,a
+	ld a,(g4c_p31)
+	ld b,a
+	ld a,(g4c_p15)
+	ld e,a
+.cl	ld a,b
+	add a,d
+	cp 31
+	jr c,.c1
+	sub 31
+.c1	ld b,a
+	ld a,e
+	add a,c
+	cp 15
+	jr c,.c2
+	sub 15
+.c2	ld e,a
+	dec hl
+	ld a,h
+	or l
+	jr nz,.cl
+	ld a,b
+	ld c,e
+	pop de
+	cp b
+	jr nz,.bad
+	ld a,c
+	cp e
+	jr z,.ok
+.bad	ld hl,(g4c_bad)
+	inc hl
+	ld (g4c_bad),hl
+.ok	ld hl,(g4c_n)
+	inc hl
+	ld (g4c_n),hl
+	pop bc
+	pop hl
+	endif
 	exx
 	jp pk_done
 
+; HL = the number m (0-464) with m mod 31 = B, m mod 15 = C: B + 31 ((C - B) mod 15) (DE spent)
+g4_crt:	ld a,c
+	sub b
+	add a,30
+.m	cp 15
+	jr c,.t
+	sub 15
+	jr .m
+.t	ld e,a
+	ld d,31
+	mul d,e
+	ld l,b
+	ld h,0
+	add hl,de
+	ret

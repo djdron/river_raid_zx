@@ -819,6 +819,14 @@ AYF_V2		equ 12
 AYF_N3		equ 13
 AYF_V3		equ 14
 ay_q:		ds 3 * AYF		; 2 frames ago, 1, now
+	ifdef G4CHECK
+g4c_kh:		ds 1
+g4c_b:		ds 1
+g4c_p31:	ds 1
+g4c_p15:	ds 1
+g4c_bad:	ds 2			; pk_g4's counters not as stepping gives them
+g4c_n:		ds 2			; its calls
+	endif
 ay_noise:	ds 1			; the noise on the AY (CAPS + 4)
 ayn_keys:	ds 1			; the keys last frame
 ay_mask:	ds 1			; the POKEY channels on the AY (bits 0-3)
@@ -841,6 +849,10 @@ bg_e1:		ds 256			; per span record (line), its two widest gaps between runs
 bg_s2:		ds 256			; of bank pixels (dh_pf; spans.asm)
 bg_e3:		ds 256
 bg_s4:		ds 256
+G4_TAB		equ $FD00 - 465		; pk_g4: per state of the 5-bit and 4-bit counters (m: m mod 31,
+	assert $ <= G4_TAB		; m mod 15), $FF a pulse not let through, else the 4-bit
+	org G4_TAB			; counter's bit; twice, so that a step lands in the second
+g4_tab:		ds 2 * 465		; copy at most (from $FD00 on: 465 back)
 	assert $ < $FF00		; (the stack above)
 
 ; ------------------------------------------------------------------------------------------

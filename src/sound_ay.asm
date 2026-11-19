@@ -77,6 +77,43 @@ sound_init7:
 	ld e,0
 .m31	inc l
 	jr nz,.mod
+	ld hl,g4_tab			; pk_g4's table: B the 5-bit counter, C the 4-bit
+	ld bc,0
+.g4	ld a,b
+	ld (.p5 + 1),a
+.p5	ld a,(snd_tables)
+	or a
+	ld a,$FF
+	jr z,.g4s
+	ld a,c
+	add a,$40
+	ld (.p4 + 1),a
+.p4	ld a,(snd_tables + $40)
+	or a
+	jr z,.g4s
+	ld a,1
+.g4s	ld (hl),a
+	push hl
+	ld de,465
+	add hl,de
+	ld (hl),a
+	pop hl
+	inc hl
+	inc b
+	ld a,b
+	cp 31
+	jr c,.g45
+	ld b,0
+.g45	inc c
+	ld a,c
+	cp 15
+	jr c,.g44
+	ld c,0
+.g44	ld de,-(g4_tab + 465)
+	push hl
+	add hl,de
+	pop hl
+	jr nc,.g4
 	ld hl,dma_program
 	ld bc,(dma_program_end - dma_program) << 8 | $6B
 	otir
