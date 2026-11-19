@@ -113,20 +113,3 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	jr nz,.byte
 	jp .next
 
-; B bytes' columns (8 each) of colour A
-rl_fill:
-	rept 8
-	ld (hl),a
-	inc h
-	endr
-	djnz rl_fill
-	ret
-
-; the next page's first column (A spent)
-rl_next:
-	ld h,$40
-	ld a,(rl_page)
-	inc a
-	ld (rl_page),a
-	nextreg $52,a
-	ret

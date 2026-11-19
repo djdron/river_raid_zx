@@ -8,9 +8,8 @@
 
 ; The new line: its record, from draw_line's pieces (dl_seg), not from the line's bytes:
 ; bytes of one value are one colour, a decoration's row is the bank's (as the C++ port's
-; bankRuns has it, the line without decoration); in an edge's bytes (its piece in the table
-; at $B800) each pixel is looked at, unless a byte's are one colour (span_class). Slot 2 is
-; left with SPAN_PAGE.
+; bankRuns has it, the line without decoration); an edge's runs come ready from its piece
+; (edge_runs, made at the start): no pixel is looked at. Slot 2 is left with SPAN_PAGE.
 span_line:
 	nextreg $52,SPAN_PAGE
 	ld hl,span_top
@@ -52,50 +51,38 @@ span_line:
 	ld a,e
 	call .change
 	jr .next
-.edge	ld a,(iy+4)			; an edge's bytes (its piece's, in the table at $B800), up
-	cp 48				; to the next piece
+.edge	ld a,(iy+4)			; an edge's runs, made at the start from its piece in the
+	cp 48				; table at $B800 (edge_runs), up to the next piece
 	jr c,.e48
 	ld a,48
 .e48	sub (iy+0)
-	ld b,a
-	ld a,(iy+0)
-	ld ixh,a			; (IXH: the byte's place in the line)
-	ld l,(iy+2)
-	ld h,high ROM_EDGE_PIECES
-.byte	ld e,(hl)
-	ld a,(de)
-	cp c
-	jr nz,.mixed
-	inc l
-	inc ixh
-	djnz .byte
-	jr .next
-.mixed	push bc
-	ld a,ixh			; B: the byte's first clock
+	add a,a
+	add a,a
+	ld (.lim + 1),a
+	ld a,(iy+0)			; E: its first clock
 	add a,a
 	add a,a
 	add a,32
-	ld b,a
-	ld a,e
-	rept 4
-	rlca				; the next pixel (bits 7-6)
-	rlca
 	ld e,a
-	and 3
-	cp 3
-	jr nz,$+3
-	xor a
+	ld a,(iy+2)
+	add a,a
+	add a,a
+	add a,a
+	ld l,a
+	ld h,high edge_runs
+.tr	ld a,(hl)			; the clock in the piece (past it, $FF: the end)
+.lim	cp 0
+	jp nc,.next
+	add a,e
+	ld b,a
+	inc l
+	ld a,(hl)			; and its colour
+	inc l
 	cp c
 	call nz,.change
-	inc b
-	ld a,e
-	endr
-	ld a,c
-	pop bc
-	ld c,a
-	inc l
-	inc ixh
-	djnz .byte
+	ld a,l				; (8 pairs: the piece's end)
+	and 15
+	jr nz,.tr
 	jp .next
 .end	ld b,224			; the last run ends at 224
 	xor a
@@ -312,3 +299,70 @@ span_init:
 	ret
 
 
+
+; At the start: each edge piece's runs (edge_runs, for span_line): pixels 0-7 of the
+; piece's two bytes in the table at $B800 (offsets 0-30), a pair (the pixel, its colour, 3
+; the water as 0: span_class) at the first and at each change of colour, $FF after
+edge_runs_init:
+	ld ix,edge_runs
+	ld hl,ROM_EDGE_PIECES		; piece's two bytes, a pair at the first and at each change of
+.ep	ld b,(hl)			; colour (3, the water, as 0: span_class)
+	inc l
+	ld c,(hl)
+	inc l
+	push hl
+	push ix
+	ld de,$FF			; E: the colour before, D: the pixel
+.px	ld a,b
+	rlca
+	rlca
+	and 3
+	cp 3
+	jr nz,1F
+	xor a
+1:	cp e
+	jr z,2F
+	ld e,a
+	ld (ix + 0),d
+	ld (ix + 1),a
+	inc ix
+	inc ix
+2:	sla c
+	rl b
+	sla c
+	rl b
+	inc d
+	ld a,d
+	cp 8
+	jr c,.px
+	ld a,ixl			; (8 pairs: no room for the end, nor need)
+	and 15
+	jr z,3F
+	ld (ix + 0),$FF
+3:	pop ix
+	ld de,16
+	add ix,de
+	pop hl
+	ld a,l
+	cp 32
+	jr c,.ep
+	ret
+
+; render_line's (here: page 4 is full)
+; B bytes' columns (8 each) of colour A
+rl_fill:
+	rept 8
+	ld (hl),a
+	inc h
+	endr
+	djnz rl_fill
+	ret
+
+; the next page's first column (A spent)
+rl_next:
+	ld h,$40
+	ld a,(rl_page)
+	inc a
+	ld (rl_page),a
+	nextreg $52,a
+	ret

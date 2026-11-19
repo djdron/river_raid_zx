@@ -252,6 +252,7 @@ wait_frame:
 	ret
 
 init_tables:
+	call edge_runs_init		; (spans.asm, page 6)
 	ld hl,ov_exp2			; dh_obj's: a byte's dots twice and 4 times as wide
 .ov	ld a,l
 	rrca
@@ -534,7 +535,9 @@ scan_x:		ds 256			; its position,
 scan_size:	ds 256			; its size,
 scan_col:	ds 256			; its colour,
 scan_bank:	ds 256			; and the bank colour
-ds_cover:	ds 256			; display: the other sprites' boxes by scanline
+edge_runs:	ds 256			; span_line: each edge piece's runs (its offset in the table at
+					; $B800, 0-30, x 8: up to 8 pairs, the clock in the piece and its
+					; colour, the first and each change; $FF after)
 ring_lo:	ds 256			; screen memory's 160 lines, in the order they follow
 ring_hi:	ds 256
 sprite_list:	ds 5 * SPRITES_MAX	; the sprites' attributes for apply
@@ -552,7 +555,9 @@ eg_s4:		ds 256
 ; Buffers and variables (page 1)
 	mmu 7,1
 	org $E000
-line_buf:	ds 256			; the generated line (48 bytes; the drawing wraps at 256)
+	ifdef SCREEN_MEMORY		; the generated line's bytes (48; the drawing wraps at 256),
+line_buf:	ds 256			; for screen memory only: the game draws Layer 2 and the
+	endif				; edge's runs from draw_line's pieces (dl_seg)
 bh_obj_x:	ds 1
 bh_obj_size:	ds 1
 bh_island:	ds 1
