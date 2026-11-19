@@ -106,22 +106,22 @@ dh_sprites:
 	inc hl
 	djnz 1B
 	ld ix,dh_desc + DH_TANK
-	ld de,pf_edge
+	ld de,sp_edge
 	ld hl,HIT_TANK_AT_EDGE
 	ld a,1				; (the edge's gaps)
 	call .pf
 	ld ix,dh_desc + DH_PLANE
-	ld de,pf_bank
+	ld de,sp_bank
 	ld hl,HIT_PLANE_BANK
 	ld a,2				; (the bank's)
 	call .pf
 	ld ix,dh_desc + DH_MISSILE
-	ld de,pf_under
+	ld de,sp_under
 	ld hl,HIT_MISSILE_BANK
 	ld a,3				; (both)
 	call .pf
 	ld ix,dh_desc + DH_BULLET
-	ld de,pf_under
+	ld de,sp_under
 	ld hl,HIT_BULLET_BANK
 	ld a,3
 	call .pf
@@ -567,4 +567,93 @@ hit_wide:
 	djnz 3B
 	xor a
 	ld (de),a
+	ret
+
+; ------------------------------------------------------------------------------------------
+; A sprite's row against the playfield of line bm_line, as the C++ port's spanTouches: the
+; row's first and last dots (bits D, position E, size A) against the line's runs of edge
+; pixels (sp_edge: brown), bank pixels (sp_bank: green) or either (sp_under); a run between
+; them is a touch, no dot by dot. A = 1 (NZ): touched, else 0.
+sp_edge:
+	call sp_ends
+	ret z
+	call sp_rec
+	ld a,l				; (the edge's runs: at the record's first byte's offset)
+	add a,(hl)
+	ld l,a
+	jr sp_runs
+sp_bank:
+	call sp_ends
+	ret z
+	call sp_rec
+	inc l				; (the bank's: from its second byte)
+	jr sp_runs
+sp_under:
+	call sp_ends
+	ret z
+	call sp_rec
+	push hl
+	inc l
+	call sp_runs
+	pop hl
+	ret nz
+	ld a,l
+	add a,(hl)
+	ld l,a
+; NZ (A = 1): a run (first clock, end; in order) from HL meets clocks C to B
+sp_runs:
+	ld a,(hl)			; one from past the row's last dot on: none touched
+	cp b
+	jr nc,.no
+	inc l
+	ld a,c				; one that ends before its first dot: the next
+	cp (hl)
+	inc l
+	jr nc,sp_runs
+	ld a,1				; one between: touched
+	or a
+	ret
+.no	xor a
+	ret
+
+; C: the row's first dot's clock, B: past its last (bits D, position E, size A: a dot 1, 2
+; or 4 clocks for GTIA's 0 or 2, 1, 3; edge_lo, edge_hi); Z (A = 0): no dots, or past clock 255
+sp_ends:
+	ld b,a
+	ld a,d
+	or a
+	ret z
+	ld l,a
+	ld h,high edge_lo
+	ld c,(hl)
+	inc h
+	ld a,(hl)
+	bit 0,b
+	jr z,1F
+	add a,a
+	sla c
+	bit 1,b
+	jr z,1F
+	add a,a
+	sla c
+1:	add a,e				; (its end past 255: 255)
+	jr nc,2F
+	ld a,255
+2:	ld b,a
+	ld a,c
+	add a,e
+	jr c,3F
+	ld c,a
+	or 1
+	ret
+3:	xor a
+	ret
+
+; HL: the span record of line bm_line (a river line)
+sp_rec:
+	ld a,(bm_line)
+	sub RIVER_FIRST
+	ld hl,span_top
+	add a,(hl)
+	span_rec
 	ret
