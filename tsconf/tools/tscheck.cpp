@@ -14,7 +14,8 @@
 //   -start N: START pressed in frame N; -bot N: nxcheck's made-up player plays (its choices
 //   from N), -stress: at full speed, always firing
 //   TSBRIDGE=n: every game starts at bridge n; TSGHOST=1: the plane cannot crash, the fuel
-//   stays full; NXGAME=n (the made-up player's): game n, started at once
+//   stays full; NXGAME=n (the made-up player's): game n, started at once; TSSPEED=n: the CPU
+//   at 3.5 (0), 7 (1) or 14 MHz (2, as the program sets it)
 //        tscheck -sna <river_raid.sna> <frames> <frame.ppm>: the snapshot, run for so many frames
 //        tscheck -spg <river_raid.spg> <frames> <frame.ppm> [-sd folder]: the SPG (the folder as
 //                the SD card, a FAT32 volume)
@@ -322,6 +323,15 @@ int main(int argc, char **argv) {
 	code[10] = uint8_t(first >> 8);
 	code[11] = uint8_t(first >> 16);
 	std::memcpy(code.data() + 0x2000, romData.data(), 0x2000);   // the cartridge at $A000
+	if (const char *sp = std::getenv("TSSPEED")) {   // the CPU: 0 3.5, 1 7, 2 14 MHz (start's SYSCONFIG $06)
+		int n = 0;
+		for (size_t i = 0; i + 5 < 0x2000; i++)
+			if (code[i] == 0x01 && code[i + 1] == 0xAF && code[i + 2] == 0x20 && code[i + 3] == 0x3E && code[i + 4] == 0x06) {
+				code[i + 4] = uint8_t(4 | (std::atoi(sp) & 3));
+				n++;
+			}
+		if (n != 1) { std::printf("TSSPEED: %d SYSCONFIG writes found, not 1\n", n); return 2; }
+	}
 
 	Computer *comp = compCreate();
 	comp->vid->drawAll = 1;
@@ -525,23 +535,24 @@ int main(int argc, char **argv) {
 			if ((addr >> 8) == 0x3F) addr = 0x2000;
 		}
 		{   // the bank's colour by line, as the INTs will set it: the top's, then the changes
-			// (EV_CRAM events: kind 0, the VSINT line, the CRAM word)
+			// (the list's header: the palette, the colour; EV_PAL events: kind 0, the palette,
+			// the colour, the VSINT line, a line before the change)
 			const uint16_t list = uint16_t(readZ80(comp, evShow) | readZ80(comp, uint16_t(evShow + 1)) << 8);
 			uint16_t p = list;
-			uint16_t w = uint16_t(readZ80(comp, p) | readZ80(comp, uint16_t(p + 1)) << 8);
+			uint8_t colour = readZ80(comp, uint16_t(p + 1));
 			p = uint16_t(p + 2);
-			auto next = [&] { return readZ80(comp, p) == 0 ? readZ80(comp, uint16_t(p + 1)) | readZ80(comp, uint16_t(p + 2)) << 8 : 0; };
+			auto next = [&] { return readZ80(comp, p) == 0 ? readZ80(comp, uint16_t(p + 3)) | readZ80(comp, uint16_t(p + 4)) << 8 : 0; };
 			int line = next();
 			for (int k = 0; k < kRiverLines; k++) {
-				while (line && line - kRowLine <= kRiverTop + k) {
-					w = uint16_t(readZ80(comp, uint16_t(p + 3)) | readZ80(comp, uint16_t(p + 4)) << 8);
+				while (line && line - (kRowLine - 1) <= kRiverTop + k) {
+					colour = readZ80(comp, uint16_t(p + 2));
 					p = uint16_t(p + 5);
 					line = next();
 				}
 				const uint8_t want = game.scan[size_t(kRiverFirstLine + k)].bankColour;
-				if (w != rrts::cramWord(want)) {
+				if (colour != want) {
 					evBad++;
-					std::snprintf(b, sizeof b, "bank colour, river line %d: CRAM %04X, c++ colour %02X (%04X)", k, w, want, rrts::cramWord(want));
+					std::snprintf(b, sizeof b, "bank colour, river line %d: %02X, c++ %02X", k, colour, want);
 					diffs.push_back(b);
 					break;
 				}

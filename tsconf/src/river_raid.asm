@@ -102,7 +102,8 @@ RIVER_TOP	equ 24			; the screen's row of the river's top line (of 240)
 INT_X		equ 208			; HSINT: 416 dots from the line's blanking (x 384 + 32)
 ROW_LINE	equ 56 - 1		; VSINT for screen row r: ROW_LINE + r
 FRAME_LINE	equ ROW_LINE + 241		; the frame's work starts: below the panel (9 bits)
-EV_CRAM		equ 0			; the INT's events: colour 1's CRAM word,
+EV_PAL		equ 0			; the INT's events: the river's palette (0-7: its bank
+					; colour) from the next line,
 EV_PANEL	equ 1			; the panel's picture from its row (VPAGE, GYOFFS, GFXOVR),
 EV_GX		equ 2			; GXOFFS,
 EV_END		equ $FF			; the frame's INT after them
@@ -287,34 +288,26 @@ wait_frame:
 	ld (frame_flag),a
 	ret
 
-; The frame INT and the events of the frame (ev_ptr): each its kind, its VSINT line (2 bytes),
-; its data (2): EV_CRAM colour 1's CRAM word, EV_PANEL the panel's picture from the next row
+; The frame INT and the events of the frame (ev_ptr): each its kind, its data (2 bytes), its
+; VSINT line (2): EV_PAL the river's palette from the next row, EV_PANEL the panel's picture from it
 ; (VPANEL, its line 0, the bitmap over the tiles and sprites), EV_GX GXOFFS; EV_END: the
 ; frame's INT (FRAME_LINE). Events on the same line are taken together.
 irq:
 	push af
-	push bc
 	push hl
-.ev	ld hl,(ev_ptr)
+	ld hl,(ev_ptr)
 	ld a,(hl)
+	inc hl
 	or a
 	jr nz,.other
-	inc hl				; EV_CRAM: CRAM through the FM window
-	inc hl
-	inc hl
-	ld bc,FMADDR
-	ld a,$10 | high CRAM_SHADOW >> 4
-	out (c),a
+	push bc				; EV_PAL: the river's palette from the next line (PALSEL,
+	ld bc,PALSEL			; latched)
 	ld a,(hl)
-	ld (CRAM_SHADOW + 2),a
-	inc hl
-	ld a,(hl)
-	ld (CRAM_SHADOW + 3),a
-	xor a
 	out (c),a
 	inc hl
-	jr .next
-.other	inc a
+	jr .next3
+.other	push bc
+	inc a
 	jr z,.frame
 	dec a
 	dec a
@@ -330,24 +323,24 @@ irq:
 	ld bc,VCONFIG
 	ld a,$8A
 	out (c),a
-	ld bc,5
-	add hl,bc
-	jr .next
-.gx	inc hl				; EV_GX
 	inc hl
-	inc hl
-	ld bc,GXOFFSL
+	jr .next3
+.gx	ld bc,GXOFFSL			; EV_GX
 	ld a,(hl)
 	out (c),a
 	inc hl
 	inc b
 	ld a,(hl)
 	out (c),a
+.next3	inc hl				; (past its line)
 	inc hl
-.next	ld (ev_ptr),hl
+	inc hl
+	ld (ev_ptr),hl
 	ld a,(hl)			; the next event's line, or the frame's
 	cp EV_END
 	jr z,.last
+	inc hl
+	inc hl
 	inc hl
 	ld a,(ev_line)
 	cp (hl)
@@ -355,24 +348,28 @@ irq:
 	inc hl
 	ld a,(ev_line + 1)
 	cp (hl)
-	jr z,.ev			; (the same line: now)
-	dec hl
+	jr nz,2F
+	pop bc				; (the same line: now)
+	pop hl
+	pop af
+	jp irq
+2:	dec hl
 1:	ld a,(hl)
 	inc hl
 	ld h,(hl)
 	ld l,a
-	jr 2F
+	jr 3F
 .last	ld hl,FRAME_LINE
-2:	call vsint_set
-	pop hl
+3:	call vsint_set
 	pop bc
+	pop hl
 	pop af
 	ei
 	ret
 .frame	ld a,1
 	ld (frame_flag),a
-	pop hl
 	pop bc
+	pop hl
 	pop af
 	ei
 	ret
@@ -400,8 +397,8 @@ apply:
 	ld bc,VPAGE
 	ld a,VID_PAGE
 	out (c),a
-	ld bc,VCONFIG
-	ld a,$82
+	ld bc,VCONFIG			; (16 colours: the river)
+	ld a,$81
 	out (c),a
 	ld bc,GXOFFSL
 	xor a
@@ -410,11 +407,9 @@ apply:
 	out (c),a
 	call panel_frame
 	ld hl,(pf_gx)			; the panel's events: its picture, the scrolling line's X
-	ld (ev_panel + 8),hl
-	ld bc,FMADDR			; CRAM and the SFILE through the FM window
-	ld a,$10 | high CRAM_SHADOW >> 4
-	out (c),a
-	ld a,(shell_colour)		; the shell's colour (and the helicopter missile's)
+	ld (ev_panel + 6),hl
+	ld a,(shell_colour)		; the shell's colour (and the helicopter missile's); CRAM
+					; and the SFILE: the FM window, always on
 	ld l,a
 	ld h,high palette_lo
 	ld a,(hl)
@@ -440,42 +435,24 @@ apply:
 	ld a,(l2_clear)
 	or a
 	jr z,.shown
-	ld hl,CRAM_SHADOW + 2		; colours 1-3 black
-	xor a
-	ld b,6
-1:	ld (hl),a
-	inc hl
-	djnz 1B
-	ld bc,FMADDR
+	ld e,0				; black: the bank (palette of colour 0), the edge and the
+	call pal_get			; water, no changes: the panel's events only
+	ld bc,PALSEL
 	out (c),a
-	ld hl,ev_panel			; no changes: the panel's events only
+	ld de,0
+	call pal_edges
+	ld hl,ev_panel
 	jr .events
-.shown	ld h,high palette_lo
-	ld a,(show_edge)
-	ld l,a
+.shown	ld hl,(ev_built)		; the palette at the top
 	ld a,(hl)
-	ld (CRAM_SHADOW + 4),a
-	inc h
-	ld a,(hl)
-	ld (CRAM_SHADOW + 5),a
-	ld a,(show_water)
-	ld l,a
-	dec h
-	ld a,(hl)
-	ld (CRAM_SHADOW + 6),a
-	inc h
-	ld a,(hl)
-	ld (CRAM_SHADOW + 7),a
-	ld hl,(ev_built)		; the bank's colour at the top, then its changes
-	ld a,(hl)
-	ld (CRAM_SHADOW + 2),a
-	inc hl
-	ld a,(hl)
-	ld (CRAM_SHADOW + 3),a
-	ld bc,FMADDR
-	xor a
+	ld bc,PALSEL
 	out (c),a
-	ld hl,ev_panel			; the panel's after the bank's changes
+	ld a,(show_water)		; the edge and the water this frame
+	ld d,a
+	ld a,(show_edge)
+	ld e,a
+	call pal_edges
+	ld hl,ev_panel			; the panel's events after the bank's changes
 	ld de,(ev_tail)
 	ld bc,EV_PANEL_SIZE
 	ldir
@@ -487,6 +464,8 @@ apply:
 	ld a,(hl)
 	cp EV_END
 	inc hl
+	inc hl
+	inc hl
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
@@ -497,6 +476,78 @@ apply:
 	ei
 	ld hl,(ev_built)		; the other buffer for the next list
 	ld (ev_show),hl
+	ret
+
+; The river's palettes (16 colours, PALSEL 0-7): one for each colour the bank has had, its
+; colour 1 that colour, set once (pal_get); 2 and 3 the edge and the water, set in all of them
+; each frame (pal_edges). A the palette of Atari colour E (a new one: the next; past 8 of them,
+; the last again: never so far)
+pal_get:
+	ld h,high pal_of
+	ld l,e
+	ld a,(hl)
+	or a
+	jr z,1F
+	dec a
+	ret
+1:	ld a,(pal_n)
+	cp 8
+	jr c,2F
+	ld a,7
+	ret
+2:	inc a
+	ld (pal_n),a
+	ld (hl),a
+	dec a
+	push af
+	add a,a				; its colour 1: CRAM_SHADOW + 32 A + 2
+	add a,a
+	add a,a
+	add a,a
+	add a,a
+	add a,2
+	ld l,a
+	ld h,high CRAM_SHADOW
+	ld d,high palette_lo
+	ld a,(de)
+	ld (hl),a
+	inc l
+	inc d
+	ld a,(de)
+	ld (hl),a
+	pop af
+	ret
+
+; Colours 2 and 3 of the palettes made so far: Atari colours E (the edge) and D (the water)
+pal_edges:
+	ld a,(pal_n)
+	or a
+	ret z
+	ld b,a
+	ld hl,CRAM_SHADOW + 4
+	ld c,d
+1:	ld d,high palette_lo
+	ld a,(de)
+	ld (hl),a
+	inc l
+	inc d
+	ld a,(de)
+	ld (hl),a
+	inc l
+	push de
+	ld e,c
+	dec d
+	ld a,(de)
+	ld (hl),a
+	inc l
+	inc d
+	ld a,(de)
+	ld (hl),a
+	pop de
+	ld a,l				; the next palette: 32 bytes on
+	add a,32 - 3
+	ld l,a
+	djnz 1B
 	ret
 
 ; The SFILE (through the FM window): the river's sprites (S0), the end of S0 and of S1 (an
@@ -543,8 +594,9 @@ sf_leaps:
 	db 0, $40, 0, 0, 0, 0		; an end (LEAP)
 
 ; The bank's colour by line (as the Next's build_copper: from ds_bank_ev): at ev_built the
-; colour at the river's top (a CRAM word), then the changes (EV_CRAM events; apply puts the
-; panel's after them, ev_tail)
+; palette at the river's top, then the changes (EV_PAL events: the palette of the colour, the
+; colour; apply puts the panel's events after them, ev_tail). A change is made a line before
+; it, the palette (PALSEL) latched for the next line.
 build_events:
 	ld hl,ev_a			; the buffer the INTs are not reading
 	ld de,(ev_show)
@@ -558,8 +610,17 @@ build_events:
 	pop ix
 	ld a,(colour_bank)
 	ld c,a				; C the colour from line E, B the one set
-	call .word
-	ld b,c
+	ld b,a
+	push de
+	push hl
+	ld e,a
+	call pal_get
+	pop hl
+	pop de
+	ld (ix + 0),a			; (its palette, and the colour for the check)
+	ld (ix + 1),b
+	inc ix
+	inc ix
 	ld e,RIVER_FIRST
 	ld a,(ds_bank_n)
 	ld d,a
@@ -580,15 +641,24 @@ build_events:
 	cp b
 	jr z,.same
 	ld b,a
-	ld (ix + 0),EV_CRAM
+	ld (ix + 0),EV_PAL
+	ld (ix + 2),a			; (its colour, for the check)
+	push de
+	push hl
+	ld e,a
+	call pal_get
+	pop hl
+	pop de
+	ld (ix + 1),a			; its palette
 	ld a,e
-	add a,ROW_LINE + RIVER_TOP - RIVER_FIRST
-	ld (ix + 1),a
-	ld (ix + 2),0
-	inc ix
-	inc ix
-	inc ix
-	call .word
+	add a,ROW_LINE - 1 + RIVER_TOP - RIVER_FIRST
+	ld (ix + 3),a
+	ld (ix + 4),0
+	ld a,c
+	ld bc,5
+	add ix,bc
+	ld b,a
+	ld c,a
 .same	pop af
 	ld e,a
 .set	ld a,d
@@ -602,18 +672,6 @@ build_events:
 .end	ld (ev_tail),ix			; (apply puts the panel's events there)
 	ld (ix + 0),EV_END
 	ret
-.word	push hl				; the CRAM word of colour C at IX, IX on
-	ld h,high palette_lo
-	ld l,c
-	ld a,(hl)
-	ld (ix + 0),a
-	inc h
-	ld a,(hl)
-	ld (ix + 1),a
-	inc ix
-	inc ix
-	pop hl
-	ret
 
 ; The DMA's work done
 dma_wait:
@@ -623,7 +681,7 @@ dma_wait:
 	jr c,.w
 	ret
 
-; Half of the picture cleared (256 lines), while there are any left and the DMA is free
+; Half of the picture cleared (256 lines of 160 bytes), while there are any left and the DMA is free
 ; (frames of the reset)
 clear_layer2_page:
 	ld hl,l2_wait			; (none in the reset's first frame: its picture is still
@@ -642,8 +700,7 @@ clear_layer2_page:
 	ld a,(l2_clear)
 	dec a
 	ld (l2_clear),a
-	add a,a				; 8 pages a half
-	add a,a
+	add a,a				; 4 pages a half
 	add a,a
 	add a,VID_PAGE
 	ld bc,DMADADDRX
@@ -662,14 +719,14 @@ clear_layer2_page:
 	dec b
 	ld a,low dma_zero
 	out (c),a
-	ld bc,DMALEN			; 160 words a line,
-	ld a,159
+	ld bc,DMALEN			; 80 words a line,
+	ld a,79
 	out (c),a
 	ld bc,DMANUM			; 256 lines,
 	ld a,255
 	out (c),a
-	ld bc,DMACTRL			; each from a 512-byte line's start: fill
-	ld a,$1C
+	ld bc,DMACTRL			; each from a 256-byte line's start: fill
+	ld a,$14
 	out (c),a
 	ret
 
@@ -715,7 +772,13 @@ init_tables:
 .pk	rlca
 	rlca
 	ld e,a
-	and 3
+	and 3				; (both nibbles: the 16-colour mode's two dots)
+	ld d,a
+	rlca
+	rlca
+	rlca
+	rlca
+	or d
 	ld (hl),a
 	ld a,e
 	inc h
@@ -804,8 +867,8 @@ init_video:
 	ld bc,VPAGE
 	ld a,VID_PAGE
 	out (c),a
-	ld bc,VCONFIG			; 256 colours, 320x240
-	ld a,$82
+	ld bc,VCONFIG			; 16 colours, 320x240
+	ld a,$81
 	out (c),a
 	ld bc,PALSEL
 	xor a
@@ -820,7 +883,7 @@ init_video:
 	ldir
 	ld hl,$4000			; the map's rows (256 bytes: layer 0's 64 entries first):
 	ld de,.map			; their tiles (tile 1 black, 2 the panel's grey, 3 a black
-	ld b,30				; line then grey; colours $31, $32), 0 none
+	ld b,30				; line then grey; colours $3E, $3F), 0 none
 .row	ld a,(de)
 	inc de
 	or a
@@ -842,15 +905,15 @@ init_video:
 	out (c),a
 	ld hl,$4000 + 4
 	ld b,8
-.gfx	ld a,$11			; tile 1: colour 1
+.gfx	ld a,$EE			; tile 1: colour 14
 	call .four
-	ld a,$22			; tile 2: colour 2
+	ld a,$FF			; tile 2: colour 15
 	call .four
-	ld a,b				; tile 3: line 0 colour 1, the others 2
+	ld a,b				; tile 3: line 0 colour 14, the others 15
 	cp 8
-	ld a,$11
+	ld a,$EE
 	jr z,1F
-	ld a,$22
+	ld a,$FF
 1:	call .four
 	ld l,4
 	inc h
@@ -904,17 +967,21 @@ init_video:
 	ld bc,TSCONFIG			; tile layer 0 and the sprites on
 	ld a,$A0
 	out (c),a
-	ld bc,FMADDR			; CRAM black (and $31, the tile's)
-	ld a,$10 | high CRAM_SHADOW >> 4
+	ld bc,FMADDR			; the FM window at CRAM_SHADOW, on for good (nothing writes
+	ld a,$10 | high CRAM_SHADOW >> 4	; to $E400-$E4FF, its registers: palette_lo there)
 	out (c),a
-	ld hl,CRAM_SHADOW		; (and the SFILE: no sprite)
+	ld hl,CRAM_SHADOW		; CRAM black, and the SFILE: no sprite
 	ld de,CRAM_SHADOW + 1
 	ld bc,$3FF
 	ld (hl),0
 	ldir
-	ld bc,FMADDR
+	ld hl,pal_of			; no river palette yet
+	ld de,pal_of + 1
+	ld bc,255
+	ld (hl),0
+	ldir
 	xor a
-	out (c),a
+	ld (pal_n),a
 	ld a,TANK_PAL			; the tank's colour: black
 	ld b,1
 	ld e,0
@@ -951,6 +1018,8 @@ init_video:
 	include "sound.asm"
 	include "display_objs.asm"
 	include "panel.asm"
+random_columns:
+	include "random.inc"
 
 	display "page $8000 end: ",$
 	assert $ <= $A000		; the cartridge from there
@@ -966,8 +1035,6 @@ init_video:
 	ifdef SPG
 	include "load_rom.asm"
 	endif
-random_columns:
-	include "random.inc"
 
 	display "page $C000 end: ",$
 	assert $ <= $E000
@@ -994,12 +1061,13 @@ EV_PANEL_SIZE	equ 11
 ev_a:		ds 2 + 5 * 48 + EV_PANEL_SIZE	; the bank's colour by line (build_events): two
 ev_b:		ds 2 + 5 * 48 + EV_PANEL_SIZE	; buffers
 ev_none:	db EV_END
-ev_panel:	db EV_PANEL			; the panel's events: its picture from its row (latched:
-		dw ROW_LINE + PANEL_ROW - 1, 0	; a line before),
+ev_panel:	db EV_PANEL			; the panel's events (kind, data, VSINT line): its
+		dw 0, ROW_LINE + PANEL_ROW - 1	; picture from its row (latched: a line before),
 		db EV_GX			; the scrolling line's X
-		dw ROW_LINE + PANEL_ROW + SCROLL_LINE - 1, 0
+		dw 0, ROW_LINE + PANEL_ROW + SCROLL_LINE - 1
 		db EV_END
 ev_tail:	ds 2			; build_events: where its list ends
+pal_n:		ds 1			; the river's palettes made (pal_get)
 ev_line:	ds 2			; the INT's line now
 pf_gx:		ds 2			; panel_frame: the scrolling line's X (GXOFFS)
 pf_ring:	ds 1			; its text's first character in the ring
@@ -1008,6 +1076,7 @@ pc_glyph:	ds 2			; pc_draw: the glyph's next row,
 pc_colour:	ds 1			; its colour,
 pc_x:		ds 2			; its dot,
 pc_line:	ds 1			; its next line
+pc_src:		ds 1			; pc_put: the source's address, its low byte
 pp_needle:	ds 1			; the needle's picture, the logo's
 pp_logo3:	ds 1
 pp_logo2:	ds 1
@@ -1173,6 +1242,8 @@ ds_edge_skip:	ds 1
 sb_count:	ds 1
 pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
 dh_desc:	ds 5 * DH_SIZE		; the sprites
+	align 256
+pal_of:		ds 256			; pal_get: the palette of each Atari colour + 1 (0 none yet)
 ; the sprites (sprites.asm)
 	align 256
 obj_head:	ds 256			; obj_lookup: by the shape byte's address, its first entry + 1

@@ -1,7 +1,7 @@
 # River Raid for TS-Conf (ZX Evolution / Pentevo), its own build, apart from the Next's.
 # Uses the repository's deps/ (make deps at the top: sjasmplus, the C++ port, Xpeccy+).
 #
-# make            build/river_raid.spg: the viewer (the attract mode) for Wild Commander; it
+# make            build/river_raid.spg: the game for Wild Commander; it
 #                 reads River_Raid.rom from the SD card itself (anywhere on it)
 # make sna        build/river_raid.sna: a 128K snapshot with your ROM in (../rom/River_Raid.rom)
 # make check      runs it on Xpeccy+'s TSConf core and compares it with the C++ port (needs

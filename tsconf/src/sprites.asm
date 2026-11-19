@@ -722,10 +722,7 @@ cram_set:
 	ld h,0
 	add hl,hl
 	ld bc,CRAM_SHADOW
-	add hl,bc
-	ld bc,FMADDR
-	ld a,$10 | high CRAM_SHADOW >> 4
-	out (c),a
+	add hl,bc			; (the FM window is always on)
 	ld b,high palette_lo
 	ld c,e
 	ld a,(bc)
@@ -734,9 +731,6 @@ cram_set:
 	inc b
 	ld a,(bc)
 	ld (hl),a
-	ld bc,FMADDR
-	xor a
-	out (c),a
 	pop hl
 	pop bc
 	ret

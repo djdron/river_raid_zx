@@ -5,7 +5,7 @@
 ; over the tiles and sprites (GFXOVR, its holes, dots of 0, showing them):
 ; - the characters (the panel's 3 rows, the scrolling line) are its dots: colours 4-7 the
 ;   panel's PF0-PF3, 8 the scrolling line's; the rest holes;
-; - under them tile layer 0: the panel's grey (CRAM $32) on rows 185-223, black ($31) on the
+; - under them tile layer 0: the panel's grey (CRAM $3F) on rows 185-223, black ($3E) on the
 ;   others; it hides the river's sprites (S0) there;
 ; - the fuel gauge's needle and the rainbow logo: sprites over the tiles (S1).
 ; The scrolling line is a ring of 32 characters across the picture's 512 dots, shown from
@@ -18,8 +18,9 @@ NEEDLE_ROW	equ $CC + 7 - 8 + 4	; the needle's first row (C++ $CB)
 LOGO_ROW	equ 227			; the logo's
 NEEDLE_PAL	equ 11			; CRAM groups: the needle (1),
 LOGO_PAL	equ 12			; the logo's rows (1-7)
-GREY_ROW	equ PANEL_ROW + 1	; the grey: rows 185-223
-GREY_END	equ 224
+GLYPHS		equ 64			; the characters drawn once (pc_put copies them by the DMA):
+					; the picture's lines 64-79 the scrolling line's (colour 8),
+					; 80-143 the panel's in colours 4-7; 32 a line of 8 lines
 
 ; At the start: the two character sets into the Atari's RAM where the game builds them at
 ; power-on (A0FB-A143): the scrolling line's at $0600, the panel's at $0800
@@ -85,12 +86,12 @@ panel_init:
 	ld a,b
 	cp 8
 	jr c,.lc
-	ld a,3
-	ld b,1
+	ld a,3				; (palette 3's colours 14 and 15: the river's palettes use
+	ld b,14				; 0-3)
 	ld e,$00
 	call cram_set
 	ld a,3
-	ld b,2
+	ld b,15
 	ld e,$06
 	call cram_set
 	; the sprites' pictures: the needle (missile 1: 2 colour clocks, 10 rows), the logo's
@@ -188,6 +189,33 @@ panel_init:
 	ld bc,PAGE1
 	ld a,WORK_PAGE
 	out (c),a
+	ld c,0				; the characters, drawn once: the scrolling line's,
+.gl	push bc
+	ld a,c
+	ld d,$06
+	ld b,8
+	call pc_bank
+	call pc_draw
+	pop bc
+	push bc
+	ld a,4				; the panel's in its 4 colours
+.gp	push af
+	ld b,a
+	ld a,c
+	ld d,$08
+	call pc_bank
+	call pc_draw
+	pop af
+	pop bc
+	push bc
+	inc a
+	cp 8
+	jr c,.gp
+	pop bc
+	inc c
+	ld a,c
+	cp 64
+	jr c,.gl
 	ld a,$FF			; the scrolling line: all of it written at the first frame
 	ld (pf_ring),a
 	ld a,60				; and the panel
@@ -406,7 +434,7 @@ panel_frame:
 	ld b,a
 	ld a,c
 	ld d,$08			; the panel's set
-	jr pc_draw
+	jr pc_put
 .rows	db 6, 18, 26
 
 ; character t = HL of the scrolling line ($B800 + t) at the ring's dot 16 t mod 512
@@ -426,7 +454,109 @@ panel_frame:
 	ld b,8				; colour 8
 	ld a,c
 	ld d,$06			; the scrolling line's set
-	; (on into pc_draw)
+	jr pc_put
+
+; Where character A (bits 5-0) of the set at D x 256, colour B, was drawn once: line E, dot
+; HL (A, B, D kept)
+pc_bank:
+	push af
+	and $3F
+	ld e,a				; x: 16 x (A mod 32)
+	and $1F
+	ld l,a
+	ld h,0
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	ld a,e				; the line: 64 (the scrolling line's) or 80 + 16 x (B - 4)
+	and $20				; (the panel's), + 8 for 32-63
+	rrca
+	rrca
+	ld e,a
+	ld a,d
+	cp $06
+	ld a,64
+	jr z,1F
+	ld a,b
+	sub 4
+	add a,a
+	add a,a
+	add a,a
+	add a,a
+	add a,80
+1:	add a,e
+	ld e,a
+	pop af
+	ret
+
+; Character A of the set at D x 256 in colour B into the panel's picture at line E, dot HL
+; (from -8: the dots left of 0 not put), copied by the DMA from where it was drawn once
+; (pc_bank); by pc_draw while the DMA is busy (a reset's clearing)
+pc_put:
+	push bc
+	ld bc,DMACTRL
+	in c,(c)
+	bit 7,c
+	pop bc
+	jr nz,pc_draw
+	push hl
+	push de
+	call pc_bank			; the source: line E, dot HL
+	ld a,e
+	call pc_adr
+	ld bc,DMASADDRX
+	call pc_reg
+	pop de
+	pop hl
+	ld bc,7				; 8 words a line (16 dots); from -8: 4, from dot 8 of it
+	bit 7,h
+	jr z,1F
+	ld bc,DMASADDRL			; (the source's address: 8 bytes on)
+	ld a,(pc_src)
+	add a,8
+	out (c),a
+	ld hl,0
+	ld bc,3
+1:	push bc
+	ld a,e
+	call pc_adr
+	ld bc,DMADADDRX
+	call pc_reg
+	pop bc
+	ld a,c
+	ld bc,DMALEN
+	out (c),a
+	ld bc,DMANUM			; 8 lines
+	ld a,7
+	out (c),a
+	ld bc,DMACTRL			; RAM to RAM, both by lines of 512 bytes
+	ld a,$39
+	out (c),a
+	ret
+; the panel's picture's line A, dot HL: its page (A) and address in it (HL)
+pc_adr:	push af
+	and 31
+	add a,a
+	add a,h
+	ld h,a
+	pop af
+	rlca
+	rlca
+	rlca
+	and 7
+	add a,VPANEL
+	ret
+; a DMA address: page A, address HL to the registers from BC (X) down (L kept in pc_src)
+pc_reg:	out (c),a
+	dec b
+	ld a,h
+	out (c),a
+	dec b
+	ld a,l
+	ld (pc_src),a
+	out (c),a
+	ret
 
 ; Character A (bits 5-0) of the set at D x 256 into the panel's picture: line E, dot HL (from
 ; -8: the dots left of 0 not drawn), colour B for its set dots, 0 (a hole) for the others

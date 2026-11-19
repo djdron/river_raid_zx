@@ -1,7 +1,9 @@
-; A generated line as the picture shows it: the 2-bit colour indices of the playfield (0 the
-; background, 1 the bank, 2 the bank edge, 3 the water), a byte a dot, two dots per colour
-; clock, colour clocks WINDOW_FIRST..WINDOW_FIRST + 159 of the 192: 320 bytes at the start of
-; the line's 512. The colours are CRAM's 0-3 (apply; colour 1 by line: the frame INT).
+; A generated line as the picture shows it, in the 16-colour mode: the 2-bit colour indices of
+; the playfield (0 the background, 1 the bank, 2 the bank edge, 3 the water), two dots per
+; colour clock (a byte: both nibbles the index), colour clocks WINDOW_FIRST..WINDOW_FIRST +
+; 159 of the 192: 160 bytes at the start of the line's 256. The colours are those of the
+; palette PALSEL picks for the line (0-7: entries 1-3 its bank, edge and water; apply, and
+; the frame INT a line before a change of the bank's colour).
 
 WINDOW_FIRST	equ 20		; the first colour clock shown (the water never comes nearer)
 
@@ -9,19 +11,17 @@ WINDOW_END	equ WINDOW_FIRST / 4 + 40	; the byte after the last shown
 
 ; By draw_line's pieces (dl_seg): bytes of one value are one colour, 8 dots each; an edge's
 ; bytes (from its piece in the table at $B800) and a decoration's row (from its bitmap)
-; through pix_tab. Into the picture's line HL (0-511, more wraps), through window 1 (put back
-; to WORK_PAGE at the end).
+; through pix_tab (its values both nibbles). Into the picture's line HL (0-511, more wraps),
+; through window 1 (put back to WORK_PAGE at the end).
 render_line:
-	ld a,h				; the page: VID_PAGE + line / 32
+	ld a,h				; the page: VID_PAGE + line / 64
 	and 1
 	ld h,a
 	ld a,l
 	add hl,hl
 	add hl,hl
-	add hl,hl
 	ld e,h
-	and 31				; the line's place in it: (line & 31) x 512
-	add a,a
+	and 63				; the line's place in it: (line & 63) x 256
 	add a,$40
 	ld h,a
 	ld l,0
@@ -65,9 +65,9 @@ render_line:
 	jr nz,.table			; (kind 1: one value, E)
 	ld d,high pix_tab
 	ld a,(de)
-.fill	rept 8
+.fill	rept 4
 	ld (hl),a
-	inc hl
+	inc l
 	endr
 	dec c
 	jr nz,.fill
@@ -85,16 +85,12 @@ render_line:
 	rept 3
 	ld a,(bc)
 	ld (hl),a
-	inc hl
-	ld (hl),a
-	inc hl
+	inc l
 	inc b
 	endr
 	ld a,(bc)
 	ld (hl),a
-	inc hl
-	ld (hl),a
-	inc hl
+	inc l
 	ld a,(rl_count)
 	dec a
 	ld (rl_count),a
