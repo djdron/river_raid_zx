@@ -730,20 +730,23 @@ int main(int argc, char **argv) {
 				for (int c = 0; c < 4; c++) { hist[0][c] = p.audf[c]; hist[0][4 + c] = p.audc[c]; }
 				static const int vol[16] = {0, 8, 10, 12, 13, 13, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15};
 				const uint8_t *h = hist[2];
-				const int chans[3] = {0, 2, 3};
-				aymChip *ay = comp->ts->chipA;
-				for (int k = 0; k < 3; k++) {
-					const int c = chans[k];
+				// each POKEY channel's AY channel: 1 the second chip's A, 3 the first's B, 4 its C
+				aymChip *chips[4] = {comp->ts->chipB, comp->ts->chipC, comp->ts->chipA, comp->ts->chipA};
+				const int slot[4] = {0, 0, 1, 2};
+				for (int c : {0, 2, 3}) {
+					aymChip *ay = chips[c];
+					const int k = slot[c];
 					int n = 0, v = 0;
-					if (f > 2 && ((h[4 + c] & 0xF0) == 0xA0 || (h[4 + c] & 0xF0) == 0xE0) && (h[4 + c] & 15)) {
+					const bool tone = ((h[4 + c] & 0xF0) == 0xA0 || (h[4 + c] & 0xF0) == 0xE0) && (h[4 + c] & 15);
+					if (f > 2 && tone) {
 						const int a = h[c] + 1;
 						n = a == 256 ? (pal ? 884 : 876) : 3 * a + ((a * (pal ? 116 : 108) + 128) >> 8);
 						v = vol[h[4 + c] & 15];
 					}
 					const int zn = ay->reg[2 * k] | ((ay->reg[2 * k + 1] & 15) << 8), zv = ay->reg[8 + k] & 15;
-					if (ayNoise && f > 2 && (h[4 + c] & 0xF0) == 0x80) continue;   // (its noise)
+					if (ayNoise && f > 2 && !tone) continue;   // (all of it on the AY: not only tones)
 					if (zv != v || (v && zn != n)) {
-						std::snprintf(b, sizeof b, "ay %c: period %d volume %d, expected %d %d", 'A' + k, zn, zv, n, v);
+						std::snprintf(b, sizeof b, "ay %d%c: period %d volume %d, expected %d %d", c + 1, 'A' + k, zn, zv, n, v);
 						diffs.push_back(b);
 					}
 				}

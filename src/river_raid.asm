@@ -811,14 +811,11 @@ snd_ticks:	ds 2			; the frame's ticks (4 a sample)
 snd_level:	ds 1			; the level at its start
 pk_d:		ds 1
 pk_k:		ds 1
-AYF		equ 15			; a frame's AY registers (ay_q):
-AYF_N1		equ 9			; the tones: period, volume x 3 (the first AY's A, B, C),
-AYF_MIX1	equ 10			; the first AY's noise period and mixer, the second's and
-AYF_N2		equ 11			; the third's noise period and volume (their channel A)
-AYF_V2		equ 12
-AYF_N3		equ 13
-AYF_V3		equ 14
-ay_q:		ds 3 * AYF		; 2 frames ago, 1, now
+AYR		equ 33			; a frame's AY registers (ay_q): the three chips' 0-10 each
+ay_q:		ds 3 * AYR		; 3 frames' (round: ay_qi now, the next one 2 frames ago)
+ay_qi:		ds 1
+ay_now:		ds 2			; ay_frame: this frame's
+snd_idle:	ds 1			; the ring quiet while all is on the AY
 	ifdef G4CHECK
 g4c_kh:		ds 1
 g4c_b:		ds 1
@@ -827,7 +824,7 @@ g4c_p15:	ds 1
 g4c_bad:	ds 2			; pk_g4's counters not as stepping gives them
 g4c_n:		ds 2			; its calls
 	endif
-ay_noise:	ds 1			; the noise on the AY (CAPS + 4)
+ay_noise:	ds 1			; all the sound on the AY (CAPS + 4), else the pure tones
 ayn_keys:	ds 1			; the keys last frame
 ay_mask:	ds 1			; the POKEY channels on the AY (bits 0-3)
 ay_skip:	ds 1			; (pokey_frame's copy)

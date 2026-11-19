@@ -36,19 +36,9 @@ ay_init:
 	out (c),a
 	xor a
 	ld (ay_mask),a
-	ld a,$FE			; the second and third AY: only channel A's noise
-	call .mix
-	ld a,$FD
-	call .mix
+	ld (ay_qi),a
+	ld (snd_idle),a
 	jp ay_quiet
-.mix	ld bc,$FFFD
-	out (c),a
-	ld a,7
-	out (c),a
-	ld b,$BF
-	ld a,$37
-	out (c),a
-	ret
 
 ; sound_init's part in this page (nothing at $6000-$7FFF touched): the AY, POKEY's tables
 ; into page 1, the steps' tables, the DMA set up (sound_init starts it)

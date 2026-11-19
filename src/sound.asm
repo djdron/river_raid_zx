@@ -348,7 +348,23 @@ pokey_frame:
 	ld (hl),a
 	ldir
 	ret
-.on	call ay_frame			; the pure tones on the AY
+.on	call ay_frame			; the pure tones on the AY, or all of it
+	ld a,(ay_mask)
+	cp $0F
+	jr nz,.dac
+	ld a,(snd_idle)			; all on the AY: the ring quiet once
+	or a
+	ret nz
+	inc a
+	ld (snd_idle),a
+	ld hl,SND_RING
+	ld de,SND_RING + 1
+	ld bc,1023
+	ld (hl),0
+	ldir
+	ret
+.dac	xor a
+	ld (snd_idle),a
 	ld bc,$243B			; the lines left before wait_line (past it: the work, which
 					; starts at wait_line, has ended before the frame's last
 					; line: the rest of the frame and the next one's lines up
