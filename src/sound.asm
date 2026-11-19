@@ -284,6 +284,42 @@ sound_driver:
 	ld (pokey_audc + 3),a
 	ret
 
+; The frame's gain (snd_gain): a level is the volume x 8, unless the channels on the DAC add
+; up to more than 31 (two explosions and the engine's noise: up to ~41 seen), where 8 would
+; take the levels past 255 and the running sum would wrap (a hiss): then the most that keeps
+; them at 255 or below (7, 6, 5 or 4: 60, all four at 15, x 4 = 240)
+snd_gain_set:
+	ld a,(ay_skip)
+	ld c,a
+	ld hl,pokey_audc
+	ld de,$0400			; D the channels, E the sum
+.v	rrc c
+	jr c,.n
+	ld a,(hl)
+	and $0F
+	add a,e
+	ld e,a
+.n	inc hl
+	dec d
+	jr nz,.v
+	ld a,e
+	ld b,8
+	cp 32
+	jr c,.g
+	dec b
+	cp 255 / 7 + 1
+	jr c,.g
+	dec b
+	cp 255 / 6 + 1
+	jr c,.g
+	dec b
+	cp 255 / 5 + 1
+	jr c,.g
+	dec b
+.g	ld a,b
+	ld (snd_gain),a
+	ret
+
 ; RANDOM for the sound: the counter as the game logic's read sees it (only a noise's pitch;
 ; not random_read, which the checks count)
 sound_random:
@@ -482,6 +518,7 @@ pokey_frame:
 	call snd_fill
 	ld a,(ay_mask)			; (those on the AY: not here)
 	ld (ay_skip),a
+	call snd_gain_set
 	ld ix,snd_ch			; the channels
 	ld iy,pokey_audf
 	ld b,4
@@ -493,18 +530,20 @@ pokey_frame:
 	ld a,(iy+4)			; AUDC
 	and $0F
 	jr z,.next			; volume 0: nothing to hear
-	add a,a
-	add a,a
-	ld c,a
+	ld d,a				; C: its level, the volume x the frame's gain
+	ld a,(snd_gain)
+	ld e,a
+	mul d,e
+	ld c,e
 	bit 4,(iy+4)
 	jr nz,.full			; volume only: the volume all the time
 	ld a,(iy+0)
 	cp 5
 	jr nc,.pulses
 	ld a,c				; 5 ticks or less: too high to sample, half the volume
+	srl a
 	jr .level
 .full	ld a,c
-	add a,a
 .level	ld hl,snd_level
 	add a,(hl)
 	ld (hl),a

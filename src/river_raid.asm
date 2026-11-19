@@ -811,6 +811,7 @@ snd_s31:	ds 1			; a pulse's steps of the 5-bit and 4-bit counters
 snd_s15:	ds 1
 snd_ticks:	ds 2			; the frame's ticks (4 a sample)
 snd_level:	ds 1			; the level at its start
+snd_gain:	ds 1			; a volume step's level this frame (8; less when loud)
 pk_d:		ds 1
 pk_k:		ds 1
 AYR		equ 33			; a frame's AY registers (ay_q): the three chips' 0-10 each

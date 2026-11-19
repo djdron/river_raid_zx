@@ -751,11 +751,10 @@ int main(int argc, char **argv) {
 					int mx = 0;
 					for (int c = 0; c < 4; c++)   // (the pure tones on the AY left out)
 						if (c == 1 || ((p.audc[c] & 0xF0) != 0xA0 && (p.audc[c] & 0xF0) != 0xE0)) mx += p.audc[c] & 15;
-					if (mx > 31) {   // past 255 at the gain: the levels wrap
-						static int over = 0;
-						if (over++ < 20) std::printf("frame %d: the DAC's channels add up to %d (31 at most)\n", f, mx);
-					}
-					mx *= 8;   // the gain (pokey_frame)
+					const int gain = mx < 32 ? 8 : mx <= 255 / 7 ? 7 : mx <= 255 / 6 ? 6 : mx <= 255 / 5 ? 5 : 4;
+					if (readZ80(comp, symbol(argv[2], "snd_gain")) != gain)
+						std::printf("frame %d: the gain %d, expected %d (the volumes add up to %d)\n", f, readZ80(comp, symbol(argv[2], "snd_gain")), gain, mx);
+					mx *= gain;   // the frame's gain (snd_gain_set)
 					const int lim = std::max(mx, prevMax);
 					prevMax = mx;
 					int worst = -1;
