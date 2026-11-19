@@ -6,8 +6,10 @@
 ; pixel p is clock 32 + p), in order. Water and the background (colours 3, 0) are never
 ; looked at. (The river has at most 13 runs of the two on a line: 28 bytes.)
 
-; The new line (line_buf): its record. Bytes of one colour, the run's, are passed over
-; (span_class); in the others each pixel is looked at. Slot 2 is left with SPAN_PAGE.
+; The new line (line_buf): its record, from draw_line's pieces (dl_seg): bytes of one value
+; are one colour, a decoration's row is the bank's (as the C++ port's bankRuns has it, the
+; line without decoration); in an edge's bytes each pixel is looked at, unless a byte's are
+; one colour (span_class). Slot 2 is left with SPAN_PAGE.
 span_line:
 	nextreg $52,SPAN_PAGE
 	ld hl,span_top
@@ -19,17 +21,49 @@ span_line:
 	ex de,hl
 	ld hl,span_tmp
 	exx				; DE': where the bank's runs go, HL': the edge's (span_tmp)
-	ld hl,line_buf
+	ld iy,dl_seg
+	ld h,high line_buf
 	ld d,high span_class
 	ld c,0				; C: the colour of the run going on (0 none)
-	ld b,48
+.seg	ld a,(iy+0)
+	cp 48
+	jp nc,.end
+	ld l,a
+	ld a,(iy+1)
+	inc iy
+	inc iy
+	or a
+	jr z,.edge
+	dec a
+	ld e,(hl)			; bytes of one value
+	jr z,.one
+	ld a,(dl_bank_fill)		; a row of decoration: the bank
+	ld e,a
+.one	ld a,(de)
+	cp c
+	jr z,.seg
+	ld e,a
+	ld a,l				; a run starts at its first clock
+	add a,a
+	add a,a
+	add a,32
+	ld b,a
+	ld a,e
+	call .change
+	jr .seg
+.edge	ld a,(iy+0)			; an edge's bytes, up to the next piece
+	cp 48
+	jr c,.e48
+	ld a,48
+.e48	sub l
+	ld b,a
 .byte	ld e,(hl)
 	ld a,(de)
 	cp c
 	jr nz,.mixed
 	inc l
 	djnz .byte
-	jr .end
+	jr .seg
 .mixed	push bc
 	ld a,l				; B: the byte's first clock
 	add a,a
@@ -55,6 +89,7 @@ span_line:
 	ld c,a
 	inc l
 	djnz .byte
+	jp .seg
 .end	ld b,224			; the last run ends at 224
 	xor a
 	call .change
@@ -269,27 +304,4 @@ span_init:
 	djnz .i
 	ret
 
-; line_buf without its decoration (houses, roads): the bank's bytes where it was drawn. The
-; collisions with the bank look at the line this way (the C++ port's bankRuns): without
-; decoration a line is bank, edge, water, edge, bank (an island: twice).
-plain_line:
-	ld a,(dl_deco_n)
-	or a
-	ret z
-	ld b,a
-	ld de,dl_deco
-.deco	ld a,(de)			; from
-	ld l,a
-	inc de
-	ld a,(de)			; bytes
-	inc de
-	ld c,a
-	ld h,high line_buf
-	ld a,(dl_bank_fill)
-.fill	ld (hl),a
-	inc l
-	dec c
-	jr nz,.fill
-	djnz .deco
-	ret
 

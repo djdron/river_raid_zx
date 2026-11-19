@@ -712,7 +712,9 @@ reset:
 	jr z,.pm
 	endif
 	ld (SCREEN_ON),a		; B101: colours off while clearing
+	ifdef SCREEN_MEMORY
 	call clear_screen_memory
+	endif
 	ld a,(tv_pal)			; 13 frames (8 on PAL: a longer frame, fewer of them)
 	or a
 	ld a,13

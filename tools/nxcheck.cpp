@@ -637,8 +637,9 @@ int main(int argc, char **argv) {
 		game.saveToRam(ref);
 		std::vector<std::string> diffs = game.gen.diffWithRam(ram, true);
 		char b[120];
+		static const bool noScreen = std::getenv("NXNOSCREEN") != nullptr;  // a -DNOSCREEN build
 		for (const auto &fd : kGameFields)
-			if (ram[fd.addr] != ref[fd.addr]) {
+			if (ram[fd.addr] != ref[fd.addr] && !(noScreen && !std::strncmp(fd.name, "screenTop", 9))) {
 				std::snprintf(b, sizeof b, "%s $%02X: z80=%02X c++=%02X", fd.name, fd.addr, ram[fd.addr], ref[fd.addr]);
 				diffs.push_back(b);
 			}
@@ -649,7 +650,7 @@ int main(int argc, char **argv) {
 					diffs.push_back(b);
 				}
 		uint16_t addr = uint16_t(ram[0x3F04] | (ram[0x3F05] << 8));
-		for (size_t k = 0; k < game.screen.size() && k < size_t(kRiverLines); k++) {
+		for (size_t k = 0; !noScreen && k < game.screen.size() && k < size_t(kRiverLines); k++) {
 			if (std::memcmp(ram + addr, game.screen[k].data(), rr::kLineBytes)) {
 				std::snprintf(b, sizeof b, "screen line %zu (at $%04X)", k, addr);
 				diffs.push_back(b);

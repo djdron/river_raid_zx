@@ -330,7 +330,8 @@ push_line:
 	TM_COLOUR TM_RIVER
 	call next_line
 line_done:				; the checks look at the generator here
-	ld hl,(SCREEN_TOP)
+	ifdef SCREEN_MEMORY		; screen memory: only the check's build has it (nxcheck
+	ld hl,(SCREEN_TOP)		; compares it with the C++ port's); the picture is Layer 2's
 	ld a,l
 	sub 48
 	ld l,a
@@ -346,14 +347,15 @@ line_done:				; the checks look at the generator here
 .h2	ld (SCREEN_TOP),hl
 	ex de,hl
 	ld hl,line_buf
-	ld bc,48
-	ldir
+	rept 48
+	ldi
+	endr
+	endif
 	ld a,(scroll)
 	dec a
 	ld (scroll),a
 	add a,RIVER_TOP
 	call render_line
-	call plain_line			; the collisions' runs: from the line without decoration
 	call span_line
 	TM_COLOUR TM_LOGIC		; (back to main_loop's)
 	ret

@@ -601,6 +601,12 @@ dl_fill:
 	cp $81
 	ret nc
 	ld a,(DRAW_POS)
+	ld hl,(dl_seg_p)		; a piece of kind 1 from here
+	ld (hl),a
+	inc l
+	ld (hl),1
+	inc l
+	ld (dl_seg_p),hl
 	ld l,a
 	ld h,high line_buf
 .loop	ld (hl),c
@@ -621,6 +627,12 @@ dl_edge:
 	ld e,a
 	ld d,high ROM_EDGE_PIECES
 	ld a,(DRAW_POS)
+	ld hl,(dl_seg_p)		; a piece of kind 0 from here
+	ld (hl),a
+	inc l
+	ld (hl),0
+	inc l
+	ld (dl_seg_p),hl
 	ld l,a
 	ld h,high line_buf
 	ld a,(de)
@@ -644,25 +656,19 @@ dl_bank_edge:
 	add a,$10
 	jr dl_edge
 
-; sub $B01A: a row of the decoration bitmap (where: kept for the line without it, plain_line)
+; sub $B01A: a row of the decoration bitmap
 dl_deco_row:
 	ld a,(DECO_WIDTH)
 	or a
 	ret z
 	ld b,a
-	ld hl,dl_deco_n
-	ld a,(hl)
-	inc (hl)
-	add a,a
-	add a,low dl_deco
-	ld l,a
-	adc a,high dl_deco
-	sub l
-	ld h,a
 	ld a,(DRAW_POS)
+	ld hl,(dl_seg_p)		; a piece of kind 2 from here
 	ld (hl),a
-	inc hl
-	ld (hl),b
+	inc l
+	ld (hl),2
+	inc l
+	ld (dl_seg_p),hl
 	ld de,(DECO_BITMAP)
 	ld a,(DRAW_POS)
 	ld l,a
@@ -685,15 +691,15 @@ edge_index:	macro
 	endm
 
 draw_line:
-	xor a				; no decoration on it yet
-	ld (dl_deco_n),a
-	ld hl,line_buf			; the buffer starts blank
-	ld b,48
-.clear	ld (hl),0
-	inc l
-	djnz .clear
-	xor a
-	ld (DRAW_POS),a
+	ld hl,dl_seg			; no pieces yet
+	ld (dl_seg_p),hl
+	call .line
+	ld hl,(dl_seg_p)		; the end
+	ld (hl),48
+	ret
+.line	xor a
+	ld (DRAW_POS),a			; (no clearing: the runs are drawn one after another from
+					; byte 0, and the right bank goes to byte 48)
 	ld a,(FLASH_LINES)
 	or a
 	ld a,BANK_BYTES

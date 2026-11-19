@@ -25,6 +25,16 @@
 
 	include "vars.inc"
 
+	ifdef TEST			; the Atari's screen memory: the check compares it, the
+	define SCREEN_MEMORY		; beam's display list reads it; the game shows Layer 2
+	endif				; (-DNOSCREEN: the check's build without it, to measure)
+	ifdef BEAM
+	define SCREEN_MEMORY
+	endif
+	ifdef NOSCREEN
+	undefine SCREEN_MEMORY
+	endif
+
 ; T: the border's colour (the fallback colour) for the part of the frame that follows, while
 ; tm_show is on (A and the flags spent). The parts and their colours (Next RRRGGGBB):
 TM_APPLY	equ $F0			; orange: apply (the frame goes live)
@@ -671,8 +681,7 @@ ds_rows:	ds 1
 ds_bank_last:	ds 1
 ds_cmask:	ds 2			; ds_cover_do
 ds_slow:	ds 1			; display: the DLI fell behind this frame
-dl_deco_n:	ds 1			; draw_line: the decoration's rows on the line
-dl_deco:	ds 2 * 4		; (where, bytes)
+dl_seg_p:	ds 2			; draw_line: the next of dl_seg
 ds_ev_next:	ds 1
 DS_BANKS	equ 48
 ds_bank_n:	ds 1
@@ -762,6 +771,10 @@ span_class:	ds 256			; span_line: a byte's colour if its pixels are one, $FF if 
 span_masks:	ds 64			; pf_find: bits i..j of a sprite's byte at 8i + j
 span_tmp:	ds 32			; span_line: the edge's runs
 	assert high span_tmp == high (span_tmp + 31)
+dl_seg:		ds 48			; draw_line: the line's pieces in order, (byte, kind): 0 bytes
+	assert high dl_seg == high (dl_seg + 47)	; to look at (an edge), 1 bytes of one value,
+					; 2 a row of decoration (bank for the collisions); ended by
+					; byte 48 (render_line, span_line)
 	align 256
 snd_tables:	ds 256			; the sound (sound.asm): POKEY's 5-bit counter at the ticks,
 					; its 4-bit one at +$40, a bit's mask at +$80 (sound_init),
