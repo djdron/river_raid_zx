@@ -721,8 +721,10 @@ reset:
 	jr z,.busy
 	ld a,8
 .busy	ld (busy),a
-	ld a,L2_PAGES			; Layer 2 cleared in the frames to come
-	ld (l2_clear),a
+	ld a,L2_PAGES			; Layer 2 cleared in the frames to come: from the next
+	ld (l2_clear),a			; one, while the river's rows are hidden (apply), as the
+	ld a,1				; C++ port's screen goes black at once (this frame still
+	ld (l2_wait),a			; shows the river: the reset came after the display)
 	jp draw_logo_and_needle
 
 ; Screen memory ($2000-$2EFF, $3000-$3EFF) cleared
@@ -757,8 +759,14 @@ clear_screen_memory:
 	jp spans_clear
 
 ; One page of Layer 2 cleared, while there are any left (frames of the reset)
-clear_layer2_page:			; (two)
-	call .page
+clear_layer2_page:			; (two; none in the reset's first frame, l2_wait: its
+	ld hl,l2_wait			; picture is still being shown)
+	ld a,(hl)
+	or a
+	jr z,.two
+	ld (hl),0
+	ret
+.two	call .page
 .page	ld a,(l2_clear)
 	or a
 	ret z

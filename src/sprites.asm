@@ -578,6 +578,29 @@ copper_start_end:
 apply:
 	ld a,(show_scroll)
 	nextreg $17,a
+	ld a,(l2_wait)			; Layer 2 being cleared (from the reset's second frame): its
+	or a				; river rows hidden, its clip window from the panel's row
+	ld a,0
+	jr nz,1F
+	ld a,(l2_clear)
+	or a
+	jr z,1F
+	ld a,1
+1:	ld hl,l2_hidden
+	cp (hl)
+	jr z,2F
+	ld (hl),a
+	or a
+	ld a,RIVER_TOP
+	jr z,3F
+	ld a,RIVER_TOP + RIVER_LINES
+3:	nextreg $1C,%00000001
+	nextreg $18,0
+	nextreg $18,159
+	nextreg $18,a
+	ld a,(l2_clip_y2)
+	nextreg $18,a
+2:
 	ld bc,$303B			; the sprites' attributes from sprite 0
 	xor a
 	out (c),a

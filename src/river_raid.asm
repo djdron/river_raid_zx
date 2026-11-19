@@ -163,6 +163,9 @@ restart:
 	call tv_setup
 	ld a,L2_PAGES			; Layer 2 empty
 	ld (l2_clear),a
+	xor a
+	ld (l2_wait),a
+	ld (l2_hidden),a
 .cl2	call clear_layer2_page
 	ld a,(l2_clear)
 	or a
@@ -414,7 +417,8 @@ tv_setup:
 	ld a,229
 	jr z,.l2
 	ld a,239
-.l2	nextreg $1C,%00000001
+.l2	ld (l2_clip_y2),a
+	nextreg $1C,%00000001
 	nextreg $18,0
 	nextreg $18,159
 	nextreg $18,RIVER_TOP
@@ -599,6 +603,9 @@ game_over_text:	ds 1			; A3B4: "Game over" scrolls past
 busy:		ds 1			; frames of sub $B0F1 still to come
 resume:		ds 1			; what the main loop does after them
 l2_clear:	ds 1			; pages of Layer 2 still to clear
+l2_wait:	ds 1			; the reset's first frame: the clearing waits a frame
+l2_hidden:	ds 1			; the river's rows hidden (Layer 2's clip window, apply)
+l2_clip_y2:	ds 1			; Layer 2's clip window's last row (tv_setup)
 rs_full:	ds 1
 tv_pal:		ds 1			; 1 PAL, 0 NTSC
 tv_toggle:	ds 1			; read_input: CAPS + 1 pressed
