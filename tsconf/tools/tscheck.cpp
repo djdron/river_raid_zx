@@ -10,7 +10,11 @@
 //   - the machine's picture of every frame against the C++ port's of the frame it shows (the
 //     one whose apply came in the machine's frame before it).
 //
-// usage: tscheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N]
+// usage: tscheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-start N | -bot N [-stress]]
+//   -start N: START pressed in frame N; -bot N: nxcheck's made-up player plays (its choices
+//   from N), -stress: at full speed, always firing
+//   TSBRIDGE=n: every game starts at bridge n; TSGHOST=1: the plane cannot crash, the fuel
+//   stays full; NXGAME=n (the made-up player's): game n, started at once
 //        tscheck -sna <river_raid.sna> <frames> <frame.ppm>: the snapshot, run for so many frames
 //        tscheck -spg <river_raid.spg> <frames> <frame.ppm> [-sd folder]: the SPG (the folder as
 //                the SD card, a FAT32 volume)
@@ -107,6 +111,142 @@ const struct { const char *name; uint16_t addr; int size; } kGameArrays[] = {
 	{"highScore", 0x80, 16}, {"highScoreCheck", 0x90, 16}, {"panel", 0x1000, 60},
 };
 
+// A made-up player. In the attract mode (or after a game) it waits a while, sometimes selects
+// another game, then presses START. Flying, it steers towards the middle of the water some
+// lines ahead of the plane, with spells of random steering and speed; it fires half the time;
+// now and then it pauses the game for a while.
+class Bot {
+public:
+	explicit Bot(uint32_t seed) : s_(seed ? seed : 1) {}
+	bool stress = false;              // -stress: full speed, always firing, no pauses
+	rr::Input next(const rr::Game &game) {
+		rr::Input in;
+		const rr::GameState &g = game.g;
+		if (pause_ > 0) {                 // key down, up for a while, down, up
+			pause_--;
+			in.key = pause_ == 60 || pause_ == 1;
+			return in;
+		}
+		if (g.planeState == 0xFF || game.busy()) {
+			// NXGAME=n: game n (7: from bridge 50), selected and started at once
+			if (const char *want = getenv("NXGAME")) {
+				if (game.busy()) return in;
+				if ((g.gameNumber & 7) + 1 != std::atoi(want)) { in.select = true; return in; }
+				in.start = true;
+				return in;
+			}
+			// no plane: wait, maybe select another game, start
+			if (wait_ < 0) wait_ = 30 + int(rnd() % 400);
+			if (wait_ > 0) {
+				wait_--;
+				if (selecting_ > 0) {
+					selecting_--;
+					in.select = true;
+				} else if (wait_ == 20 && rnd() % 3 == 0) {
+					selecting_ = 1 + int(rnd() % 80);
+				}
+				return in;
+			}
+			wait_ = -1;
+			in.start = true;
+			return in;
+		}
+		wait_ = -1;
+		if (!stress && rnd() % 4000 == 0) {
+			pause_ = 62 + int(rnd() % 100);
+			in.key = true;
+			return in;
+		}
+		uint8_t stick = 0x0F;
+		if (!stress && randomFor_ > 0) {  // random steering for a while
+			randomFor_--;
+			stick = randomStick_;
+		} else {
+			if (!stress && rnd() % 400 == 0) {
+				randomFor_ = 5 + int(rnd() % 40);
+				randomStick_ = uint8_t(0x0F & ~(1u << (rnd() % 4)) & ~((rnd() % 3 == 0) ? 1u << (rnd() % 4) : 0));
+			}
+			const int at = g.planeX - 28;     // the plane's middle in the line's pixels
+			const int ahead = 100 + int(rnd() % 40);
+			if (size_t(ahead) < game.screen.size()) {
+				const auto &line = game.screen[size_t(ahead)];
+				auto water = [&](int p) {
+					return p >= 0 && p < rr::kLineBytes * 4 && ((line[size_t(p >> 2)] >> (6 - 2 * (p & 3))) & 3) == 3;
+				};
+				// the run of water nearest to the plane
+				int best = -1, bestDist = 1 << 30;
+				for (int p = 0; p < rr::kLineBytes * 4;) {
+					if (!water(p)) { p++; continue; }
+					int e = p;
+					while (water(e)) e++;
+					const int mid = (p + e) / 2;
+					const int d = std::abs(mid - at) - (e - p) / 4;
+					if (d < bestDist) { bestDist = d; best = mid; }
+					p = e;
+				}
+				if (best >= 0) {
+					if (best < at - 2) stick &= ~0x04;
+					else if (best > at + 2) stick &= ~0x08;
+				}
+			}
+			// an enemy straight ahead: out of its way
+			for (const rr::Slot &o : game.gen.s.slot)
+				if (o.kind >= rr::object::kJet && o.kind < rr::object::kBridge && o.y >= 0x80 && o.y < 0xF0) {
+					const int w = o.size == 1 ? 16 : 8, plane = g.planeX + 4;
+					if (plane > o.x - 6 && plane < o.x + w + 6) {
+						stick = uint8_t((stick | 0x0C) & ~(plane < o.x + w / 2 ? 0x04 : 0x08));
+						break;
+					}
+				}
+			// low on fuel: towards a depot ahead (and not shooting it)
+			depot_ = false;
+			if (g.fuel < 0xA0) {
+				for (const rr::Slot &o : game.gen.s.slot)
+					if (o.kind == rr::object::kFuel && o.y >= 0x98 && o.y < 0xF0) {
+						const int to = o.x + 4, plane = g.planeX + 4;
+						stick = 0x0F;
+						if (to < plane - 1) stick &= ~0x04;
+						else if (to > plane + 1) stick &= ~0x08;
+						depot_ = true;
+						break;
+					}
+			}
+			if (speedFor_ > 0) speedFor_--;
+			else {
+				speedFor_ = 20 + int(rnd() % 120);
+				speed_ = uint8_t(rnd() % 3);
+			}
+			if (stress) speed_ = 1;
+			if (speed_ == 1) stick &= ~0x01;
+			else if (speed_ == 2) stick &= ~0x02;
+		}
+		in.stick[0] = in.stick[1] = stick;
+		const bool fire = stress || (!depot_ && rnd() % 4 != 0);
+		in.trigger[0] = in.trigger[1] = fire;
+		return in;
+	}
+
+private:
+	uint32_t s_;
+	int wait_ = -1, selecting_ = 0, pause_ = 0, randomFor_ = 0, speedFor_ = 0;
+	uint8_t randomStick_ = 0x0F, speed_ = 0;
+	bool depot_ = false;
+	uint32_t rnd() {
+		s_ ^= s_ << 13;
+		s_ ^= s_ >> 17;
+		s_ ^= s_ << 5;
+		return s_;
+	}
+};
+
+void putInput(uint8_t *at, const rr::Input &in) {
+	at[0] = in.stick[0];
+	at[1] = in.stick[1];
+	at[2] = uint8_t((in.trigger[0] ? 1 : 0) | (in.trigger[1] ? 2 : 0));
+	at[3] = uint8_t((in.start ? 1 : 0) | (in.select ? 2 : 0) | (in.option ? 4 : 0));
+	at[4] = in.key ? 1 : 0;
+}
+
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -157,10 +297,14 @@ int main(int argc, char **argv) {
 	}
 	uint32_t seed = 12345;
 	int startAt = -1;   // -start N: START pressed in frame N (a game: the plane flies straight on)
+	uint32_t botSeed = 0;   // -bot N: a made-up player (nxcheck's) plays, its choices from N
+	bool stressBot = false;
 	const char *ppm = nullptr;
 	for (int i = 4; i < argc; i++) {
 		if (!std::strcmp(argv[i], "-seed") && i + 1 < argc) seed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
 		else if (!std::strcmp(argv[i], "-start") && i + 1 < argc) startAt = std::atoi(argv[++i]);
+		else if (!std::strcmp(argv[i], "-bot") && i + 1 < argc) botSeed = uint32_t(std::strtoul(argv[++i], nullptr, 0));
+		else if (!std::strcmp(argv[i], "-stress")) stressBot = true;
 		else ppm = argv[i];
 	}
 	const std::string dir = argv[2];
@@ -201,6 +345,27 @@ int main(int argc, char **argv) {
 	comp->cpu->regPC = 0x8000;
 
 	rr::Game game(rom);
+	// TSBRIDGE=n: every game starts at bridge n (as river_raid -bridge): the C++ port's starts
+	// (RiverGen::setRiver), the program's from the ROM's tables ($B494 checkpoints, $B4A4
+	// levels, $B4A8 bridges, BCD) and start_bridges_hi (the hundreds, test builds)
+	if (const char *sb = std::getenv("TSBRIDGE")) {
+		const int startBridge = std::atoi(sb);
+		game.gen.setRiver(0, startBridge);
+		uint8_t *romCopy = ram + kCodePage * 0x4000 + 0x2000;
+		const int b = startBridge % 10000;
+		for (int n = 0; n < 4; n++) {
+			const rr::RiverGen::Start &st = game.gen.start(n);
+			for (int i = 0; i < 4; i++) romCopy[0xB494 + 4 * i + n - 0xA000] = st.checkpoint[i];
+			romCopy[0xB4A4 + n - 0xA000] = st.level;
+			romCopy[0xB4A8 + n - 0xA000] = uint8_t((b / 10 % 10) << 4 | b % 10);
+		}
+		const uint16_t hi = symbol(dir, "start_bridges_hi");
+		ram[kCodePage * 0x4000 + (hi - 0x8000)] = uint8_t((b / 1000) << 4 | b / 100 % 10);
+	}
+	// TSGHOST=1: after the display the plane's crashes are dropped and the fuel is full, on
+	// both sides (the program's test_ghost), so a game goes on for long (with TSBRIDGE)
+	const bool ghost = std::getenv("TSGHOST") != nullptr;
+	if (ghost) ram[kCodePage * 0x4000 + (symbol(dir, "test_ghost_on") - 0x8000)] = 1;
 	rr::PokeyRandom random(seed, rr::tvSystem(true));
 	game.startAttract(true);
 	random.nextFrame();
@@ -219,7 +384,13 @@ int main(int argc, char **argv) {
 		for (int k = 0; k < kPictureLines; k++)
 			std::memcpy(&rows[size_t(k) * 320], &picture[rr::kRiverTop + k][2 * kWindowFirst], 320);
 	};
-	game.afterDisplay = riverPicture;   // the river as the display sees it (before the new lines)
+	game.afterDisplay = [&] {   // the river as the display sees it (before the new lines)
+		riverPicture();
+		if (ghost) {
+			game.g.hit.planeHitBank = game.g.hit.planeHitObject = game.g.hit.planeHitShell = game.g.hit.missileHitPlane = 0xFF;
+			game.g.fuel = 0xFF;
+		}
+	};
 	auto runTo = [&](uint16_t hook) {
 		for (long n = 0; n < 50000000L; n++) {
 			compExec(comp);
@@ -247,13 +418,20 @@ int main(int argc, char **argv) {
 	static uint8_t ref[0x4000], mine[0x4000];
 	int errors = 0;
 	long evBad = 0;
+	Bot bot(botSeed);
+	bot.stress = stressBot;
+	long games = 0, crashes = 0, gameOvers = 0, maxBridge = 0;
+	uint8_t lastState = 0xFF;
 	const int swaps0 = bufSwaps;
 	int swapsFirst = 0, lateShown = 0;
 	const long long tick0 = comp->tickTotal;
 	long long workSum = 0, workMax = 0, applyTick = -1;
 	int workMaxFrame = 0;
 	for (int f = 1; f <= frames; f++) {
-		ram[kCodePage * 0x4000 + 15] = f == startAt ? 1 : 0;   // in_console: START
+		rr::Input input;
+		if (botSeed) input = bot.next(game);
+		else input.start = f == startAt;
+		putInput(ram + kCodePage * 0x4000 + 12, input);   // in_stick, in_trig, in_console, in_key
 		if (!runTo(frameHook)) { std::printf("frame %d: the program never got to frame_done (PC %04X)\n", f, comp->cpu->regPC); return 1; }
 		if (f == 1) swapsFirst = bufSwaps;   // (the start's frames before it: not counted)
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
@@ -288,8 +466,6 @@ int main(int argc, char **argv) {
 			}
 			if (at && picBad <= 3) std::printf("frame %d: the picture of frame %d differs from (%d, %d) on\n", f, shown + 1, (at - 1) % 1000, (at - 1) / 1000);
 		}
-		rr::Input input;
-		input.start = f == startAt;
 		{   // TSSHOT=k: the machine's frames from frame k on, to /tmp/tsshot_N.ppm (8 of them)
 			static const int shotFrom = std::getenv("TSSHOT") ? std::atoi(std::getenv("TSSHOT")) : -1;
 			if (shotFrom > 0 && f >= shotFrom && f < shotFrom + 8) {
@@ -305,7 +481,18 @@ int main(int argc, char **argv) {
 		}
 		if (getenv("TSBUSY") && game.busy()) std::printf("frame %d: busy\n", f);
 		int reads = 0;
+		if (input.start && !game.busy()) games++;
 		game.frame(input, [&] { return reads++ ? random.read(249, 13) : random.read(191, 24); });
+		{
+			const rr::GameState &g = game.g;
+			if (g.planeState == 0xFE && lastState != 0xFE) crashes++;
+			if (g.planeState == 0xFF && lastState != 0xFF && !(g.attractFlags & 0x80)) gameOvers++;
+			lastState = g.planeState;
+			if (!(g.attractFlags & 0x80)) {
+				const long br = (g.bridges[0] >> 4) * 1000 + (g.bridges[0] & 15) * 100 + (g.bridges[1] >> 4) * 10 + (g.bridges[1] & 15);
+				if (br > maxBridge) maxBridge = br;
+			}
+		}
 		random.nextFrame();
 		takePicture();
 		history.push_back(rows);   // (by frame, from frame 1)
@@ -380,6 +567,7 @@ int main(int argc, char **argv) {
 	std::printf("a frame's work: %lld ticks on average, %lld at most (frame %d), of %lld a frame\n",
 		frames > 1 ? workSum / (frames - 1) : 0, workMax, workMaxFrame, (comp->tickTotal - tick0) / std::max(1, bufSwaps - swaps0));
 	std::printf("%d frames compared: %s\n", frames, errors ? "with differences" : "the same");
+	if (botSeed) std::printf("played: %ld games started, %ld crashes, %ld games over, up to bridge %ld\n", games, crashes, gameOvers, maxBridge);
 
 	// The last frame went live at the apply just run; the frame after shows it. The program
 	// stops when its panel is drawn (JR $ at panel_done).

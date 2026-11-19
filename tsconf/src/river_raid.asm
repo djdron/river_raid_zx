@@ -1,9 +1,10 @@
-; River Raid for TS-Conf: the viewer. The attract mode as the Next's game runs it (game.asm,
-; play.asm, display.asm, river_gen.asm: the same code), shown the TS-Conf's way: the river in
-; the 256-colour mode (320x240), a line of 512 bytes a row, scrolled by the hardware (GYOFFS);
-; the bank's colour changed per line by the frame interrupt moved down the frame (as the
-; Next's Copper does it); a tile layer black above and below the river. No sprites, panel or
-; sound yet.
+; River Raid for TS-Conf. The attract mode, then the game with START, as the Next's game runs
+; them (game.asm, play.asm, display.asm, river_gen.asm: the same code), shown the TS-Conf's
+; way: the river in the 256-colour mode (320x240), a line of 512 bytes a row, scrolled by the
+; hardware (GYOFFS); the bank's colour changed per line by the frame interrupt moved down the
+; frame (as the Next's Copper does it); the objects and players as sprites (sprites.asm); the
+; panel a picture of its own below the river (panel_ts.asm); tile layer 0 black above the
+; river and the panel's grey under it. No sound yet.
 ;
 ; Memory (16K windows, the board's pages):
 ;   $0000-$3FFF  the Atari's RAM (ATARI_PAGE)
@@ -229,6 +230,8 @@ restart:
 	call vsint_set
 	ei
 	call start_attract		; frame 0: the attract mode starts, its first line
+	call panel_frame		; its panel, all of it drawn before the first frame
+	call panel_draw
 main_frame:
 	ld hl,(scroll)			; the screen as this frame's display sees it
 	ld (show_scroll),hl
@@ -238,6 +241,9 @@ main_frame:
 	ld (show_water),a
 	ld a,(PLAYER)
 	ld (show_player),a
+	ifndef TEST
+	call read_input
+	endif
 	ld a,(busy)
 	or a
 	jr nz,.busy

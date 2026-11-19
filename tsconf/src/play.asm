@@ -1028,5 +1028,91 @@ select_game:
 ; (pb_forget, panel_put, show_lives, show_bridges, show_score, print_bcd: panel.asm, page 6)
 
 ; ------------------------------------------------------------------------------------------
-; The controls (in_stick, in_trig, in_console, in_key: river_raid.asm): the TS-Conf viewer
-; reads none (the attract mode).
+; ------------------------------------------------------------------------------------------
+; The controls, as the original reads them (Input of the C++ port): in_stick for the two
+; joysticks (bits 0 up, 1 down, 2 left, 3 right; 0 = pressed), in_trig (bit 0 the first
+; joystick's fire, bit 1 the second's), in_console (bit 0 START, 1 SELECT, 2 OPTION), in_key
+; (a key of the keyboard: pause).
+;
+; Keyboard: Q A O P to fly, Space or M to fire (both players: they take turns); Enter START,
+; G SELECT (the game number), H pause. Kempston joystick (port $1F).
+	ifndef TEST
+read_input:
+	ld e,$0F			; E: the keyboard as a stick
+	ld d,0				; D: bit 0 fire, 1 START, 2 SELECT, 3 the pause key
+	ld c,$FE
+	ld b,$FB			; Q: up
+	in a,(c)
+	bit 0,a
+	jr nz,$+4
+	res 0,e
+	ld b,$FD			; A: down; G: SELECT
+	in a,(c)
+	bit 0,a
+	jr nz,$+4
+	res 1,e
+	bit 4,a
+	jr nz,$+4
+	set 2,d
+	ld b,$DF			; O: left; P: right
+	in a,(c)
+	bit 1,a
+	jr nz,$+4
+	res 2,e
+	bit 0,a
+	jr nz,$+4
+	res 3,e
+	ld b,$7F			; Space, M: fire
+	in a,(c)
+	cpl
+	and %00000101
+	jr z,$+4
+	set 0,d
+	ld b,$BF			; Enter: START; H: pause
+	in a,(c)
+	bit 0,a
+	jr nz,$+4
+	set 1,d
+	bit 4,a
+	jr nz,$+4
+	set 3,d
+	ld a,d				; the keyboard's fire for both players
+	and 1
+	ld b,a
+	add a,a
+	or b
+	ld (in_trig),a
+	ld a,d
+	rra
+	and 3
+	ld (in_console),a
+	ld a,d
+	rra
+	rra
+	rra
+	and 1
+	ld (in_key),a
+	in a,($1F)			; the joystick: both players'
+	ld b,a
+	and $0F				; the directions
+	add a,low kempston_stick
+	ld l,a
+	ld h,high kempston_stick
+	ld a,(hl)
+	and e				; with the keyboard's
+	ld (in_stick),a
+	ld (in_stick + 1),a
+	bit 4,b				; fire
+	ret z
+	ld a,3
+	ld (in_trig),a
+	ret
+
+	align 16
+kempston_stick:				; Kempston bits 0 right, 1 left, 2 down, 3 up -> the stick
+v = 0
+	dup 16
+	db $0F ^ ((v >> 3) & 1 | ((v >> 2) & 1) << 1 | ((v >> 1) & 1) << 2 | (v & 1) << 3)
+v = v + 1
+	edup
+	endif
