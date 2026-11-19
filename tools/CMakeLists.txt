@@ -45,3 +45,7 @@ target_link_libraries(xpeccycore PUBLIC ${ZLIB_LIBRARY} Threads::Threads)
 
 add_executable(nxcheck nxcheck.cpp)
 target_link_libraries(nxcheck rrcore xpeccycore)
+
+# The TS-Conf port's first step: a program on Xpeccy+'s TSConf core, its frame as a PPM
+add_executable(tscheck tscheck.cpp)
+target_link_libraries(tscheck xpeccycore)
