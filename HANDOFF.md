@@ -18,7 +18,7 @@ There is no DLI any more, neither its cycles nor its loop: each object stands at
 
 Speed (in the core's ticks a frame's work; a 60 Hz frame is ~481 000 at 28 MHz, ~240 000 at 14 MHz; 50 Hz ~567 000 / ~283 000): the heaviest load, `-stress` from bridge 80 (all slots taken, full speed, firing all the time), NTSC at 14 MHz ~131 000 on average and ~165 000 at most (~75 000, about 30%, to spare); at 28 MHz ~161 000 / ~201 000 NTSC, ~166 000 / ~207 000 PAL (the 28 MHz ticks include the memory wait states). The heaviest frame: the sound up to ~60 000 (the noise and the missile on the DAC, ~180 pulses a frame), the objects' placement and edge tests ~30 000, the sprites' collisions ~25 000, the river's new lines ~25 000 (`render_line`, `rl_fill`, `span_line`), `build_copper` ~5 000. `apply` (below the scrolling line) ~7 400.
 
-Controls, building, checks: [README.md](README.md).
+The overview of both ports: [README.md](README.md); the Next's controls, building, checks: [NEXT.md](NEXT.md).
 
 ## The TS-Conf port (tsconf/)
 A port to TS-Conf (ZX Evolution / Pentevo), its own project with its own build in `tsconf/` (`make -C tsconf`; it shares only `deps/`); the details in [tsconf/README.md](tsconf/README.md). The game is complete there too: attract mode, games, panel, scrolling line, sound. Checked with `tsconf/build/tools/tscheck` on Xpeccy+'s TSConf core against the C++ port after every frame (the state, the bank colour's list, the panel) and the machine's picture of every frame pixel for pixel; attract 10 000 frames, bots, `-stress` from bridge 80 at 14 and 7 MHz, with and without a General Sound, a NeoGS. Not run on a real board yet; the user runs the SPG from Wild Commander in his Xpeccy+.

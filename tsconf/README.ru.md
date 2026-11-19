@@ -1,8 +1,8 @@
 # River Raid для TS-Conf
 
 Порт на TS-Conf (ZX Evolution / Pentevo): отдельный проект со своей сборкой, отдельно от
-версии для ZX Spectrum Next (корень репозитория). Общая только `../deps` (sjasmplus, порт на
-C++, Xpeccy+: `make deps` в корне).
+версии для ZX Spectrum Next ([NEXT.ru.md](../NEXT.ru.md); оба — [главная страница](../README.ru.md)).
+Общая только `../deps` (sjasmplus, порт на C++, Xpeccy+: `make deps` в корне).
 
 Игра работает так же, как на Next (та же логика игры, display и генератор реки, скопированы
 в `src/`), а показывается по-TS-Conf'овски. Только 50 Гц (PAL): кадр платы.

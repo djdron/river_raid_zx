@@ -1,8 +1,8 @@
 # River Raid for TS-Conf
 
 The port to TS-Conf (ZX Evolution / Pentevo): its own project with its own build, apart from
-the ZX Spectrum Next's (the repository's top). It shares only `../deps` (sjasmplus, the C++
-port, Xpeccy+: `make deps` at the top).
+the ZX Spectrum Next's ([NEXT.md](../NEXT.md); both: [the main page](../README.md)). It shares
+only `../deps` (sjasmplus, the C++ port, Xpeccy+: `make deps` at the top).
 
 The game as the Next's runs it (the same game logic, display and river generator, copied into
 `src/`), shown the TS-Conf's way. 50 Hz (PAL) only: the board's frame.
