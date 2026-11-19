@@ -161,7 +161,9 @@ Each frame (`src/river_raid.asm`):
    the missile, the shell, START and SELECT, new games, crashes and new planes, and the river
    lines for the speed (`src/river_gen.asm`, `river_gen.cpp` line for line) written to
    Layer 2. While the original clears memory after a crash or START (13 frames) only the
-   display and the VBI run, and Layer 2 is cleared a page per frame.
+   display and the VBI run, and Layer 2 is cleared two pages a frame, from the reset's second
+   frame and hidden while it is (its clip window holds only the panel's rows): the river goes
+   black at once, as in the C++ port, with no wipe across it.
 5. `src/game.asm`, `vbi`: the sound driver (`src/sound.asm`: POKEY's registers), the frame counter, the colours
    of the next frame (the water flashes red when a bridge is hit), POKEY's counter one frame
    on (a matrix, `src/random.inc`). Then `pokey_frame` (`src/sound.asm`) makes the frame's
@@ -173,15 +175,25 @@ Each frame (`src/river_raid.asm`):
 The panel and the scrolling line are the tilemap (40 x 32, 8x8 tiles at 4 bits per pixel):
 each Atari character (8x8, a colour clock a pixel) is two tiles, made at the start from the
 character sets the game builds at power-on (the OS font's letters and digits, the
-cartridge's own symbols). The Copper moves the tilemap to each row of characters, and moves
-the scrolling line sideways by its fine scroll; the tile that is seen at both edges of the
-screen is made each frame. The panel's grey is the fallback colour, so the fuel needle (a
-sprite) is over it and under the characters, as on the Atari. The logo is five sprites.
+cartridge's own symbols); only the characters that change are written. The Copper moves the
+tilemap to each row of characters; the scrolling line is a ring in its map row, moved sideways
+by the X scroll, and the half character seen at both edges is cut off by the tilemap's clip
+window on the right and shown there by a sprite. The panel's grey is Layer 2's (its colours
+made grey by the Copper on the panel's lines), so the fuel needle (a sprite) is over it and
+under the characters, as on the Atari. The logo is five sprites.
 
 Layer 2 (320x256, 256 colours) holds the playfield's 2-bit colour indices; 160 of the
 line's 192 colour clocks are shown (from the 20th; the water never comes nearer to the
 edges), two dots each, so the proportions are the Atari's within 2%. The colours are the
 C++ port's PAL colours (Altirra's model) as the Next's 8-bit palette entries.
+
+## The TS-Conf port
+
+[tsconf/](tsconf/README.md) is a port to TS-Conf (ZX Evolution / Pentevo) with its own build:
+the same game code, the river in its 16-colour mode with a palette per bank colour, the
+objects as its sprites, the sound on a General Sound (POKEY played by the card's own Z80) or
+the pure tones on TurboSound's AYs; an SPG for Wild Commander, checked against the C++ port
+frame by frame and pixel by pixel on Xpeccy+'s TSConf core.
 
 ## Licence
 
