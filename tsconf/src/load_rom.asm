@@ -84,8 +84,11 @@ load_rom:
 	ret z
 lr_fail:
 	di
-	ld a,2				; a red border
-	out ($FE),a
+	ld hl,24 << 10			; a red border (CRAM is black, screen_black: colour 1 red
+	ld (CRAM_SHADOW + 2),hl		; through the FM window, the border that colour)
+	ld bc,BORDER
+	ld a,1
+	out (c),a
 	halt
 
 ; Sector DEHL: a FAT volume's boot sector? Its numbers kept (NC), or C

@@ -67,7 +67,9 @@ The .spg is also built on GitHub (the `tsconf` workflow: its artifact). Put Rive
 cartridge image, 8192 bytes) anywhere on the SD card: the program searches the card at the
 start (`load_rom.asm`: its first partition or the whole card, FAT16 or FAT32, the root first,
 then its folders, 8 deep; the long name in any case, or the short RIVER_~1.ROM). Without it: a
-red border.
+red border. While the start works the screen is black (`screen_black`: all of CRAM black at
+once, whatever mode Wild Commander left: its ZX screen in page 5 is where the start's buffers
+go).
 
 `build/tools/tscheck -spg build/river_raid.spg 600 out.ppm -sd folder` runs the .spg with a
 host folder as the SD card (`-img file`: a card's image); `-sna build/river_raid.sna 600

@@ -20,6 +20,7 @@
 //        tscheck -spg <river_raid.spg> <frames> <frame.ppm> [-sd folder]: the SPG (the folder as
 //                the SD card, a FAT32 volume)
 //   TSFULL=1: the picture written is the core's whole buffer (blanking too)
+//   TSCRAM=1 (-sna, -spg): CRAM not black at the start (as a shell may leave it)
 //   TSGS: the General Sound (its firmware started first): gs (the original card, gs105b.rom, the
 //   default), neo (a NeoGS, neogs111.rom) or 0 (none: the AY's tones checked instead); with a
 //   card, the registers it got from apply are checked against the C++ port's POKEY;
@@ -48,6 +49,8 @@
 #include "pokey_random.h"
 #include "pokey_sound.h"
 #include "ts_palette.h"
+
+extern "C" void tslUpdatePal(Computer *comp);
 
 namespace {
 
@@ -311,6 +314,7 @@ int main(int argc, char **argv) {
 		if (argc > 6 && !std::strcmp(argv[5], "-img")) sdcSetImage(comp->sdc, argv[6]);   // an SD card's image
 		const bool spg = !std::strcmp(argv[1], "-spg");
 		if ((spg ? loadSPG(comp, argv[2], 0) : loadSNA(comp, argv[2], 0)) != 0) { std::fprintf(stderr, "cannot load %s\n", argv[2]); return 2; }
+		if (std::getenv("TSCRAM")) { for (int i = 0; i < 512; i++) comp->vid->tsconf.cram[i] = 0x5A; tslUpdatePal(comp); }   // (a palette not black: what shows during the start)
 		for (int i = std::atoi(argv[3]); i > 0; i--) {
 			const int swaps = bufSwaps;
 			while (bufSwaps == swaps) compExec(comp);

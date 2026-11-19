@@ -60,6 +60,7 @@ PAGE1		equ $11AF
 PAGE2		equ $12AF
 PAGE3		equ $13AF
 FMADDR		equ $15AF
+BORDER		equ $0FAF
 TMPAGE		equ $16AF
 T0GPAGE		equ $17AF
 DMASADDRL	equ $1AAF
@@ -185,6 +186,7 @@ start:
 	inc b
 	ld a,HIGH_PAGE
 	out (c),a
+	call screen_black		; nothing shown while the start works
 	ifdef SPG
 	call load_rom			; the cartridge from the SD card
 	endif
@@ -871,6 +873,25 @@ tv_setup:
 	ld hl,random_columns_pal
 	ld (rnd_cols),hl
 	jp rnd_tables			; random_step's tables for the standard
+
+; The screen black at once, whatever mode it was left in (Wild Commander's, the ZX screen in
+; page 5, which the start writes its buffers into): CRAM all black (every mode's colours,
+; the border's too) through the FM window, no sprites or tiles
+screen_black:
+	ld bc,TSCONFIG
+	xor a
+	out (c),a
+	ld bc,BORDER
+	out (c),a
+	ld bc,FMADDR
+	ld a,$10 | high CRAM_SHADOW >> 4
+	out (c),a
+	ld hl,CRAM_SHADOW
+	ld de,CRAM_SHADOW + 1
+	ld bc,$3FF
+	ld (hl),0
+	ldir
+	ret
 
 ; The picture: 256 colours, 320x240, from VID_PAGE; tile layer 0 the black above the river
 ; and the panel's grey and black below it (panel_ts.asm); the frame INT; the colours
