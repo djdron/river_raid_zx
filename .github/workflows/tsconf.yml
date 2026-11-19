@@ -1,0 +1,29 @@
+# Builds the TS-Conf viewer (tsconf/build/river_raid.spg, for Wild Commander) on every push
+# and keeps it as an artifact. The program reads River_Raid.rom from the SD card itself; the
+# checks need a ROM, which is not in the repository, so they are run locally (make -C tsconf
+# check).
+name: tsconf
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  spg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: sjasmplus
+        run: |
+          git init -q deps/sjasmplus
+          git -C deps/sjasmplus remote add origin https://github.com/z00m128/sjasmplus
+          git -C deps/sjasmplus fetch -q --depth 1 origin 5c44beafc76d541091e59ced98048c2367d32935
+          git -C deps/sjasmplus checkout -q FETCH_HEAD
+          git -C deps/sjasmplus submodule -q update --init --depth 1 --recursive
+          make -C deps/sjasmplus -j4 > /dev/null
+      - run: make -C tsconf
+      - uses: actions/upload-artifact@v7
+        with:
+          path: tsconf/build/river_raid.spg
+          archive: false   # the .spg as it is, not zipped (the file's name is the artifact's)

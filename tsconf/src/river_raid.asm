@@ -14,10 +14,11 @@
 ; The picture: pages VID_PAGE.. (512 lines of 512 bytes, 320 of each shown); the tile map
 ; (TMAP_PAGE) and the tile's dots (TGFX_PAGE).
 ;
-; Build: make (tsconf/Makefile): build/river_raid.sna, a 128K snapshot with the cartridge in
-; (your ROM, ../rom/River_Raid.rom: -DROM_FILE); with -DTEST the pages for tscheck
-; (build/ts_page2.bin, ts_page6.bin), which puts the cartridge at $A000 and starts the program
-; at $8000.
+; Build: make (tsconf/Makefile): build/river_raid.spg (-DSPG), for Wild Commander: the program
+; finds River_Raid.rom on the SD card itself (load_rom.asm); make sna: build/river_raid.sna, a
+; 128K snapshot with the cartridge in (your ROM, ../rom/River_Raid.rom: -DROM_FILE); with
+; -DTEST the pages for tscheck (build/ts_page2.bin, ts_page6.bin), which puts the cartridge
+; at $A000 and starts the program at $8000.
 
 	device zxspectrum128
 
@@ -175,6 +176,9 @@ start:
 	inc b
 	ld a,HIGH_PAGE
 	out (c),a
+	ifdef SPG
+	call load_rom			; the cartridge from the SD card
+	endif
 	call init_tables
 	call init_video
 	ld hl,(rnd_init)
@@ -745,6 +749,9 @@ init_video:
 	include "spans.asm"
 	include "display_hits.asm"
 	include "panel.asm"
+	ifdef SPG
+	include "load_rom.asm"
+	endif
 random_columns:
 	include "random.inc"
 
@@ -944,6 +951,34 @@ pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
 dh_desc:	ds 5 * DH_SIZE		; the sprites
 pokey_audf:	ds 4			; what the sound driver wrote: AUDF1-4,
 pokey_audc:	ds 4			; AUDC1-4
+	ifdef SPG			; load_rom: the card, the volume, the walk
+lr_lfn_buf	equ pix_tab		; (a long name: filled at the start, after it)
+lr_part:	ds 4			; the volume's first sector,
+lr_fat:		ds 4			; its FAT's,
+lr_data:	ds 4			; its clusters' (cluster 2),
+lr_root:	ds 4			; the root's cluster (FAT16: 0),
+lr_rootlba:	ds 4			; FAT16: the root's area, its sectors
+lr_rootsec:	ds 2
+lr_spc:		ds 1			; sectors a cluster
+lr_fat32:	ds 1
+lr_hc:		ds 1			; the card takes block addresses
+lr_dst:		ds 2
+lr_fclus:	ds 4			; the file found: its first cluster, its size
+lr_fsize:	ds 4
+lr_depth:	ds 1
+lr_lfn_ok:	ds 1			; a long name in lr_lfn_buf for the next entry
+lr_loaded:	ds 1			; the walk's sector in the buffer
+lr_state:				; the walk: the folder's first cluster,
+lr_first:	ds 4
+lr_cur:		ds 4			; the cluster, the sector, the sectors left in it,
+lr_sec:		ds 4
+lr_left:	ds 2
+lr_off:		ds 2			; the entry's place in the sector,
+lr_mode:	ds 1			; the files (0) or the folders (1),
+lr_end:		ds 1			; the folder's end
+LR_STATE	equ $ - lr_state
+lr_saved:	ds LR_STATE * LR_DEPTH	; the walks put aside, by depth
+	endif
 	display "buffers end: ",$
 	assert $ <= int_vectors - 64	; (the stack below the vectors)
 STACK_TOP	equ int_vectors - 2
@@ -979,9 +1014,15 @@ eg_s4:		ds 256
 	mmu 3,HIGH_PAGE
 	savebin "build/ts_page6.bin",$C000,$4000
 	else
+	ifdef SPG			; the pages for tools/mkspg.py: $8000-$9FFF, $C000-$FFFF
+	savebin "build/spg_page2.bin",$8000,$2000
+	mmu 3,HIGH_PAGE
+	savebin "build/spg_page6.bin",$C000,$4000
+	else
 	org $A000			; the cartridge
 	incbin ROM_FILE,0,$2000
 	mmu 1,WORK_PAGE
 	mmu 3,HIGH_PAGE			; (the snapshot's $C000: 7FFD)
 	savesna "build/river_raid.sna",start
+	endif
 	endif

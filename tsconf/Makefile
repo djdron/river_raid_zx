@@ -1,8 +1,9 @@
 # River Raid for TS-Conf (ZX Evolution / Pentevo), its own build, apart from the Next's.
 # Uses the repository's deps/ (make deps at the top: sjasmplus, the C++ port, Xpeccy+).
 #
-# make            build/river_raid.sna: the viewer (the attract mode), a 128K snapshot with
-#                 your ROM in (../rom/River_Raid.rom)
+# make            build/river_raid.spg: the viewer (the attract mode) for Wild Commander; it
+#                 reads River_Raid.rom from the SD card itself (anywhere on it)
+# make sna        build/river_raid.sna: a 128K snapshot with your ROM in (../rom/River_Raid.rom)
 # make check      runs it on Xpeccy+'s TSConf core and compares it with the C++ port (needs
 #                 your ROM at ../rom/River_Raid.rom; FRAMES=... how many, 3000 by default)
 # make palette    writes src/palette_ts.inc again (the C++ port's palette model)
@@ -12,7 +13,14 @@ ROM ?= ../rom/River_Raid.rom
 FRAMES ?= 3000
 SOURCES := $(wildcard src/*.asm src/*.inc)
 
-all: build/river_raid.sna
+all: build/river_raid.spg
+
+build/river_raid.spg: $(SOURCES) tools/mkspg.py
+	@mkdir -p build
+	$(SJASMPLUS) --nologo --msg=war -isrc -DSPG --sym=build/spg.sym src/river_raid.asm
+	python3 tools/mkspg.py build $@
+
+sna: build/river_raid.sna
 
 build/river_raid.sna: $(SOURCES) $(ROM)
 	@mkdir -p build
@@ -36,4 +44,4 @@ palette: build/tools/mkpalette_ts
 clean:
 	rm -rf build
 
-.PHONY: all check palette clean
+.PHONY: all sna check palette clean

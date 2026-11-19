@@ -10,8 +10,12 @@
 //
 // usage: tscheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N]
 //        tscheck -sna <river_raid.sna> <frames> <frame.ppm>: the snapshot, run for so many frames
+//        tscheck -spg <river_raid.spg> <frames> <frame.ppm> [-sd folder]: the SPG (the folder as
+//                the SD card, a FAT32 volume)
 //   TSFULL=1: the picture written is the core's whole buffer (blanking too)
 #include <algorithm>
+#include <filesystem>
+#include <functional>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -20,6 +24,8 @@
 
 #include "spectrum.h"
 #include "filetypes/filetypes.h"
+#include "sdcard.h"
+#include "vfat.h"
 #include "cpu/Z80/z80.h"
 
 #include "game.h"
@@ -103,7 +109,7 @@ int main(int argc, char **argv) {
 		std::fprintf(stderr, "usage: %s <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N]\n", argv[0]);
 		return 2;
 	}
-	if (!std::strcmp(argv[1], "-sna")) {   // tscheck -sna <file.sna> <frames> <out.ppm>: the snapshot run
+	if (!std::strcmp(argv[1], "-sna") || !std::strcmp(argv[1], "-spg")) {   // the file run (see usage)
 		Computer *comp = compCreate();
 		comp->vid->drawAll = 1;
 		if (!compSetHardware(comp, "TSConf")) return 1;
@@ -112,7 +118,24 @@ int main(int argc, char **argv) {
 		compReset(comp, RES_DEFAULT);
 		bytesPerLine = comp->vid->full.x * 8;
 		bufSize = bytesPerLine * comp->vid->full.y;
-		if (loadSNA(comp, argv[2], 0) != 0) { std::fprintf(stderr, "cannot load %s\n", argv[2]); return 2; }
+		if (argc > 6 && !std::strcmp(argv[5], "-sd")) {   // a host folder as the SD card (FAT32)
+			vFat *vf = vfat_create();
+			vfat_set_root(vf, argv[6], nullptr);
+			vfat_add(vf, -1, "", 0, 0, 1);
+			std::function<void(const std::filesystem::path &, int)> scan = [&](const std::filesystem::path &dir, int parent) {
+				for (const auto &e : std::filesystem::directory_iterator(dir)) {
+					const std::string name = e.path().filename().string();
+					if (e.is_directory()) scan(e.path(), vfat_add(vf, parent, name.c_str(), 0, 0, 1));
+					else vfat_add(vf, parent, name.c_str(), unsigned(e.file_size()), 0, 0);
+				}
+			};
+			scan(argv[6], 0);
+			if (!vfat_build(vf, 0)) { std::fprintf(stderr, "the SD folder: no volume\n"); return 2; }
+			sdcSetFolder(comp->sdc, argv[6], vf);
+		}
+		if (argc > 6 && !std::strcmp(argv[5], "-img")) sdcSetImage(comp->sdc, argv[6]);   // an SD card's image
+		const bool spg = !std::strcmp(argv[1], "-spg");
+		if ((spg ? loadSPG(comp, argv[2], 0) : loadSNA(comp, argv[2], 0)) != 0) { std::fprintf(stderr, "cannot load %s\n", argv[2]); return 2; }
 		for (int i = std::atoi(argv[3]); i > 0; i--) {
 			const int swaps = bufSwaps;
 			while (bufSwaps == swaps) compExec(comp);
@@ -124,7 +147,7 @@ int main(int argc, char **argv) {
 			for (int x = 0; x < 320; x++)
 				std::fwrite(bufimg + (comp->vid->tsconf.yPos + y) * bytesPerLine + (comp->vid->tsconf.xPos * 2 + 2 * x) * 4, 1, 3, o);
 		std::fclose(o);
-		std::printf("PC %04X\n", comp->cpu->regPC);
+		std::printf("PC %04X, border %02X\n", comp->cpu->regPC, comp->vid->brdcol);
 		return 0;
 	}
 	uint32_t seed = 12345;

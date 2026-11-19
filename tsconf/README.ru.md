@@ -23,13 +23,23 @@ C++, Xpeccy+: `make deps` в корне).
 программа и картридж с $A000 (страница 2), $C000 — программа, буферы и стек (страница 6);
 картинка с 32-й страницы, карта тайлов в странице 7, точки тайла в странице 8.
 
-    make          build/river_raid.sna: снапшот 128K с твоим ROM внутри (../rom/River_Raid.rom)
+    make          build/river_raid.spg: программа для Wild Commander (SPG 1.0); River_Raid.rom
+                  она сама находит на SD-карте (ниже)
+    make sna      build/river_raid.sna: снапшот 128K с твоим ROM внутри (../rom/River_Raid.rom)
     make check    гоняет тестовую сборку на ядре TSConf из Xpeccy+ и сравнивает её с портом
                   на C++ кадр за кадром (FRAMES=... сколько, по умолчанию 3000), потом картинку
                   последнего кадра по точкам
     make palette  заново пишет src/palette_ts.inc (цвета порта на C++ в уровнях платы)
 
-`build/tools/tscheck -sna build/river_raid.sna 600 out.ppm` гоняет сам снапшот.
+.spg собирается и на GitHub (workflow `tsconf`: его артефакт). Положи River_Raid.rom (образ
+картриджа, 8192 байта) куда угодно на SD-карту: программа при старте ищет его на карте
+(`load_rom.asm`: первый раздел или вся карта, FAT16 или FAT32, сначала корень, потом папки,
+до 8 уровней; длинное имя в любом регистре или короткое RIVER_~1.ROM). Без него — красный
+бордюр.
+
+`build/tools/tscheck -spg build/river_raid.spg 600 out.ppm -sd папка` гоняет .spg с папкой
+хоста вместо SD-карты (`-img файл`: образ карты); `-sna build/river_raid.sna 600 out.ppm` —
+снапшот.
 
 Дальше: объекты и самолёт спрайтами, панель на тайловом слое.
 

@@ -23,13 +23,23 @@ Memory (16K windows): $0000 the Atari's RAM (page 1), $4000 the lines' runs and 
 cartridge at $A000 (page 2), $C000 the program, buffers and the stack (page 6); the picture
 from page 32, the tile map in page 7, the tile's dots in page 8.
 
-    make          build/river_raid.sna: a 128K snapshot with your ROM in (../rom/River_Raid.rom)
+    make          build/river_raid.spg: the program for Wild Commander (SPG 1.0); it finds
+                  River_Raid.rom on the SD card itself (below)
+    make sna      build/river_raid.sna: a 128K snapshot with your ROM in (../rom/River_Raid.rom)
     make check    runs the test build on Xpeccy+'s TSConf core and compares it with the C++
                   port frame by frame (FRAMES=... how many, 3000 by default), then the last
                   frame's picture pixel by pixel
     make palette  writes src/palette_ts.inc again (the C++ port's colours at the board's levels)
 
-`build/tools/tscheck -sna build/river_raid.sna 600 out.ppm` runs the snapshot itself.
+The .spg is also built on GitHub (the `tsconf` workflow: its artifact). Put River_Raid.rom (the
+cartridge image, 8192 bytes) anywhere on the SD card: the program searches the card at the
+start (`load_rom.asm`: its first partition or the whole card, FAT16 or FAT32, the root first,
+then its folders, 8 deep; the long name in any case, or the short RIVER_~1.ROM). Without it: a
+red border.
+
+`build/tools/tscheck -spg build/river_raid.spg 600 out.ppm -sd folder` runs the .spg with a
+host folder as the SD card (`-img file`: a card's image); `-sna build/river_raid.sna 600
+out.ppm` the snapshot.
 
 Next: the objects and the plane as sprites, the panel on a tile layer.
 
