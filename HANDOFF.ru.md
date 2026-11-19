@@ -1,6 +1,6 @@
 # River Raid (Atari 8-bit) → ZX Spectrum Next (и TS-Conf): состояние проекта
 
-[English](HANDOFF.md) | Русский
+[English](HANDOFF.md) | Русский | [Українська](HANDOFF.uk.md) | [Deutsch](HANDOFF.de.md) | [Polski](HANDOFF.pl.md) | [Italiano](HANDOFF.it.md) | [Español](HANDOFF.es.md) | [中文](HANDOFF.zh.md) | [日本語](HANDOFF.ja.md)
 
 Этот файл — чтобы продолжить работу на любом компьютере или в новом чате. Начните новую сессию с «прочитай HANDOFF.ru.md и docs/NOTES.ru.md» (для порта на TS-Conf ещё tsconf/README.ru.md).
 
@@ -76,7 +76,7 @@ DLI больше нет совсем, ни его тактов, ни его ци
 - sjasmplus 1.24.1 (коммит 5c44bea), Xpeccy+ коммит 0ec06e33, river_raid коммит 1273aba (ветка `dli_removed`): `tools/get_deps.sh`. Каждое изменение C++-порта, за которым следует программа, требует сдвинуть и этот коммит. Xpeccy+ 2026.10.1 (у пользователя) рисует строки ниже видимых, которых безголовое ядро не рисует (`NXFULL=1` пишет весь буфер кадра).
 - Ядро Next из Xpeccy+ используется без окна через libxpeccy: без прошивки (палитры начинаются с нулей), без `comp_power_on`; на 60 Гц его картинка начинается со строки 0 Layer 2, на 50 Гц — с 24.
 - Проверкам нужен ROM; CI только собирает .nex (артефакт без zip).
-- Отступы табами; документация на английском (`X.md`) и русском (`X.ru.md`), каждое изменение в обеих.
+- Отступы табами. Документация: `X.md` на английском, `X.ru.md` на русском, а также `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (как у C++-порта); `docs/CODE.md` — только на английском и русском. `tools/doc_languages.py` пишет строку языков под каждым заголовком (в новом переводе там слово LANGUAGES). Изменение документа вносится во все языки.
 - Коммиты: автор `djdron <djdron@gmail.com>`, сообщение заканчивается строкой `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, без ссылки на сессию.
 
 ## Метод
