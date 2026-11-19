@@ -10,6 +10,8 @@ Das Spiel läuft wie auf dem Next (dieselbe Spiellogik, derselbe Display und Flu
 nach `src/` kopiert) und wird auf die Art des TS-Conf gezeigt. Nur 50 Hz (PAL): das Bild der
 Platine.
 
+Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert ist, und eine Tabelle, wie sich die beiden Maschinen unterscheiden: [CODE.md](CODE.md) (Englisch und Russisch).
+
 - Der Fluss: der 16-Farben-Modus, 320x240, eine Bildzeile 256 Bytes (160 an ihrem Anfang), 512
   Zeilen als Ring, von der Hardware gescrollt (GYOFFS); eine neue Flusszeile wird direkt in
   ihre Reihe geschrieben (`render.asm`), ohne Kopien.

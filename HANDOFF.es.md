@@ -65,7 +65,8 @@ Un port a TS-Conf (ZX Evolution / Pentevo), un proyecto propio con su propia com
 | `tools/prof.py` | tiempo por rutina a partir de los histogramas de nxcheck |
 | [docs/NOTES.es.md](docs/NOTES.es.md) | cómo está hecho y qué se descubrió, con cifras |
 | [docs/HOW_IT_WORKS.es.md](docs/HOW_IT_WORKS.es.md) | cómo se hacen en el Next la imagen y las colisiones del Atari, para todos |
-| [docs/CODE.md](docs/CODE.md) | los archivos de ensamblador rutina a rutina: qué, cuándo, cómo y cuántos ciclos cuesta cada una (en inglés y en ruso) |
+| [docs/CODE.md](docs/CODE.md) | los archivos de ensamblador del Next rutina a rutina (la parte del juego compartida con TS-Conf): qué, cuándo, cómo y cuántos ciclos cuesta cada una (en inglés y en ruso) |
+| [tsconf/CODE.md](tsconf/CODE.md) | los archivos propios del port a TS-Conf del mismo modo, los cambios en los compartidos y en qué se diferencian las dos máquinas (en inglés y en ruso) |
 
 ## Hechos establecidos (todos comprobados)
 1. **La misma RAM.** Los 16 KB de RAM del Atari son las páginas de 8K 30–31 en $0000–$3FFF: cada variable en la dirección del original. Un volcado de la RAM coincide byte a byte con el del original y el del port a C++ (`Game::diffWithRam`).
@@ -81,7 +82,7 @@ Un port a TS-Conf (ZX Evolution / Pentevo), un proyecto propio con su propia com
 - sjasmplus 1.24.1 (commit 5c44bea), Xpeccy+ commit 0ec06e33, river_raid commit 1273aba (rama `dli_removed`): `tools/get_deps.sh`. Cada cambio del port a C++ que sigue el programa exige mover también este commit. Xpeccy+ 2026.10.1 (el del usuario) dibuja líneas por debajo de las visibles que el núcleo sin ventana no dibuja (`NXFULL=1` escribe todo el búfer del fotograma).
 - El núcleo Next de Xpeccy+ se usa sin ventana a través de libxpeccy: sin firmware (las paletas empiezan en 0), sin `comp_power_on`; a 60 Hz su imagen empieza en la fila 0 del Layer 2, a 50 Hz en la 24.
 - Las comprobaciones necesitan la ROM; la CI solo compila el .nex (artefacto sin zip).
-- El código se indenta con tabuladores. Documentación: `X.md` en inglés, `X.ru.md` en ruso, y `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (como la del port a C++); `docs/CODE.md` solo en inglés y ruso. `tools/doc_languages.py` escribe la línea de idiomas bajo cada título (en una traducción nueva, allí va la palabra LANGUAGES). Un cambio en un documento va a todos los idiomas.
+- El código se indenta con tabuladores. Documentación: `X.md` en inglés, `X.ru.md` en ruso, y `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (como la del port a C++); `docs/CODE.md` y `tsconf/CODE.md` solo en inglés y ruso. `tools/doc_languages.py` escribe la línea de idiomas bajo cada título (en una traducción nueva, allí va la palabra LANGUAGES). Un cambio en un documento va a todos los idiomas.
 - Commits: autor `djdron <djdron@gmail.com>`, mensaje que termina con `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, sin enlace a la sesión.
 
 ## Método

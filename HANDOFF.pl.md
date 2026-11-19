@@ -65,7 +65,8 @@ Port na TS-Conf (ZX Evolution / Pentevo), osobny projekt z własnym budowaniem w
 | `tools/prof.py` | czas na procedurę z histogramów nxcheck |
 | [docs/NOTES.pl.md](docs/NOTES.pl.md) | jak to zrobiono i co się okazało, z liczbami |
 | [docs/HOW_IT_WORKS.pl.md](docs/HOW_IT_WORKS.pl.md) | jak obraz i kolizje Atari powstają na Next, dla wszystkich |
-| [docs/CODE.md](docs/CODE.md) | pliki asemblera procedura po procedurze: co, kiedy, jak i ile taktów kosztuje każda (po angielsku i rosyjsku) |
+| [docs/CODE.md](docs/CODE.md) | pliki asemblera Next procedura po procedurze (część gry wspólna z TS-Conf): co, kiedy, jak i ile taktów kosztuje każda (po angielsku i rosyjsku) |
+| [tsconf/CODE.md](tsconf/CODE.md) | własne pliki portu na TS-Conf tak samo, zmiany we wspólnych i czym różnią się obie maszyny (po angielsku i rosyjsku) |
 
 ## Ustalone fakty (wszystkie sprawdzone)
 1. **Ten sam RAM.** 16 KB RAM-u Atari to 8K strony 30–31 pod $0000–$3FFF: każda zmienna pod adresem oryginału. Zrzut RAM-u zgadza się bajt w bajt z oryginałem i portem C++ (`Game::diffWithRam`).
@@ -81,7 +82,7 @@ Port na TS-Conf (ZX Evolution / Pentevo), osobny projekt z własnym budowaniem w
 - sjasmplus 1.24.1 (commit 5c44bea), Xpeccy+ commit 0ec06e33, river_raid commit 1273aba (gałąź `dli_removed`): `tools/get_deps.sh`. Każda zmiana portu C++, za którą idzie program, wymaga przesunięcia też tego commitu. Xpeccy+ 2026.10.1 (użytkownika) rysuje linie poniżej widocznych, których bezokienkowy rdzeń nie rysuje (`NXFULL=1` zapisuje cały bufor klatki).
 - Rdzeń Next z Xpeccy+ jest używany bez okna przez libxpeccy: bez firmware (palety zaczynają się od 0), bez `comp_power_on`; przy 60 Hz jego obraz zaczyna się od wiersza 0 Layer 2, przy 50 Hz od 24.
 - Testy potrzebują ROM-u; CI tylko buduje .nex (artefakt bez zip).
-- Wcięcia tabulatorami. Dokumentacja: `X.md` po angielsku, `X.ru.md` po rosyjsku oraz `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (jak w porcie C++); `docs/CODE.md` tylko po angielsku i rosyjsku. `tools/doc_languages.py` pisze linię języków pod każdym tytułem (w nowym tłumaczeniu stoi tam słowo LANGUAGES). Zmiana dokumentu trafia do wszystkich języków.
+- Wcięcia tabulatorami. Dokumentacja: `X.md` po angielsku, `X.ru.md` po rosyjsku oraz `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (jak w porcie C++); `docs/CODE.md` i `tsconf/CODE.md` tylko po angielsku i rosyjsku. `tools/doc_languages.py` pisze linię języków pod każdym tytułem (w nowym tłumaczeniu stoi tam słowo LANGUAGES). Zmiana dokumentu trafia do wszystkich języków.
 - Commity: autor `djdron <djdron@gmail.com>`, wiadomość kończy się `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, bez linku do sesji.
 
 ## Metoda

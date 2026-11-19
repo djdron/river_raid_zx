@@ -65,7 +65,8 @@ DLI 已经完全没有了，它的时钟周期和它的循环都没有了：每�
 | `tools/prof.py` | 根据 nxcheck 的直方图统计各例程耗时 |
 | [docs/NOTES.zh.md](docs/NOTES.zh.md) | 做法和发现，附数据 |
 | [docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md) | Atari 的画面和碰撞如何在 Next 上实现，面向所有人 |
-| [docs/CODE.md](docs/CODE.md) | 逐个例程介绍汇编文件：做什么、何时、怎样做、各花多少周期（英文和俄文） |
+| [docs/CODE.md](docs/CODE.md) | 逐个例程介绍 Next 的汇编文件（游戏部分与 TS-Conf 共用）：做什么、何时、怎样做、各花多少周期（英文和俄文） |
+| [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf 移植自己的文件（同样的写法）、对共用文件的改动，以及两台机器的区别（英文和俄文） |
 
 ## 已确认的事实（全部核对过）
 1. **相同的 RAM。** Atari 的 16 KB RAM 是位于 $0000–$3FFF 的 8K 第 30–31 页：每个变量都在原版的地址上。RAM 转储与原版和 C++ 移植逐字节比较（`Game::diffWithRam`）。
@@ -81,7 +82,7 @@ DLI 已经完全没有了，它的时钟周期和它的循环都没有了：每�
 - sjasmplus 1.24.1（提交 5c44bea），Xpeccy+ 提交 0ec06e33，river_raid 提交 1273aba（`dli_removed` 分支）：`tools/get_deps.sh`。程序所跟随的 C++ 移植每有改动，都需要同时更新这个提交。Xpeccy+ 2026.10.1（用户的版本）会画出可见行之下、无窗口内核不画的行（`NXFULL=1` 写出整个帧缓冲）。
 - Xpeccy+ 的 Next 内核通过 libxpeccy 无窗口使用：没有固件（调色板从 0 开始），不调用 `comp_power_on`；60 Hz 时画面从 Layer 2 的第 0 行开始，50 Hz 时从第 24 行开始。
 - 检查需要 ROM；CI 只构建 .nex（构件不打成 zip）。
-- 代码用制表符缩进。文档：`X.md` 英文，`X.ru.md` 俄文，以及 `X.uk.md`、`X.de.md`、`X.pl.md`、`X.it.md`、`X.es.md`、`X.zh.md`、`X.ja.md`（与 C++ 移植相同）；`docs/CODE.md` 只有英文和俄文。`tools/doc_languages.py` 在每个标题下写出语言行（新译文中那里写 LANGUAGES 一词）。文档的改动要进入所有语言。
+- 代码用制表符缩进。文档：`X.md` 英文，`X.ru.md` 俄文，以及 `X.uk.md`、`X.de.md`、`X.pl.md`、`X.it.md`、`X.es.md`、`X.zh.md`、`X.ja.md`（与 C++ 移植相同）；`docs/CODE.md` 和 `tsconf/CODE.md` 只有英文和俄文。`tools/doc_languages.py` 在每个标题下写出语言行（新译文中那里写 LANGUAGES 一词）。文档的改动要进入所有语言。
 - 提交：作者 `djdron <djdron@gmail.com>`，信息以 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` 结尾，不带会话链接。
 
 ## 方法

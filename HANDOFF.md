@@ -65,7 +65,8 @@ A port to TS-Conf (ZX Evolution / Pentevo), its own project with its own build i
 | `tools/prof.py` | per-routine time from nxcheck's histograms |
 | [docs/NOTES.md](docs/NOTES.md) | how it is done and what was found, with numbers |
 | [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | how the Atari's picture and collisions are made on the Next, for everyone |
-| [docs/CODE.md](docs/CODE.md) | the assembly files routine by routine: what, when, how, and the ticks each costs |
+| [docs/CODE.md](docs/CODE.md) | the Next's assembly files routine by routine (the game's part shared with TS-Conf): what, when, how, and the ticks each costs |
+| [tsconf/CODE.md](tsconf/CODE.md) | the TS-Conf port's own files the same way, the changes to the shared ones, and how the two machines differ |
 
 ## Established facts (all checked)
 1. **Same RAM.** The Atari's 16 KB of RAM is 8K pages 30–31 at $0000–$3FFF: every variable at the original's address. A RAM dump compares byte for byte with the original's and the C++ port's (`Game::diffWithRam`).
@@ -81,7 +82,7 @@ A port to TS-Conf (ZX Evolution / Pentevo), its own project with its own build i
 - sjasmplus 1.24.1 (commit 5c44bea), Xpeccy+ commit 0ec06e33, river_raid commit 1273aba (branch `dli_removed`): `tools/get_deps.sh`. Every change of the C++ port that the program follows needs this commit moved too. Xpeccy+ 2026.10.1 (the user's) draws lines below the visible ones that the headless core does not (`NXFULL=1` writes the whole frame buffer).
 - Xpeccy+'s Next core is used headless through libxpeccy: no firmware (palettes start at 0), not `comp_power_on`; at 60 Hz its picture starts at Layer 2 row 0, at 50 Hz at 24.
 - The checks need the ROM; CI only builds the .nex (artifact without a zip).
-- Code is indented with tabs. Documentation: `X.md` in English, `X.ru.md` in Russian, and `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (as the C++ port's); `docs/CODE.md` only in English and Russian. `tools/doc_languages.py` writes the language line under each title (a new translation: the word LANGUAGES there). A change to a document goes into every language.
+- Code is indented with tabs. Documentation: `X.md` in English, `X.ru.md` in Russian, and `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (as the C++ port's); `docs/CODE.md` and `tsconf/CODE.md` only in English and Russian. `tools/doc_languages.py` writes the language line under each title (a new translation: the word LANGUAGES there). A change to a document goes into every language.
 - Commits: author `djdron <djdron@gmail.com>`, message ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, no session link.
 
 ## Method

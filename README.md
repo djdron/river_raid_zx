@@ -82,6 +82,7 @@ Building needs only sjasmplus; the checks need the rest and your ROM at `rom/Riv
 | [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | how the Atari's picture and collisions are made on the Next, for everyone |
 | [docs/NOTES.md](docs/NOTES.md) | how the Next's program is done and what was found, with numbers |
 | [docs/CODE.md](docs/CODE.md) | the Next's assembly source routine by routine |
+| [tsconf/CODE.md](tsconf/CODE.md) | the TS-Conf port's assembly source routine by routine, and how the two machines differ |
 | [HANDOFF.md](HANDOFF.md) | the project's state, for picking the work up |
 
 ## Licence

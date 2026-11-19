@@ -1,4 +1,4 @@
-# The assembly source, file by file
+# The ZX Spectrum Next port's assembly source, file by file
 
 English | [Русский](CODE.ru.md)
 
@@ -6,6 +6,15 @@ For Z80 programmers who want to read the code or make it faster. For each file: 
 it, each routine's job, who calls it and when, how it works, and what it costs. The why
 behind the design is in [NOTES.md](NOTES.md) and [HANDOFF.md](../HANDOFF.md); the plain-words
 picture in [HOW_IT_WORKS.md](HOW_IT_WORKS.md).
+
+This is the Next's code (`src/`). The TS-Conf port ([tsconf/CODE.md](../tsconf/CODE.md)) runs
+a copy of its game part: `play.asm`, `game.asm`, `river_gen.asm`, `spans.asm`, the
+`display*.asm` files, `panel.asm` and `sound_driver` are described here for both (with the
+TS-Conf's few changes listed there); the rest here, the picture, the sprites, the Copper, the
+panel, the DAC's sound, the start, is the Next's own. A table of how the two machines differ
+is at the top of tsconf/CODE.md. The Next's own hardware as this code uses it: Z80N
+instructions (`nextreg`, `mul`, `bsla`), 8K slots, Layer 2 stored by columns, the Copper, the
+tilemap, sprites with scale, the zxnDMA and DAC, three AYs, 50 and 60 Hz.
 
 ## The numbers
 
