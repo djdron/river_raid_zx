@@ -2,8 +2,8 @@
 # Writes build/river_raid.spg: Wild Commander's program file (SPG 1.0, as Xpeccy+'s loader
 # reads it) from the pages the SPG build saved: build/spg_page2.bin ($8000-$9FFF, page 2),
 # build/spg_page5.bin ($7C00-$7FFF, page 5: the font) and build/spg_page6.bin ($C000-$FFFF,
-# page 6). The program starts at `start` (build/spg.sym),
-# 14 MHz, interrupts off; the cartridge it reads from the SD card itself.
+# page 6). The program starts at `start` (build/spg.sym), 14 MHz, interrupts off, the
+# resident at $5B00; the cartridge it reads from the SD card itself.
 #
 # usage: mkspg.py <build dir> <out.spg>
 import struct
@@ -34,6 +34,11 @@ def main():
     struct.pack_into('<HH', head, 0x30, start, sp)
     head[0x34] = 6                                     # the page at $C000
     head[0x35] = 0x02                                  # 14 MHz, interrupts off
+    # The resident: Wild Commander's loader copies a stub of 16 bytes there (it maps the
+    # 48K ROM at $0000, then jumps to the start) and jumps to it from its own code at $0000:
+    # it must be RAM out of window 0 that nothing loaded is in. $5B00, as spgbld's examples:
+    # page 5, SPANS (made anew after the start).
+    struct.pack_into('<H', head, 0x38, 0x5B00)
     struct.pack_into('<H', head, 0x3A, len(blocks))
     head[0x3C:0x3F] = bytes([t.tm_sec, t.tm_min, t.tm_hour])
     head[0x50:0x70] = b'river_raid_zx tsconf/tools/mkspg'.ljust(32)
