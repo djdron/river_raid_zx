@@ -351,6 +351,9 @@ int main(int argc, char **argv) {
 		std::vector<uint8_t> work;
 		if (!readFile(dir + "/ts_page5.bin", work) || work.size() != 0x400) { std::fprintf(stderr, "cannot read %s/ts_page5.bin\n", dir.c_str()); return 2; }
 		std::memcpy(ram + 5 * 0x4000 + 0x3C00, work.data(), 0x400);
+		std::vector<uint8_t> init;   // and the start's work (page 3)
+		if (!readFile(dir + "/ts_page3.bin", init) || init.size() != 0x4000) { std::fprintf(stderr, "cannot read %s/ts_page3.bin\n", dir.c_str()); return 2; }
+		std::memcpy(ram + 3 * 0x4000, init.data(), 0x4000);
 	}
 	memSetBank(comp->mem, 0x80, MEM_RAM, kCodePage, MEM_16K, NULL, NULL, NULL);
 	memSetBank(comp->mem, 0xC0, MEM_RAM, kHighPage, MEM_16K, NULL, NULL, NULL);

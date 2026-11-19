@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # Writes build/river_raid.spg: Wild Commander's program file (SPG 1.0, as Xpeccy+'s loader
 # reads it) from the pages the SPG build saved: build/spg_page2.bin ($8000-$9FFF, page 2),
-# build/spg_page5.bin ($7C00-$7FFF, page 5: the font) and build/spg_page6.bin ($C000-$FFFF,
-# page 6). The program starts at `start` (build/spg.sym), 14 MHz, interrupts off, the
-# resident at $5B00; the cartridge it reads from the SD card itself.
+# build/spg_page5.bin ($7C00-$7FFF, page 5: the font), build/spg_page3.bin (the start's work,
+# page 3) and build/spg_page6.bin ($C000-$FFFF, page 6). The program starts at `start`
+# (build/spg.sym), 14 MHz, interrupts off, the resident at $5B00; the cartridge it reads from
+# the SD card itself.
 #
 # usage: mkspg.py <build dir> <out.spg>
 import struct
@@ -22,6 +23,7 @@ def main():
     build, out = sys.argv[1], sys.argv[2]
     blocks = [(2, 0x0000, open(build + '/spg_page2.bin', 'rb').read()),
               (5, 0x3C00, open(build + '/spg_page5.bin', 'rb').read()),
+              (3, 0x0000, open(build + '/spg_page3.bin', 'rb').read()),
               (6, 0x0000, open(build + '/spg_page6.bin', 'rb').read())]
     start = symbol(build + '/spg.sym', 'start')
     sp = symbol(build + '/spg.sym', 'STACK_TOP')

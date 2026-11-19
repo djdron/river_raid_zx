@@ -89,6 +89,7 @@ CODE_PAGE	equ 2
 HIGH_PAGE	equ 6
 TMAP_PAGE	equ 7
 TGFX_PAGE_	equ 8
+INIT_PAGE	equ 3			; the start's work (sprite_pics.asm), at $0000 while it runs
 TGFX_PAGE	equ TGFX_PAGE_		; (T0GPAGE: a multiple of 8)
 VID_PAGE	equ 32			; (VPAGE: a multiple of 16) 16 pages, 512 lines
 L2_PAGES	equ 2			; the picture cleared in two halves (DMA, clear_layer2_page)
@@ -171,8 +172,8 @@ start:
 	ld bc,MEMCONFIG			; window 0: RAM, the page PAGE0 names, written
 	ld a,$0E
 	out (c),a
-	ld bc,PAGE0
-	ld a,ATARI_PAGE
+	ld bc,PAGE0			; the start's work at $0000 (the Atari's RAM after it)
+	ld a,INIT_PAGE
 	out (c),a
 	inc b
 	ld a,WORK_PAGE
@@ -190,7 +191,11 @@ start:
 	call init_video
 	call obj_pics			; the sprites' pictures
 	call pl_pics
-	call panel_init			; the panel: its character sets, colours, sprites
+	call panel_pics
+	ld bc,PAGE0
+	ld a,ATARI_PAGE
+	out (c),a
+	call panel_init			; the panel: its character sets, colours
 	call ay_quiet
 	ld hl,(rnd_init)
 	ld (rnd_state),hl
@@ -1037,9 +1042,6 @@ random_columns:
 	include "display_hits.asm"
 	include "sprites.asm"
 	include "panel_ts.asm"
-	ifdef SPG
-	include "load_rom.asm"
-	endif
 
 	display "page $C000 end: ",$
 	assert $ <= $E000
@@ -1346,6 +1348,18 @@ int_vectors:	ds $FF
 		dw irq			; the frame INT's ($FF)
 
 ; ------------------------------------------------------------------------------------------
+; The start's work (INIT_PAGE at $0000 while it runs)
+	mmu 0,INIT_PAGE
+	org $0000
+	include "sprite_pics.asm"
+	ifdef SPG
+	include "load_rom.asm"
+	endif
+	display "init page end: ",$
+	assert $ <= $4000
+init_end:
+
+; ------------------------------------------------------------------------------------------
 ; The work page ($6000): buffers
 	mmu 1,WORK_PAGE
 	org $6000
@@ -1387,6 +1401,8 @@ rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
 	savebin "build/ts_page6.bin",$C000,$4000
 	mmu 1,WORK_PAGE
 	savebin "build/ts_page5.bin",$7C00,$400
+	mmu 0,INIT_PAGE
+	savebin "build/ts_page3.bin",$0000,$4000
 	else
 	ifdef SPG			; the pages for tools/mkspg.py: $8000-$9FFF, $C000-$FFFF,
 					; $7C00-$7FFF (the font)
@@ -1395,6 +1411,8 @@ rnd_tab:	ds 256			; random_step: the columns' XORs, 4 bits at a time
 	savebin "build/spg_page6.bin",$C000,$4000
 	mmu 1,WORK_PAGE
 	savebin "build/spg_page5.bin",$7C00,$400
+	mmu 0,INIT_PAGE
+	savebin "build/spg_page3.bin",$0000,(init_end + 511) & $FE00
 	else
 	org $A000			; the cartridge
 	incbin ROM_FILE,0,$2000
