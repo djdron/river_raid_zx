@@ -9,6 +9,8 @@ Wspólne jest tylko `../deps` (sjasmplus, port C++, Xpeccy+: `make deps` w katal
 Gra działa tak samo jak na Next (ta sama logika gry, display i generator rzeki, skopiowane do
 `src/`), a pokazywana jest na sposób TS-Conf. Tylko 50 Hz (PAL): ramka płyty.
 
+Jak to działa na obu maszynach, dla wszystkich: [../docs/HOW_IT_WORKS.pl.md](../docs/HOW_IT_WORKS.pl.md).
+
 Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, i tabela różnic obu maszyn: [CODE.md](CODE.md) (po angielsku i rosyjsku).
 
 - Rzeka: tryb 16 kolorów, 320x240, linia obrazu ma 256 bajtów (160 na jej początku), 512 linii

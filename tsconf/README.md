@@ -9,6 +9,8 @@ only `../deps` (sjasmplus, the C++ port, Xpeccy+: `make deps` at the top).
 The game as the Next's runs it (the same game logic, display and river generator, copied into
 `src/`), shown the TS-Conf's way. 50 Hz (PAL) only: the board's frame.
 
+How it works on both machines, for everyone: [../docs/HOW_IT_WORKS.md](../docs/HOW_IT_WORKS.md).
+
 The source routine by routine, what changed in the Next's shared code, and a table of how the two machines differ: [CODE.md](CODE.md).
 
 - The river: the 16-colour mode, 320x240, a picture line of 256 bytes (160 at its start), 512

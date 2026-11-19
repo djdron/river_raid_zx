@@ -77,7 +77,7 @@ make -C tsconf     # tsconf/build/river_raid.spg
 |---|---|
 | `src/`, `tools/`, `Makefile` | програма для ZX Spectrum Next і її перевірки ([NEXT.uk.md](NEXT.uk.md)) |
 | `tsconf/` | порт на TS-Conf: власний проєкт і збирання, код гри скопійовано з `src/` ([tsconf/README.uk.md](tsconf/README.uk.md)) |
-| [docs/HOW_IT_WORKS.uk.md](docs/HOW_IT_WORKS.uk.md) | як картинку й зіткнення Atari зроблено на Next, для всіх |
+| [docs/HOW_IT_WORKS.uk.md](docs/HOW_IT_WORKS.uk.md) | як картинку, зіткнення і звук Atari зроблено на Next і на TS-Conf, для всіх |
 | [docs/NOTES.uk.md](docs/NOTES.uk.md) | як зроблено програму для Next і що з'ясувалося, з цифрами |
 | [docs/CODE.md](docs/CODE.md) | вихідний код для Next на асемблері за процедурами (англійською і російською) |
 | [tsconf/CODE.md](tsconf/CODE.md) | вихідний код для TS-Conf на асемблері за процедурами і чим дві машини відрізняються (англійською і російською) |

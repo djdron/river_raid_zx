@@ -64,7 +64,7 @@ TS-Conf（ZX Evolution / Pentevo）への移植。`tsconf/` にある独自の�
 | `tools/check_original.sh` | `make check-original`：オリジナルの 8 回の実行 |
 | `tools/prof.py` | nxcheck のヒストグラムからルーチンごとの時間 |
 | [docs/NOTES.ja.md](docs/NOTES.ja.md) | どう作ったか、何がわかったか、数字付き |
-| [docs/HOW_IT_WORKS.ja.md](docs/HOW_IT_WORKS.ja.md) | Atari の画面と衝突が Next でどう作られているか、誰にでもわかるように |
+| [docs/HOW_IT_WORKS.ja.md](docs/HOW_IT_WORKS.ja.md) | Atari の画面、衝突、音が Next と TS-Conf でどう作られているか、誰にでもわかるように |
 | [docs/CODE.md](docs/CODE.md) | Next のアセンブリファイルをルーチンごとに（ゲーム部分は TS-Conf と共有）：何を、いつ、どうやって、それぞれ何クロックかかるか（英語とロシア語） |
 | [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf 移植独自のファイルを同じ形で、共有ファイルへの変更、2 つのマシンの違い（英語とロシア語） |
 

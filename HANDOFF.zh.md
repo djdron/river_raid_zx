@@ -64,7 +64,7 @@ DLI 已经完全没有了，它的时钟周期和它的循环都没有了：每�
 | `tools/check_original.sh` | `make check-original`：原版的八次运行 |
 | `tools/prof.py` | 根据 nxcheck 的直方图统计各例程耗时 |
 | [docs/NOTES.zh.md](docs/NOTES.zh.md) | 做法和发现，附数据 |
-| [docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md) | Atari 的画面和碰撞如何在 Next 上实现，面向所有人 |
+| [docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md) | Atari 的画面、碰撞和声音如何在 Next 和 TS-Conf 上实现，面向所有人 |
 | [docs/CODE.md](docs/CODE.md) | 逐个例程介绍 Next 的汇编文件（游戏部分与 TS-Conf 共用）：做什么、何时、怎样做、各花多少周期（英文和俄文） |
 | [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf 移植自己的文件（同样的写法）、对共用文件的改动，以及两台机器的区别（英文和俄文） |
 

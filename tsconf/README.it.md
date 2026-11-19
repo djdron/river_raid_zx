@@ -11,6 +11,8 @@ Il gioco funziona come sul Next (la stessa logica, lo stesso display e generator
 copiati in `src/`), mostrato alla maniera del TS-Conf. Solo 50 Hz (PAL): il quadro della
 scheda.
 
+Come funziona su entrambe le macchine, per tutti: [../docs/HOW_IT_WORKS.it.md](../docs/HOW_IT_WORKS.it.md).
+
 Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Next e una tabella delle differenze tra le due macchine: [CODE.md](CODE.md) (in inglese e in russo).
 
 - Il fiume: la modalità a 16 colori, 320x240, una riga dell'immagine di 256 byte (160 al suo

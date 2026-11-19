@@ -64,7 +64,7 @@ Ein Port auf TS-Conf (ZX Evolution / Pentevo), ein eigenes Projekt mit eigenem B
 | `tools/check_original.sh` | `make check-original`: die acht Läufe des Originals |
 | `tools/prof.py` | Zeit pro Routine aus den Histogrammen von nxcheck |
 | [docs/NOTES.de.md](docs/NOTES.de.md) | wie es gemacht ist und was sich zeigte, mit Zahlen |
-| [docs/HOW_IT_WORKS.de.md](docs/HOW_IT_WORKS.de.md) | wie Bild und Kollisionen des Atari auf dem Next entstehen, für alle |
+| [docs/HOW_IT_WORKS.de.md](docs/HOW_IT_WORKS.de.md) | wie Bild, Kollisionen und Ton des Atari auf dem Next und auf TS-Conf entstehen, für alle |
 | [docs/CODE.md](docs/CODE.md) | die Assembler-Dateien des Next Routine für Routine (der Spielteil gemeinsam mit TS-Conf): was, wann, wie und was jede an Takten kostet (Englisch und Russisch) |
 | [tsconf/CODE.md](tsconf/CODE.md) | die eigenen Dateien des TS-Conf-Ports ebenso, die Änderungen an den gemeinsamen und wie sich die beiden Maschinen unterscheiden (Englisch und Russisch) |
 

@@ -64,7 +64,7 @@ DLI більше немає зовсім, ні його тактів, ні йо�
 | `tools/check_original.sh` | `make check-original`: вісім прогонів оригіналу |
 | `tools/prof.py` | час за процедурами з гістограм nxcheck |
 | [docs/NOTES.uk.md](docs/NOTES.uk.md) | як зроблено і що з'ясувалося, з цифрами |
-| [docs/HOW_IT_WORKS.uk.md](docs/HOW_IT_WORKS.uk.md) | як картинку й зіткнення Atari зроблено на Next, для всіх |
+| [docs/HOW_IT_WORKS.uk.md](docs/HOW_IT_WORKS.uk.md) | як картинку, зіткнення і звук Atari зроблено на Next і на TS-Conf, для всіх |
 | [docs/CODE.md](docs/CODE.md) | файли асемблера Next за процедурами (ігрова частина спільна з TS-Conf): що, коли, як і скільки тактів коштує кожна (англійською і російською) |
 | [tsconf/CODE.md](tsconf/CODE.md) | власні файли порту для TS-Conf так само, зміни в спільних і чим дві машини відрізняються (англійською і російською) |
 

@@ -59,7 +59,7 @@ DLI больше нет совсем, ни его тактов, ни его ци
 | `tools/check_original.sh` | `make check-original`: восемь прогонов оригинала |
 | `tools/prof.py` | время по процедурам из гистограмм nxcheck |
 | [docs/NOTES.ru.md](docs/NOTES.ru.md) | как сделано и что выяснилось, с цифрами |
-| [docs/HOW_IT_WORKS.ru.md](docs/HOW_IT_WORKS.ru.md) | как картинка и столкновения Atari получаются на Next, для всех |
+| [docs/HOW_IT_WORKS.ru.md](docs/HOW_IT_WORKS.ru.md) | как картинка, столкновения и звук Atari сделаны на Next и на TS-Conf, для всех |
 | [docs/CODE.ru.md](docs/CODE.ru.md) | файлы Next на ассемблере по процедурам (игровая часть общая с TS-Conf): что, когда, как и сколько тиков стоит каждая |
 | [tsconf/CODE.ru.md](tsconf/CODE.ru.md) | свои файлы порта для TS-Conf так же, изменения в общих и чем две машины отличаются |
 

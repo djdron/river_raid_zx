@@ -60,7 +60,7 @@ make -C tsconf     # tsconf/build/river_raid.spg
 |---|---|
 | `src/`、`tools/`、`Makefile` | ZX Spectrum Next 的程序及其检查（[NEXT.zh.md](NEXT.zh.md)） |
 | `tsconf/` | TS-Conf 移植：独立的项目和构建，游戏代码从 `src/` 复制（[tsconf/README.zh.md](tsconf/README.zh.md)） |
-| [docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md) | Atari 的画面和碰撞如何在 Next 上实现，面向所有人 |
+| [docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md) | Atari 的画面、碰撞和声音如何在 Next 和 TS-Conf 上实现，面向所有人 |
 | [docs/NOTES.zh.md](docs/NOTES.zh.md) | Next 程序是如何做的、发现了什么，附数据 |
 | [docs/CODE.md](docs/CODE.md) | Next 的汇编源码，逐个例程（英文和俄文） |
 | [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf 的汇编源码，逐个例程，以及两台机器的区别（英文和俄文） |

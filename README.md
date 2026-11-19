@@ -79,7 +79,7 @@ Building needs only sjasmplus; the checks need the rest and your ROM at `rom/Riv
 |---|---|
 | `src/`, `tools/`, `Makefile` | the ZX Spectrum Next's program and its checks ([NEXT.md](NEXT.md)) |
 | `tsconf/` | the TS-Conf port: its own project and build, the game's code copied from `src/` ([tsconf/README.md](tsconf/README.md)) |
-| [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | how the Atari's picture and collisions are made on the Next, for everyone |
+| [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | how the Atari's picture, collisions and sound are made on the Next and on TS-Conf, for everyone |
 | [docs/NOTES.md](docs/NOTES.md) | how the Next's program is done and what was found, with numbers |
 | [docs/CODE.md](docs/CODE.md) | the Next's assembly source routine by routine |
 | [tsconf/CODE.md](tsconf/CODE.md) | the TS-Conf port's assembly source routine by routine, and how the two machines differ |

@@ -80,7 +80,7 @@ Para compilar basta con sjasmplus; las comprobaciones necesitan el resto y tu RO
 |---|---|
 | `src/`, `tools/`, `Makefile` | el programa para el ZX Spectrum Next y sus comprobaciones ([NEXT.es.md](NEXT.es.md)) |
 | `tsconf/` | el port a TS-Conf: proyecto y compilación propios, el código del juego copiado de `src/` ([tsconf/README.es.md](tsconf/README.es.md)) |
-| [docs/HOW_IT_WORKS.es.md](docs/HOW_IT_WORKS.es.md) | cómo se hacen en el Next la imagen y las colisiones del Atari, para todos |
+| [docs/HOW_IT_WORKS.es.md](docs/HOW_IT_WORKS.es.md) | cómo se hacen en el Next y en TS-Conf la imagen, las colisiones y el sonido del Atari, para todos |
 | [docs/NOTES.es.md](docs/NOTES.es.md) | cómo está hecho el programa del Next y qué se descubrió, con cifras |
 | [docs/CODE.md](docs/CODE.md) | el código fuente en ensamblador del Next, rutina a rutina (en inglés y en ruso) |
 | [tsconf/CODE.md](tsconf/CODE.md) | el código fuente en ensamblador de TS-Conf, rutina a rutina, y en qué se diferencian las dos máquinas (en inglés y en ruso) |
