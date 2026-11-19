@@ -1,6 +1,6 @@
 # River Raid для современных ZX Spectrum
 
-[English](README.md) | Русский
+[English](README.md) | Русский | [Українська](README.uk.md) | [Deutsch](README.de.md) | [Polski](README.pl.md) | [Italiano](README.it.md) | [Español](README.es.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
 River Raid (Activision, Atari 8-bit, 1983, автор Кэрол Шоу) на сегодняшних машинах ZX Spectrum:
 **ZX Spectrum Next** и **TS-Conf** (ZX Evolution / Pentevo). Оба порта сделаны на основе

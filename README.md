@@ -1,6 +1,6 @@
 # River Raid for modern ZX Spectrums
 
-English | [Русский](README.ru.md)
+English | [Русский](README.ru.md) | [Українська](README.uk.md) | [Deutsch](README.de.md) | [Polski](README.pl.md) | [Italiano](README.it.md) | [Español](README.es.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
 River Raid (Activision, Atari 8-bit, 1983, by Carol Shaw) on today's ZX Spectrum machines:
 the **ZX Spectrum Next** and **TS-Conf** (ZX Evolution / Pentevo). Both are built on the C++

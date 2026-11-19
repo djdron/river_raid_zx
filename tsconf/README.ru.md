@@ -1,5 +1,7 @@
 # River Raid для TS-Conf
 
+[English](README.md) | Русский
+
 Порт на TS-Conf (ZX Evolution / Pentevo): отдельный проект со своей сборкой, отдельно от
 версии для ZX Spectrum Next ([NEXT.ru.md](../NEXT.ru.md); оба — [главная страница](../README.ru.md)).
 Общая только `../deps` (sjasmplus, порт на C++, Xpeccy+: `make deps` в корне).
@@ -73,5 +75,3 @@ TSGS=0 — без карты (проверяются тоны AY); TSWAV=фай�
 `build/tools/tscheck -spg build/river_raid.spg 600 out.ppm -sd папка` гоняет .spg с папкой
 хоста вместо SD-карты (`-img файл`: образ карты); `-sna build/river_raid.sna 600 out.ppm` —
 снапшот.
-
-English: [README.md](README.md).

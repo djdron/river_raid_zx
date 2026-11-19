@@ -1,5 +1,7 @@
 # The assembly source, file by file
 
+English | [Русский](CODE.ru.md)
+
 For Z80 programmers who want to read the code or make it faster. For each file: what is in
 it, each routine's job, who calls it and when, how it works, and what it costs. The why
 behind the design is in [NOTES.md](NOTES.md) and [HANDOFF.md](../HANDOFF.md); the plain-words

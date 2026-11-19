@@ -1,5 +1,7 @@
 # River Raid for TS-Conf
 
+English | [Русский](README.ru.md)
+
 The port to TS-Conf (ZX Evolution / Pentevo): its own project with its own build, apart from
 the ZX Spectrum Next's ([NEXT.md](../NEXT.md); both: [the main page](../README.md)). It shares
 only `../deps` (sjasmplus, the C++ port, Xpeccy+: `make deps` at the top).
@@ -74,5 +76,3 @@ go).
 `build/tools/tscheck -spg build/river_raid.spg 600 out.ppm -sd folder` runs the .spg with a
 host folder as the SD card (`-img file`: a card's image); `-sna build/river_raid.sna 600
 out.ppm` the snapshot.
-
-Russian: [README.ru.md](README.ru.md).
