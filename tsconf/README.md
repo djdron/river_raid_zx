@@ -26,10 +26,17 @@ The game as the Next's runs it (the same game logic, display and river generator
   characters across the picture's 512 dots, shown from GXOFFS.
 - Tile layer 0 also black above the river.
 - The controls: Q A O P, Space or M to fire, Enter START, G SELECT, H pause; Kempston.
-- The sound: so far the pure tones (the engine, the beeps, firing, the bonus, the shell's
-  whistle) on TurboSound's two AYs, as the Next plays them (`sound_ay.asm`): POKEY's channels
-  1 and 2 the second chip's A and B, 3 and 4 the first's B and C. The noises (explosions,
-  the helicopter's missile) not yet.
+- The sound: all of it on a General Sound (the original card or a NeoGS), when there is one:
+  the card's own Z80 plays POKEY as the Next's DAC does (`gs/`, the Next's `pokey_frame` and
+  its pulses, the 17-bit counter's bits made by the card from their recurrence), in mono (the
+  same samples to channels 1 and 3, left and right), at 15 820 samples a second (its INT, 37 500
+  a second, takes 108 of 256). The start puts the program into the card through its firmware
+  (`gs_load.asm`; run again, it finds the program still there); then the apply sends POKEY's
+  registers once a frame (`sound_gs.asm`). Without a card (or one that does not answer): the
+  pure tones only (the engine, the beeps, firing, the bonus, the shell's whistle) on
+  TurboSound's two AYs, as the Next plays them (`sound_ay.asm`): POKEY's channels 1 and 2 the
+  second chip's A and B, 3 and 4 the first's B and C. On Xpeccy: turn the General Sound on
+  (and TurboSound NedoPC for the AYs).
 
 At 14 MHz a frame's work takes ~70 000 ticks on average in the attract mode, ~120 000 at full
 speed always firing (-stress), ~185 000 at most, of ~287 000; at 7 MHz it still fits (~133 000
@@ -46,11 +53,14 @@ tiles' dots in page 8, the sprites' from 24.
     make sna      build/river_raid.sna: a 128K snapshot with your ROM in (../rom/River_Raid.rom)
     make check    runs the test build on Xpeccy+'s TSConf core and compares it with the C++
                   port frame by frame: the state, and the picture of every frame (FRAMES=...
-                  how many, 3000 by default)
+                  how many, 3000 by default), and with a General Sound (Xpeccy+'s, its
+                  firmware gs105b.rom) the registers the card gets
     make palette  writes src/palette_ts.inc again (the C++ port's colours at the board's levels)
 
 `build/tools/tscheck` also plays: `-bot N` (nxcheck's made-up player), `-stress`, `-start N`;
-TSBRIDGE, TSGHOST, NXGAME as nxcheck's; TSSPEED=1 at 7 MHz.
+TSBRIDGE, TSGHOST, NXGAME as nxcheck's; TSSPEED=1 at 7 MHz; TSGS=neo a NeoGS, TSGS=0 no card
+(the AY's tones checked); TSWAV=file, TSWAVCPP=file the card's samples and the C++ port's
+POKEY at that rate (WAVs to listen to).
 
 The .spg is also built on GitHub (the `tsconf` workflow: its artifact). Put River_Raid.rom (the
 cartridge image, 8192 bytes) anywhere on the SD card: the program searches the card at the
@@ -61,7 +71,5 @@ red border.
 `build/tools/tscheck -spg build/river_raid.spg 600 out.ppm -sd folder` runs the .spg with a
 host folder as the SD card (`-img file`: a card's image); `-sna build/river_raid.sna 600
 out.ppm` the snapshot.
-
-Next: the noises.
 
 Russian: [README.ru.md](README.ru.md).

@@ -13,7 +13,7 @@
 ; every cycle, so a pulse on tick k sees their bit 28k (tools/mkpoly: poly4, poly5 and the
 ; 17-bit one in pages 14-15, mapped at $0000 while the samples are made).
 ;
-; (TS-Conf viewer: no sound yet; only the driver, the game's state.)
+; (TS-Conf: pokey_frame runs on the General Sound, gs/gs_pokey.asm; here only the driver.)
 
 ; ------------------------------------------------------------------------------------------
 ; B2A5-B3D8: the sound driver. Channel 1: the start beep, an event sound (crash, out of fuel,

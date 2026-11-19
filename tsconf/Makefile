@@ -11,25 +11,31 @@
 SJASMPLUS ?= ../deps/sjasmplus/sjasmplus
 ROM ?= ../rom/River_Raid.rom
 FRAMES ?= 3000
-SOURCES := $(wildcard src/*.asm src/*.inc)
+SOURCES := $(wildcard src/*.asm src/*.inc) build/gs_pokey.bin
+GS_SOURCES := $(wildcard gs/*.asm gs/*.inc)
 
 all: build/river_raid.spg
 
 build/river_raid.spg: $(SOURCES) tools/mkspg.py
 	@mkdir -p build
-	$(SJASMPLUS) --nologo --msg=war -isrc -DSPG --sym=build/spg.sym src/river_raid.asm
+	$(SJASMPLUS) --nologo --msg=war -isrc -ibuild -DSPG --sym=build/spg.sym src/river_raid.asm
 	python3 tools/mkspg.py build $@
 
 sna: build/river_raid.sna
 
 build/river_raid.sna: $(SOURCES) $(ROM)
 	@mkdir -p build
-	$(SJASMPLUS) --nologo --msg=war -isrc -DROM_FILE='"$(ROM)"' src/river_raid.asm
+	$(SJASMPLUS) --nologo --msg=war -isrc -ibuild -DROM_FILE='"$(ROM)"' src/river_raid.asm
+
+# the General Sound's program (gs/: the card's Z80; the start puts it in the card)
+build/gs_pokey.bin: $(GS_SOURCES)
+	@mkdir -p build
+	$(SJASMPLUS) --nologo --msg=war -igs $(GSFLAGS) --sym=build/gs.sym gs/gs_pokey.asm
 
 # the check's build: the program's pages (the check puts the cartridge in and starts it)
 build/ts_page2.bin: $(SOURCES)
 	@mkdir -p build
-	$(SJASMPLUS) --nologo --msg=war -isrc -DTEST --sym=build/test.sym src/river_raid.asm
+	$(SJASMPLUS) --nologo --msg=war -isrc -ibuild -DTEST --sym=build/test.sym src/river_raid.asm
 
 build/tools/tscheck build/tools/mkpalette_ts: tools/*.cpp tools/*.h tools/CMakeLists.txt
 	cmake -S tools -B build/tools -DCMAKE_BUILD_TYPE=Release

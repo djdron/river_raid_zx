@@ -5,7 +5,7 @@
 ; clock: the Atari's / 28) is an AY period of 1.75 MHz / 16 = 109 375 Hz: N = (AUDF + 1) x
 ; 3.454 (PAL). The volume: POKEY's is linear, the AY's logarithmic: ay_vol takes the AY's
 ; nearest to it. The rest (the noises, the explosions, the helicopter's missile: the Next's
-; DAC) is not played yet.
+; DAC) only on a General Sound, which then plays it all (sound_gs.asm).
 ; ay_frame works the registers out (after the VBI's sound driver), apply puts them out
 ; (ay_out): at the frame's start, as the Next's AY plays them (with no DAC to wait for, not 2
 ; frames late).

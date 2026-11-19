@@ -20,6 +20,11 @@
 //        tscheck -spg <river_raid.spg> <frames> <frame.ppm> [-sd folder]: the SPG (the folder as
 //                the SD card, a FAT32 volume)
 //   TSFULL=1: the picture written is the core's whole buffer (blanking too)
+//   TSGS: the General Sound (its firmware started first): gs (the original card, gs105b.rom, the
+//   default), neo (a NeoGS, neogs111.rom) or 0 (none: the AY's tones checked instead); with a
+//   card, the registers it got from apply are checked against the C++ port's POKEY;
+//   TSWAV=file: the samples the card made, TSWAVCPP=file: the C++ port's PokeySound at that
+//   rate (16-bit WAVs to listen to)
 #include <algorithm>
 #include <filesystem>
 #include <functional>
@@ -34,12 +39,14 @@
 #include "sdcard.h"
 #include "vfat.h"
 #include "cpu/Z80/z80.h"
+#include "sound/gs.h"
 
 #include "game.h"
 #include "os_font.h"
 #include "status_bar.h"
 #include "pokey_counter.h"
 #include "pokey_random.h"
+#include "pokey_sound.h"
 #include "ts_palette.h"
 
 namespace {
@@ -54,8 +61,8 @@ constexpr int kRiverFirstLine = 28;
 constexpr int kRiverTop = 24;      // the screen's row of the river's top line (of 240)
 constexpr int kRowLine = 55;       // VSINT for screen row r: kRowLine + r
 
-uint16_t symbol(const std::string &dir, const char *name) {
-	FILE *f = std::fopen((dir + "/test.sym").c_str(), "r");
+uint16_t symbol(const std::string &dir, const char *name, const char *file = "test.sym") {
+	FILE *f = std::fopen((dir + "/" + file).c_str(), "r");
 	if (!f) return 0;
 	char line[256];
 	uint16_t at = 0;
@@ -240,6 +247,25 @@ private:
 	}
 };
 
+// The General Sound (TSGS, see above): its ROM read, the card on, its firmware run for 6 s (as
+// long after the power as a program starts: past its start). False: none, or its ROM not there.
+bool setupGs(Computer *comp) {
+	const char *e = std::getenv("TSGS");
+	const std::string mode = e ? e : "gs";
+	if (mode == "0") return false;
+	const bool neo = mode == "neo";
+	const std::string path = std::string("../deps/xpeccy-plus/config/roms/") + (neo ? "neogs111.rom" : "gs105b.rom");
+	std::vector<uint8_t> rom;
+	if (!readFile(path, rom)) { std::printf("no General Sound: cannot read %s\n", path.c_str()); return false; }
+	std::memcpy(neo ? comp->gs->romNGS : comp->gs->romGS, rom.data(), std::min(rom.size(), size_t(neo ? NGS_ROM_SIZE : GS_ROM_SIZE)));
+	comp->gs->enable = 1;
+	gs_set_model(comp->gs, neo ? GS_NEOGS : GS_ORIGINAL);
+	for (int i = 0; i < 60; i++) gsSync(comp->gs, 100000000);   // (its 2M checked: ~5 s)
+	gsFlush(comp->gs);
+	return true;
+}
+uint8_t readGs(Computer *comp, uint16_t addr) { return uint8_t(mem_rd_fast(comp->gs->mem, addr)); }
+
 void putInput(uint8_t *at, const rr::Input &in) {
 	at[0] = in.stick[0];
 	at[1] = in.stick[1];
@@ -262,6 +288,9 @@ int main(int argc, char **argv) {
 		compSetBaseFrq(comp, 3.5);
 		memSetSize(comp->mem, MEM_4M, -1);
 		compReset(comp, RES_DEFAULT);
+		comp->ts->type = TS_NEDOPC;
+		chip_set_type(comp->ts->chipB, SND_AY);
+		setupGs(comp);
 		bytesPerLine = comp->vid->full.x * 8;
 		bufSize = bytesPerLine * comp->vid->full.y;
 		if (argc > 6 && !std::strcmp(argv[5], "-sd")) {   // a host folder as the SD card (FAT32)
@@ -293,7 +322,9 @@ int main(int argc, char **argv) {
 			for (int x = 0; x < 320; x++)
 				std::fwrite(bufimg + (comp->vid->tsconf.yPos + y) * bytesPerLine + (comp->vid->tsconf.xPos * 2 + 2 * x) * 4, 1, 3, o);
 		std::fclose(o);
-		std::printf("PC %04X, border %02X\n", comp->cpu->regPC, comp->vid->brdcol);
+		std::printf("PC %04X, border %02X", comp->cpu->regPC, comp->vid->brdcol);
+		if (comp->gs->enable) std::printf("; the General Sound's PC %04X, page %02X", comp->gs->cpu->regPC, comp->gs->rp0);
+		std::printf("\n");
 		return 0;
 	}
 	uint32_t seed = 12345;
@@ -341,6 +372,7 @@ int main(int argc, char **argv) {
 	comp->ts->type = TS_NEDOPC;          // and its TurboSound: two AYs
 	chip_set_type(comp->ts->chipB, SND_AY);
 	compReset(comp, RES_DEFAULT);
+	const bool gsOn = setupGs(comp);
 	bytesPerLine = comp->vid->full.x * 8;
 	bufSize = bytesPerLine * comp->vid->full.y;
 	uint8_t *ram = comp->mem->ramData;
@@ -414,6 +446,14 @@ int main(int argc, char **argv) {
 		return false;
 	};
 	const uint16_t evShow = symbol(dir, "ev_built");
+	// the General Sound: the program's state (build/gs.sym), the samples (TSWAV, TSWAVCPP)
+	const uint16_t gsOnAt = symbol(dir, "gs_on"), gsAudf = symbol(dir, "pokey_audf", "gs.sym"),
+		gsAudc = symbol(dir, "pokey_audc", "gs.sym"), gsW = symbol(dir, "snd_w", "gs.sym");
+	const char *wavPath = std::getenv("TSWAV"), *wavCppPath = std::getenv("TSWAVCPP");
+	constexpr int kGsRate = 37500 * 108 / 256;   // the card's INT takes a sample 108 / 256 of them
+	std::vector<int16_t> wavGs, wavCpp;
+	rr::PokeySound cppPokey(kGsRate, rr::kPal.clock);
+	long gsSamples = 0;
 	std::vector<std::vector<uint8_t>> history;   // the C++ port's river of the frames before
 	std::vector<int> applySwaps;   // per frame: the machine's frames done at its apply
 	long picBad = 0, picCompared = 0;
@@ -563,7 +603,7 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		{   // the pure tones on the AY (sound_ay.asm): the registers the apply before this
+		if (!gsOn) {   // the pure tones on the AY (sound_ay.asm): the registers the apply before this
 			// frame put out, against the C++ port's POKEY of the frame before
 			static uint8_t prevAudf[4], prevAudc[4];
 			static bool havePrev = false;
@@ -592,6 +632,48 @@ int main(int argc, char **argv) {
 			for (int c = 0; c < 4; c++) { prevAudf[c] = game.g.pokey.audf[c]; prevAudc[c] = game.g.pokey.audc[c]; }
 			havePrev = true;
 		}
+		if (gsOn) {   // the General Sound (sound_gs.asm): the registers the apply before this frame
+			// sent it, against the C++ port's POKEY of the frame before; the samples it has made
+			// (a noise's pitch from RANDOM, read at another moment: not compared, as nxcheck; nor
+			// while nothing writes it again: a pause, the start beep)
+			static uint8_t prevAudf[4], prevAudc[4];
+			static bool havePrev = false, prevNoise[4];
+			static uint16_t lastW = 0;
+			gsFlush(comp->gs);
+			if (!readZ80(comp, gsOnAt)) {
+				diffs.push_back("the General Sound does not play (gs_on 0)");
+			} else if (havePrev) {
+				for (int c = 0; c < 4; c++) {
+					const uint8_t zf = readGs(comp, uint16_t(gsAudf + c)), zc = readGs(comp, uint16_t(gsAudc + c));
+					if ((zf != prevAudf[c] && !prevNoise[c]) || zc != prevAudc[c]) {
+						std::snprintf(b, sizeof b, "gs %d: AUDF %02X AUDC %02X, expected %02X %02X", c + 1, zf, zc, prevAudf[c], prevAudc[c]);
+						diffs.push_back(b);
+					}
+				}
+			}
+			const uint16_t w = uint16_t(readGs(comp, gsW) | readGs(comp, uint16_t(gsW + 1)) << 8);
+			if (havePrev)
+				for (uint16_t a = lastW; a != w; a = uint16_t(0x8000 | ((a + 1) & 0x3FF))) {
+					wavGs.push_back(int16_t((int(readGs(comp, a)) - 60) * 128));
+					gsSamples++;
+				}
+			lastW = w;
+			if (wavCppPath) {
+				for (int c = 0; c < 4; c++) {
+					cppPokey.write(2 * c, prevAudf[c]);
+					cppPokey.write(2 * c + 1, prevAudc[c]);
+				}
+				cppPokey.run(312L * 114, wavCpp);
+			}
+			for (int c = 0; c < 4; c++) {
+				const rr::PokeyRegs &p = game.g.pokey;
+				prevNoise[c] = (c == 1 && (p.audc[1] & 0xF0) == 0x80) || (c == 3 && p.audc[3] == 0x8C)
+					|| (prevNoise[c] && p.audf[c] == prevAudf[c]);
+				prevAudf[c] = p.audf[c];
+				prevAudc[c] = p.audc[c];
+			}
+			havePrev = true;
+		}
 		if (!diffs.empty()) {
 			std::printf("frame %d (level %d): %zu differences\n", f, game.gen.s.level, diffs.size());
 			for (size_t i = 0; i < diffs.size() && i < 24; i++) std::printf("  %s\n", diffs[i].c_str());
@@ -612,6 +694,38 @@ int main(int argc, char **argv) {
 	std::printf("a frame's work: %lld ticks on average, %lld at most (frame %d), of %lld a frame\n",
 		frames > 1 ? workSum / (frames - 1) : 0, workMax, workMaxFrame, (comp->tickTotal - tick0) / std::max(1, bufSwaps - swaps0));
 	std::printf("%d frames compared: %s\n", frames, errors ? "with differences" : "the same");
+	if (gsOn) {
+		const uint16_t fr = symbol(dir, "snd_frames", "gs.sym"), pa = symbol(dir, "snd_passed", "gs.sym");
+		std::printf("General Sound: %d frames played, %d after the INT had passed the samples; %ld samples\n",
+			readGs(comp, fr) | readGs(comp, uint16_t(fr + 1)) << 8, readGs(comp, pa) | readGs(comp, uint16_t(pa + 1)) << 8, gsSamples);
+		{   // its 17-bit counter's bits (made by the card from their recurrence) against tools/mkpoly's
+			std::vector<uint8_t> q(131071);
+			uint32_t r = 0x1FFFF;
+			for (size_t k = 0; k < q.size(); k++) { q[k] = uint8_t(r & 1); r = ((r << 1) | (((r >> 16) ^ (r >> 11)) & 1)) & 0x1FFFF; }
+			int polyBad = 0;
+			for (int i = 0; i < 0x4000; i++) {
+				uint8_t want = 0;
+				for (int k = 0; k < 8; k++) want |= uint8_t(q[(28 * size_t(8 * i + k)) % q.size()] << k);
+				if (readGs(comp, uint16_t(0xC000 + i)) != want) polyBad++;
+			}
+			if (polyBad) { std::printf("FAIL: the card's 17-bit counter differs in %d bytes\n", polyBad); errors++; }
+			const uint16_t g4b = symbol(dir, "g4c_bad", "gs.sym"), g4n = symbol(dir, "g4c_n", "gs.sym");
+			if (g4b) std::printf("G4CHECK: %d of %d wrong\n", readGs(comp, g4b) | readGs(comp, uint16_t(g4b + 1)) << 8, readGs(comp, g4n) | readGs(comp, uint16_t(g4n + 1)) << 8);
+		}
+		auto writeWav = [&](const char *path, const std::vector<int16_t> &v) {
+			FILE *wf = std::fopen(path, "wb");
+			if (!wf) return;
+			auto u32 = [&](uint32_t x) { std::fwrite(&x, 4, 1, wf); };
+			auto u16 = [&](uint16_t x) { std::fwrite(&x, 2, 1, wf); };
+			std::fwrite("RIFF", 1, 4, wf); u32(uint32_t(36 + 2 * v.size())); std::fwrite("WAVEfmt ", 1, 8, wf);
+			u32(16); u16(1); u16(1); u32(kGsRate); u32(kGsRate * 2); u16(2); u16(16);
+			std::fwrite("data", 1, 4, wf); u32(uint32_t(2 * v.size()));
+			std::fwrite(v.data(), 2, v.size(), wf);
+			std::fclose(wf);
+		};
+		if (wavPath) writeWav(wavPath, wavGs);
+		if (wavCppPath) writeWav(wavCppPath, wavCpp);
+	}
 	if (botSeed) std::printf("played: %ld games started, %ld crashes, %ld games over, up to bridge %ld\n", games, crashes, gameOvers, maxBridge);
 
 	// The last frame went live at the apply just run; the frame after shows it. The program

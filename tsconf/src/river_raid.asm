@@ -1,10 +1,11 @@
 ; River Raid for TS-Conf. The attract mode, then the game with START, as the Next's game runs
 ; them (game.asm, play.asm, display.asm, river_gen.asm: the same code), shown the TS-Conf's
-; way: the river in the 256-colour mode (320x240), a line of 512 bytes a row, scrolled by the
+; way: the river in the 16-colour mode (320x240), a line of 256 bytes a row, scrolled by the
 ; hardware (GYOFFS); the bank's colour changed per line by the frame interrupt moved down the
-; frame (as the Next's Copper does it); the objects and players as sprites (sprites.asm); the
-; panel a picture of its own below the river (panel_ts.asm); tile layer 0 black above the
-; river and the panel's grey under it. No sound yet.
+; frame (PALSEL: a palette per colour; as the Next's Copper does it); the objects and players
+; as sprites (sprites.asm); the panel a picture of its own below the river (panel_ts.asm);
+; tile layer 0 black above the river and the panel's grey under it. The sound on a General
+; Sound (sound_gs.asm, gs/), else its pure tones on the AYs (sound_ay.asm).
 ;
 ; Memory (16K windows, the board's pages):
 ;   $0000-$3FFF  the Atari's RAM (ATARI_PAGE)
@@ -192,6 +193,7 @@ start:
 	call obj_pics			; the sprites' pictures
 	call pl_pics
 	call panel_pics
+	call gs_load			; the General Sound's program, if there is one
 	ld bc,PAGE0
 	ld a,ATARI_PAGE
 	out (c),a
@@ -260,7 +262,7 @@ main_frame:
 	call build_events
 	call main_loop
 	call vbi
-	call ay_frame			; the sound's pure tones (sound_ay.asm)
+	call snd_frame			; the sound (sound_gs.asm, sound_ay.asm)
 	jr .done
 .busy	dec a				; sub $B0F1 is clearing memory: the main loop is stuck,
 	ld (busy),a			; only the interrupts run
@@ -275,7 +277,7 @@ main_frame:
 	or a
 	call z,finish_reset
 	call vbi
-	call ay_frame
+	call snd_frame
 .done
 frame_done:
 	call wait_frame
@@ -413,7 +415,7 @@ apply:
 	out (c),a
 	inc b
 	out (c),a
-	call ay_out			; the frame's tones
+	call snd_out			; the frame's sound: the AY's tones or the General Sound's
 	call panel_frame
 	ld hl,(pf_gx)			; the panel's events: its picture, the scrolling line's X
 	ld (ev_panel + 6),hl
@@ -1026,6 +1028,7 @@ init_video:
 	include "play.asm"
 	include "sound.asm"
 	include "sound_ay.asm"
+	include "sound_gs.asm"
 	include "display_objs.asm"
 	include "panel.asm"
 random_columns:
@@ -1312,6 +1315,7 @@ pokey_audf:	ds 4			; what the sound driver wrote: AUDF1-4,
 pokey_audc:	ds 4			; AUDC1-4
 ay_regs:	ds AYR			; ay_frame: the AY's registers for apply
 ay_ch:		ds 1			; the POKEY channel in .one
+gs_on:		ds 1			; the General Sound plays it all (gs_load)
 	ifdef SPG			; load_rom: the card, the volume, the walk
 lr_lfn_buf	equ pix_tab		; (a long name: filled at the start, after it)
 lr_part:	ds 4			; the volume's first sector,
@@ -1352,6 +1356,7 @@ int_vectors:	ds $FF
 	mmu 0,INIT_PAGE
 	org $0000
 	include "sprite_pics.asm"
+	include "gs_load.asm"
 	ifdef SPG
 	include "load_rom.asm"
 	endif
