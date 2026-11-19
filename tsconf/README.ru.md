@@ -1,6 +1,6 @@
 # River Raid для TS-Conf
 
-[English](README.md) | Русский
+[English](README.md) | Русский | [Українська](README.uk.md) | [Deutsch](README.de.md) | [Polski](README.pl.md) | [Italiano](README.it.md) | [Español](README.es.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
 Порт на TS-Conf (ZX Evolution / Pentevo): отдельный проект со своей сборкой, отдельно от
 версии для ZX Spectrum Next ([NEXT.ru.md](../NEXT.ru.md); оба — [главная страница](../README.ru.md)).
