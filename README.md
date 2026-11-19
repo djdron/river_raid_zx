@@ -65,6 +65,7 @@ and the program stops. The ROM is looked for by its long name, then by its short
 | PAL / NTSC | CAPS + 1 (starts again) | |
 | sound off / on | CAPS + 2 | |
 | 28 MHz / 14 MHz (the game's speed is the same: only the time left in a frame changes) | CAPS + 3 | |
+| the noise on the AY / on the DAC (the AY's is cheaper; noise lower than it can play is played higher) | CAPS + 4 | |
 | the frame's work on the border, a colour per part: orange apply, grey prepare (and clear_layer2_page during a reset), red display, yellow build_sprites, blue main_loop, magenta push_line (a new river line, inside main_loop), white vbi, cyan pokey_frame, black the time left | T (on / off) | |
 
 Games 1-8 as on the Atari: starting at bridge 1, 5, 20 or 50, odd numbers one player, even

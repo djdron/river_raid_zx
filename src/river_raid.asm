@@ -107,6 +107,7 @@ start_bridges_hi: db 0			; the starting bridge's hundreds and thousands, BCD (nx
 					; NXBRIDGE patches the ROM's starts and this)
 snd_passed:	dw 0			; the frames whose samples the DMA had passed (sound.asm)
 test_ghost_on:	db 0
+test_ay_noise:	db 0			; nxcheck NXAYNOISE: the noise on the AY (the game's default)
 ob_miss:	dw 0			; objects whose picture obj_lookup did not find (not drawn)
 test_ghost:				; nxcheck NXGHOST: after the display, the plane cannot crash
 					; and never runs out of fuel (as the C++ port's display_bench)
@@ -139,6 +140,13 @@ start:
 	xor a
 	ld (cpu_14),a
 	ld (spd_keys),a
+	ld (ayn_keys),a
+	ifdef TEST			; the noise on the AY (CAPS + 4: on the DAC and back); the
+	ld a,(test_ay_noise)		; checks compare the DAC's with the C++ port's
+	else
+	inc a
+	endif
+	ld (ay_noise),a
 	nextreg $50,ATARI_RAM_PAGE	; the Atari's RAM at $0000-$3FFF
 	nextreg $51,ATARI_RAM_PAGE + 1
 	nextreg $53,DATA_PAGE
@@ -803,7 +811,16 @@ snd_ticks:	ds 2			; the frame's ticks (4 a sample)
 snd_level:	ds 1			; the level at its start
 pk_d:		ds 1
 pk_k:		ds 1
-ay_q:		ds 3 * 9		; the tones 2 frames ago, 1, now: period, volume x 3
+AYF		equ 15			; a frame's AY registers (ay_q):
+AYF_N1		equ 9			; the tones: period, volume x 3 (the first AY's A, B, C),
+AYF_MIX1	equ 10			; the first AY's noise period and mixer, the second's and
+AYF_N2		equ 11			; the third's noise period and volume (their channel A)
+AYF_V2		equ 12
+AYF_N3		equ 13
+AYF_V3		equ 14
+ay_q:		ds 3 * AYF		; 2 frames ago, 1, now
+ay_noise:	ds 1			; the noise on the AY (CAPS + 4)
+ayn_keys:	ds 1			; the keys last frame
 ay_mask:	ds 1			; the POKEY channels on the AY (bits 0-3)
 ay_skip:	ds 1			; (pokey_frame's copy)
 ay_ch:		ds 1			; the POKEY channel in .one

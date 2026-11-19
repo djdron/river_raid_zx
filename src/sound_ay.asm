@@ -11,8 +11,14 @@
 ; The AY plays what the registers were 2 frames ago: the DAC's samples are about that far
 ; ahead.
 
-; the AY's ports: TurboSound on (NR $08 bit 1), the first chip mono (NR $09 bit 5), only
-; its tones on, quiet
+; The noise (AUDC bits 7-5 100, the 17-bit counter), while ay_noise is on: channel 1's on the
+; second AY, 2's on the third (their channel A), 4's on the first AY's C (its tone and its
+; noise never sound together), each with its chip's noise generator: a new random bit every
+; 2N AY periods as POKEY's every pulse, N = (AUDF + 1) x 1.727 (PAL) or 1.711 (NTSC), but 31
+; at most (AUDF 17: the lower noise is played higher).
+
+; the AY's ports: TurboSound on (NR $08 bit 1), the chips mono (NR $09 bits 7-5), the first's
+; tones on, the others' noise on A, quiet
 ay_init:
 	ld bc,$243B
 	ld a,$08
@@ -26,24 +32,23 @@ ay_init:
 	out (c),a
 	inc b
 	in a,(c)
-	or $20
+	or $E0				; (all three)
 	out (c),a
-	ld hl,ay_q
-	ld de,ay_q + 1
-	ld bc,3 * 9 - 1
-	ld (hl),0
-	ldir
 	xor a
 	ld (ay_mask),a
-	ld a,$FF			; the first AY, both sides
-	ld bc,$FFFD
+	ld a,$FE			; the second and third AY: only channel A's noise
+	call .mix
+	ld a,$FD
+	call .mix
+	jp ay_quiet
+.mix	ld bc,$FFFD
 	out (c),a
-	ld a,7				; tones on, noise off
+	ld a,7
 	out (c),a
 	ld b,$BF
-	ld a,$38
+	ld a,$37
 	out (c),a
-	jp ay_out
+	ret
 
 ; sound_init's part in this page (nothing at $6000-$7FFF touched): the AY, POKEY's tables
 ; into page 1, the steps' tables, the DMA set up (sound_init starts it)
