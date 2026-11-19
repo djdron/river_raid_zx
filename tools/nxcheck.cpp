@@ -380,12 +380,6 @@ int main(int argc, char **argv) {
 		const uint16_t on = symbol(argv[2], "test_ghost_on");
 		if (on >= 0x8000 && on < 0xA000) sram[sramOffset(kCodePages[0]) + (on - 0x8000)] = 1;
 	}
-	// NXAYNOISE=1: the noise on the AY, as the game has it (the checks' build: on the DAC)
-	const bool ayNoise = getenv("NXAYNOISE") != nullptr;
-	if (ayNoise) {
-		const uint16_t on = symbol(argv[2], "test_ay_noise");
-		if (on >= 0x8000 && on < 0xA000) sram[sramOffset(kCodePages[0]) + (on - 0x8000)] = 1;
-	}
 	auto afterDisplay = [&] {
 		std::memset(picture, 0, sizeof picture);
 		game.drawRiver(picture);
@@ -739,7 +733,6 @@ int main(int argc, char **argv) {
 						v = vol[h[4 + c] & 15];
 					}
 					const int zn = ay->reg[2 * k] | ((ay->reg[2 * k + 1] & 15) << 8), zv = ay->reg[8 + k] & 15;
-					if (ayNoise && f > 2 && !tone) continue;   // (all of it on the AY: not only tones)
 					if (zv != v || (v && zn != n)) {
 						std::snprintf(b, sizeof b, "ay %d%c: period %d volume %d, expected %d %d", c + 1, 'A' + k, zn, zv, n, v);
 						diffs.push_back(b);

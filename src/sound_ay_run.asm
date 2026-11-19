@@ -6,17 +6,10 @@
 ay_vol:	db 0, 8, 10, 12, 13, 13, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15
 
 ; This frame's registers (ay_mask: the POKEY channels they take), then the AY those of 2
-; frames ago. Each POKEY channel has an AY channel of its own, with its chip's noise:
-; 1 the second AY's A, 2 the third's A, 3 the first's B, 4 the first's C. With ay_noise
-; off only the pure tones; on, all of it:
-;   AUDC bit 4 (only the volume)	the volume alone (the mixer: neither tone nor noise)
-;   bits 7-5 101, 111 (pure tone)	the tone, N = (AUDF + 1) x 3.454 (PAL) / 3.42 (NTSC)
-;   100 (17-bit noise), 010 (the 4-bit counter through the 5-bit: the missile)
-;					the noise, N = (AUDF + 1) x 1.727 / 1.711, 31 at most
-;   000 (the 17-bit through the 5-bit)	the noise at half the rate (N x 2)
-;   110 (4-bit counter: 15 pulses round)	a tone 7.5 pulses a half
-;   001, 011 (the tone through the 5-bit: 31 pulses round)  a tone 15.5 pulses a half
-; (the last three only in a crash's frames, one each)
+; frames ago: the pure tones (AUDC bits 7-5 101, 111, not only the volume), N = (AUDF + 1) x
+; 3.454 (PAL) / 3.42 (NTSC); the rest is the DAC's (pokey_frame). Each POKEY channel has an
+; AY channel of its own: 1 the second AY's A, 2 the third's A, 3 the first's B, 4 the
+; first's C.
 ay_slot:	db AYR / 3, 0, 2 * AYR / 3, 0, 0, 1, 0, 2	; per POKEY channel: the chip's
 					; registers, the channel (0-2)
 ay_frame:
@@ -62,9 +55,6 @@ ay_frame:
 	add a,l
 	ld l,a
 	ld b,(hl)			; B: AUDC
-	ld a,(ay_noise)
-	or a
-	jr nz,.mine
 	ld a,b				; (only the pure tones)
 	and $F0
 	cp $A0
@@ -112,41 +102,7 @@ ay_frame:
 	pop hl
 	add hl,de
 .vol	ld (hl),0
-	bit 4,b
-	ret nz				; only the volume
-	ld a,b
-	rlca
-	rlca
-	rlca
-	and 7
-	cp 4
-	jr z,.noise
-	cp 2
-	jr z,.noise
-	or a
-	jr z,.noise2
-	call .period			; HL: N for the pulses
-	cp 5
-	jr z,.tone
-	cp 7
-	jr z,.tone
-	push hl				; x 7.5 (x 8 - x / 2), x 15.5 (x 16 - x / 2)
-	srl h
-	rr l
-	ex (sp),hl
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	cp 6
-	jr z,.x75
-	add hl,hl
-.x75	pop de
-	or a
-	sbc hl,de
-	ld a,h
-	cp 16
-	jr c,.tone
-	ld hl,4095
+	call .period			; HL: N
 .tone	ld a,c				; registers 2C, 2C + 1, the mixer's tone bit
 	add a,a
 	ld e,a
@@ -174,23 +130,6 @@ ay_frame:
 	rlca
 	jr .tb
 .mix	and (ix+7)
-	ld (ix+7),a
-	ret
-.noise2	call .noise_n			; at half the rate
-	add a,a
-	cp 31
-	jr c,.nset
-	ld a,31
-	jr .nset
-.noise	call .noise_n
-.nset	ld (ix+6),a
-	ld a,$F7			; the mixer's noise bit
-	inc c
-.nb	dec c
-	jr z,.nmix
-	rlca
-	jr .nb
-.nmix	and (ix+7)
 	ld (ix+7),a
 	ret
 ; HL: a tone's N for this channel's AUDF (A kept: the kind)
@@ -229,32 +168,6 @@ ay_frame:
 	ld hl,884
 .m	pop bc
 	pop af
-	ret
-; A: a noise's N for this channel's AUDF (C kept)
-.noise_n
-	call .audf
-	inc a
-	ld b,31
-	jr z,.nn
-	cp 18 + 1
-	jr nc,.nn
-	ld b,a
-	ld d,a
-	ld a,(tv_pal)
-	or a
-	ld e,182
-	jr z,.nf
-	ld e,186
-.nf	mul d,e
-	ld a,e
-	rla
-	ld a,d
-	adc a,b
-	cp 31
-	jr c,.nr
-	ld a,31
-.nr	ld b,a
-.nn	ld a,b
 	ret
 .audf	ld a,(ay_ch)
 	ld hl,pokey_audf

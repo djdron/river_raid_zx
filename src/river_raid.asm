@@ -107,7 +107,6 @@ start_bridges_hi: db 0			; the starting bridge's hundreds and thousands, BCD (nx
 					; NXBRIDGE patches the ROM's starts and this)
 snd_passed:	dw 0			; the frames whose samples the DMA had passed (sound.asm)
 test_ghost_on:	db 0
-test_ay_noise:	db 0			; nxcheck NXAYNOISE: the noise on the AY (the game's default)
 ob_miss:	dw 0			; objects whose picture obj_lookup did not find (not drawn)
 test_ghost:				; nxcheck NXGHOST: after the display, the plane cannot crash
 					; and never runs out of fuel (as the C++ port's display_bench)
@@ -140,13 +139,6 @@ start:
 	xor a
 	ld (cpu_14),a
 	ld (spd_keys),a
-	ld (ayn_keys),a
-	ifdef TEST			; the noise on the AY (CAPS + 4: on the DAC and back); the
-	ld a,(test_ay_noise)		; checks compare the DAC's with the C++ port's
-	else
-	inc a
-	endif
-	ld (ay_noise),a
 	nextreg $50,ATARI_RAM_PAGE	; the Atari's RAM at $0000-$3FFF
 	nextreg $51,ATARI_RAM_PAGE + 1
 	nextreg $53,DATA_PAGE
@@ -820,8 +812,6 @@ g4c_p15:	ds 1
 g4c_bad:	ds 2			; pk_g4's counters not as stepping gives them
 g4c_n:		ds 2			; its calls
 	endif
-ay_noise:	ds 1			; all the sound on the AY (CAPS + 4), else the pure tones
-ayn_keys:	ds 1			; the keys last frame
 ay_mask:	ds 1			; the POKEY channels on the AY (bits 0-3)
 ay_skip:	ds 1			; (pokey_frame's copy)
 ay_ch:		ds 1			; the POKEY channel in .one

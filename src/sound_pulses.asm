@@ -296,13 +296,21 @@ pk_noise:
 	and c
 	exx
 	jr z,.zero
-	ld a,d
-	or a
-	call z,pk_on
+	ld a,d				; (a noise's turns at the sample's start: no part over two
+	or a				; samples, which a noise does not need)
+	jr nz,.pos
+	ld d,c
+	ld a,(hl)
+	add a,c
+	ld (hl),a
 	jr .pos
 .zero	ld a,d
 	or a
-	call nz,pk_off
+	jr z,.pos
+	ld d,0
+	ld a,(hl)
+	sub c
+	ld (hl),a
 .pos	ld a,e				; the next pulse's sample
 .pf	add a,0
 	ld e,a
@@ -416,13 +424,21 @@ pk_g4:
 	jr z,.pos			; not let through
 	dec a
 	jr z,.zero
-	ld a,d
+	ld a,d				; (turns at the sample's start, as a noise's)
 	or a
-	call z,pk_on
+	jr nz,.pos
+	ld d,c
+	ld a,(hl)
+	add a,c
+	ld (hl),a
 	jr .pos
 .zero	ld a,d
 	or a
-	call nz,pk_off
+	jr z,.pos
+	ld d,0
+	ld a,(hl)
+	sub c
+	ld (hl),a
 .pos	ld a,e				; the next pulse's sample
 .pf	add a,0
 	ld e,a

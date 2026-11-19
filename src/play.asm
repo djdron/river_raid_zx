@@ -1160,27 +1160,6 @@ read_input:
 	nextreg $07,a
 .spd	ld a,h
 	ld (spd_keys),a
-	ld b,$FE			; CAPS + 4: the noise on the AY or the DAC, in turn
-	in a,(c)
-	ld h,a
-	ld b,$F7
-	in a,(c)
-	rrca
-	rrca
-	rrca
-	or h
-	cpl
-	and 1
-	ld h,a
-	ld a,(ayn_keys)
-	cpl
-	and h
-	jr z,.ayn
-	ld a,(ay_noise)
-	xor 1
-	ld (ay_noise),a
-.ayn	ld a,h
-	ld (ayn_keys),a
 	ld b,$FB			; T: the frame's work on the border, on and off (when
 	in a,(c)			; pressed)
 	cpl
