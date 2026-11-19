@@ -113,9 +113,9 @@ game, presses START, flies towards the middle of the water, dodges enemies ahead
 depots when low on fuel, fires, pauses now and then (`-bot N` for other choices, `-stress`
 at full speed always firing, `-seed N` for another POKEY counter, `-attract` for no player). After every frame it compares the
 river generator's state (`RiverGen::diffWithRam`), the game's state (the scrolling line's
-too), the high scores and the panel's characters, screen memory, the
-bank colour per line (`Game::scan`) and the objects as drawn (`Game::drawn`), the Copper's
-memory and list; at the end the
+too), the high scores and the panel's characters, screen memory (kept only in the check's
+build), the objects as drawn (`Game::drawn`), the Copper's memory and its list's bank colours
+against the bank colour per line (`Game::scan`); at the end the
 picture of the last frame, pixel by pixel, the river, the panel and the scrolling line
 (`Game::drawRiver` and `drawStatusBar` in the Next's colours). It also reports what was played and
 how long the frames take. 4 x 40 000 frames with different players (games 1-8, about 70 games
@@ -126,9 +126,9 @@ and the fields.
 
 | Z80 | 8K page | What |
 |---|---|---|
-| $0000-$3FFF | 30, 31 | the Atari's RAM: the game's state at the original's addresses, player-missile memory, screen memory; a dump compares byte for byte with the original and the C++ port |
+| $0000-$3FFF | 30, 31 | the Atari's RAM: the game's state at the original's addresses, player-missile memory, screen memory (the check's build only); a dump compares byte for byte with the original and the C++ port |
 | $4000-$5FFF | 18-27 | a window onto Layer 2 |
-| $6000-$7FFF | 12 | the bank colour per line, the objects' rows (`ds_objs`), tables, the sprites' attributes, the Copper's list |
+| $6000-$7FFF | 12 | the objects' rows (`ds_objs`), tables, the sprites' attributes, the Copper's list |
 | $8000-$9FFF | 4 | the program: the frame, the river generator, the game's main loop |
 | $A000-$BFFF | 5 | the cartridge image, at its own addresses: the tables are read where the original reads them |
 | $C000-$DFFF | 6 | the program: the game, the display, the sprites, the panel |

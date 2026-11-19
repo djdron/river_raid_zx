@@ -8,10 +8,12 @@ picture in [HOW_IT_WORKS.md](HOW_IT_WORKS.md).
 ## The numbers
 
 Times are the Next core's ticks at 28 MHz, per frame, averaged, from nxcheck's histogram
-(`NXHISTALL=file`, then `python3 tools/prof.py build/test.sym file 60`). Two runs:
+(`NXHISTALL=file`, then `python3 tools/prof.py build/test.sym file 60`, divided by the
+frames), on the check's build without screen memory as the game has it (`-DNOSCREEN`,
+`NXNOSCREEN=1`). Two runs:
 
-- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~117 000 a frame on average, ~181 000 at most;
-- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~185 000 on average, ~234 000 at most (NTSC ~235 000).
+- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~110 000 a frame on average, ~166 000 at most;
+- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~169 000 on average, ~211 000 at most (NTSC ~204 000; at 14 MHz NTSC ~167 000 of ~240 000).
 
 A frame has ~567 000 ticks on PAL and ~481 000 on NTSC (half that at 14 MHz). `apply` (and
 so `panel_frame`) runs after the measured work (below the scrolling line) and is not in these
@@ -22,46 +24,45 @@ By part (A / B):
 
 | part | A | B |
 |---|---|---|
-| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `pf_*` and `collide` in `display.asm`) | 50 500 | 66 400 |
-| sound (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 25 400 | 43 000 |
-| new river lines (`river_gen`, `render_line`, `span_line`, `push_line`) | 19 900 | 45 700 |
-| sprites and the Copper's list (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 11 600 | 16 400 |
-| the game logic and the rest (`prepare`, `main_loop`, `move_objects`, `random_step`, the panel's printing, …) | 11 000 | 13 900 |
+| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `pf_*` in `display.asm`) | 45 800 | 61 900 |
+| sound (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 500 | 38 900 |
+| new river lines (`river_gen`, `render_line`, `span_line`, `push_line`) | 17 900 | 42 200 |
+| sprites and the Copper's list (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 11 100 | 15 900 |
+| the game logic and the rest (`prepare`, `main_loop`, `move_objects`, `random_step`, the panel's printing, …) | 9 800 | 11 100 |
 
 The most expensive routines (A / B):
 
 | routine | A | B | file |
 |---|---|---|---|
-| `render_line` | 7 700 | 16 900 | render |
-| `span_line` | 6 300 | 14 900 | spans |
-| `pk_noise` | 4 400 | 12 500 | sound_pulses |
-| `ds_edge_test` | 3 400 | 11 000 | display_simple |
-| `display` (own code) | 8 400 | 9 500 | display_simple |
+| `display` (own code) | 11 500 | 13 100 | display_simple |
+| `pk_noise` | 4 600 | 12 900 | sound_pulses |
+| `span_line` | 4 900 | 12 000 | spans |
+| `ds_edge_test` | 3 200 | 10 200 | display_simple |
 | `dh_pf` | 8 100 | 9 400 | display_hits |
 | `snd_sum` | 8 600 | 8 600 | sound |
-| `dh_obj` | 5 100 | 6 500 | display_hits |
-| `ds_fields` | 5 700 | 6 500 | display_simple |
-| `ds_obj` | 5 400 | 6 300 | display_objs |
+| `render_line` | 3 500 | 8 500 | render |
+| `rl_fill` | 3 800 | 8 300 | render |
+| `dh_obj` | 5 000 | 6 500 | display_hits |
+| `ds_obj` | 5 300 | 6 100 | display_objs |
 | `ob_list` | 4 100 | 5 600 | sprites |
-| `draw_line` | 2 300 | 5 200 | river_gen |
 | `ob_attr` | 2 900 | 5 200 | sprites |
-| `dh_bits` | 4 400 | 4 700 | display_hits |
+| `dh_bits` | 4 200 | 4 400 | display_hits |
 | `move_objects` | 2 000 | 3 900 | game |
-| `pk_channel` | 1 500 | 3 300 | sound_pulses |
-| `dl_fill` | 1 300 | 3 000 | river_gen |
-| `line_done` | 1 300 | 2 900 | game |
-| `pk_off`, `pk_on` | 1 800 | 5 400 | sound_pulses |
+| `hit_setup` | 2 300 | 3 700 | display_hits |
+| `dl_fill` | 1 500 | 3 500 | river_gen |
+| `ay_out` | 3 400 | 3 400 | sound_ay_run |
 | `snd_fill` | 2 800 | 2 800 | sound |
-| `pokey_frame` (own code) | 2 400 | 2 500 | sound |
+| `ay_frame` | 2 200 | 2 800 | sound_ay_run |
+| `pk_channel` | 1 200 | 2 800 | sound_pulses |
+| `pokey_frame` (own code) | 2 500 | 2 600 | sound |
+| `draw_line` | 900 | 2 300 | river_gen |
 | `dh_lists` | 2 000 | 2 000 | display_hits |
-| `pk_g4` | 0 | 1 700 (18 000 in a frame when the missile sounds) | sound_pulses |
-| `ds_bank_fill` | 1 800 | 1 600 | display_simple |
-| `build_copper` | 1 600 | 1 500 | sprites |
+| `pk_g4` | 0 | 1 400 (~9 000 in a frame when the missile sounds) | sound_pulses |
+| `build_copper` | 1 100 | 1 000 | sprites |
 
-The heaviest frame of B (~234 000): the river's two new lines ~31 000, the sound up to
-~40 000 (`pk_g4` ~18 000 of it), the placement (`display`, `ds_fields`, `ds_obj`) ~27 000,
-`dh_pf` and `dh_bits` ~26 000, the bank colours and the Copper's list at a bridge
-(`ds_bank_fill`, `build_copper`) ~16 500, the edge tests ~10 000.
+The heaviest frame of B (~211 000): the sound up to ~60 000 (the noise and the missile on the
+DAC, ~180 pulses), the placement and edge tests (`display`, `ds_obj`, `ds_edge_test`) ~30 000,
+the collisions (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, the river's new lines ~27 000.
 
 (`prof.py` takes a routine's name from the nearest global label below the address, so a
 data label right in front of code can take its time; the symbols of page 12 at $6000-$7FFF
@@ -140,7 +141,7 @@ the original's RAM addresses.
 | `explode` | `fly_plane` | A4E0–A589: the slot becomes an explosion, the points (BCD), a bridge's bonus. | |
 | `crash` | `fly_plane`, `explode` | sub $B1C0: the plane crashes, with an event sound; `section_checkpoint`. | |
 | `draw_bullet`, `move_bullet` | `fly_plane`, `crash` | The bullet's 8 rows into missile 2's memory (`-DBEAM` only; otherwise `draw_bullet` returns at once). | 380 / 520 |
-| `new_game`, `reset` | START, game over, respawn | sub $B0F1: the river and the objects reset (`restore_checkpoint`), `clear_screen_memory`, `busy` = 13 or 8 frames. | |
+| `new_game`, `reset` | START, game over, respawn | sub $B0F1: the river and the objects reset (`restore_checkpoint`), `clear_screen_memory` (only with screen memory: check and beam builds), `busy` = 13 or 8 frames. | |
 | `clear_layer2_page` | `main_frame` during `busy`, `restart` | One of Layer 2's 10 pages cleared a frame (`l2_clear` counts). ~1 100 a frame on average over A, but one page is 8 KB of writes in the frames it runs. | 1 100 / 570 |
 | `finish_reset`, `finish_respawn`, `respawn_or_game_over` | | After the reset: the river continues from the checkpoint, the next player or game over. | |
 | `swap_players`, `update_high_score`, `set_up_game`, `select_game` | | Two players, high score with its check bytes, the game number. | |
@@ -158,7 +159,7 @@ the original's RAM addresses.
 | `bank_colour` | `vbi`, `start_attract` | sub $AFD0: the bank's shade (switches while a bridge is drawn in near the top). | 200 / 200 |
 | `start_attract` | `restart` | The attract mode's state at its first line (game 1, no plane). | |
 | `draw_logo_and_needle` | `reset`, `start_attract` | The rainbow and the fuel needle into player-missile memory, as sub $B0F1 leaves them (`-DBEAM` only; the Next's are sprites). | |
-| `push_line` | `scroll_river`, `start_attract` | A new river line: `next_line` (river_gen) into `line_buf`, then at `line_done` the line into screen memory (48 bytes, the top line's address one line up), `render_line` (Layer 2), `plain_line` and `span_line` (the collisions' runs). | |
+| `push_line` | `scroll_river`, `start_attract` | A new river line: `next_line` (river_gen) into `line_buf` (and its pieces into `dl_seg`), then at `line_done` the line into screen memory (48 LDIs, the top line's address one line up; only in the check and beam builds, `SCREEN_MEMORY`), `render_line` (Layer 2) and `span_line` (the collisions' runs). | |
 | `prepare` | `main_frame` | AE99–AF38 at the frame's top: the tank and the shell gone below the screen, the shell's colour, the panel's lives, bridges and score. The shapes into player-missile memory ($0B00–$0FFF) only in the cycle model's build (`-DBEAM`): the Next's sprites and collisions take them from the ROM. | ~2 000 (3 000 with the copies) |
 | `drive_tank` | `main_loop` | A21B: the tank on the road drives, fires at the river's edge. | |
 | `move_objects` | `main_loop` | A26C–A2ED: the objects in the slots animate and move (ships and helicopters turn at the edge: the slot's edge flag from the display). | 2 000 / 3 700 |
@@ -171,7 +172,9 @@ the original's RAM addresses.
 One river line at a time, as the original generates it: the 24-bit LFSR, sections and
 blocks, bank and island widths, decorations (houses, mountains), roads and bridges, the
 objects placed every 16 lines. Its output is `line_buf` (48 bytes: 192 colour clocks, 2 bits
-each) and the slots.
+each; not cleared first: the pieces go one after another from byte 0 to 48), its pieces in
+`dl_seg` (byte, kind: 0 bytes to look at, an edge; 1 bytes of one value; 2 a decoration's row;
+ended by byte 48) and the slots.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
@@ -179,7 +182,7 @@ each) and the slots.
 | `count_lines` | `next_line` | A711: counts lines; at block and section starts sets up what comes (`choose_section_width`, `start_decoration`, checkpoints). | 160 / 210 |
 | `move_bank` (+ `bank_hit_setup`, `bank_hits_left/right`) | `next_line` | A826: the bank's position for this line, without running into the object still being drawn in. | 350 / 570 |
 | `change_island`, `choose_section_width` | | The island toward its target width. | |
-| `draw_line` | `next_line` | The line's bytes: bank fill (`dl_fill`, `dl_fill_bank`), edges (`dl_edge`, `dl_bank_edge`: 2-byte pieces from $B800), the decoration's row (`dl_deco_row`), water. | 2 300 / 3 300 |
+| `draw_line` | `next_line` | The line's bytes: bank fill (`dl_fill`, `dl_fill_bank`), edges (`dl_edge`, `dl_bank_edge`: 2-byte pieces from $B800), the decoration's row (`dl_deco_row`), water; each piece also into `dl_seg`. | 900 / 2 300 |
 | `dl_fill` | `draw_line` | B bytes of C from DRAW_POS: a plain fill loop. | 1 300 / 1 800 |
 | `scroll_objects` | `next_line` | AB76: everything one line down; when the lowest slot leaves the screen, the slots shift. | 560 / 820 |
 | `place_object`, `choose_enemy`, `position_object`, `place_tank` | `next_line` | Every 16 lines a new object in the next free slot; at a block's start maybe a tank on a road. | |
@@ -193,7 +196,7 @@ each carry is a line, so 0–2 lines a frame, more the faster the plane flies.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | `line_buf` colour clocks 20–179 (`WINDOW_FIRST`) into Layer 2's row A. Layer 2 is stored by columns (byte x·256 + y, 32 columns an 8K page), so the row is written down the columns: for each line byte (4 colour clocks), `pix_tab` gives 2 dots per clock as bytes, each written twice (`inc h` = the next column). 10 pages mapped in turn into slot 2. 320 writes a line. | 7 700 / 10 500 |
+| `render_line` | `line_done` | `line_buf` colour clocks 20–179 (`WINDOW_FIRST`) into Layer 2's row A, by `dl_seg`'s pieces. Layer 2 is stored by columns (byte x·256 + y, 32 columns an 8K page), so the row is written down the columns (`inc h` = the next column), 10 pages mapped in turn into slot 2 (`rl_next`). A piece of one value: its colour once from `pix_tab`, then `rl_fill` (8 columns a byte, page by page); an edge's bytes and a decoration's row: per byte `pix_tab` gives 2 dots per clock, each written twice. 320 writes a line. | 3 500 + 3 800 / 8 500 + 8 300 |
 
 ## spans.asm: the lines' runs for the playfield collisions
 
@@ -208,8 +211,7 @@ a gap touches nothing on the line.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `span_line` | `line_done` | The new line's record from `line_buf` (after `plain_line`): bytes all of the current run's colour (`span_class`) are skipped, the others looked at pixel by pixel (4 unrolled), and each colour change closes a run (`.change`). Then its gaps (`.gaps` from the edge's runs, `.bgaps` from the bank's: the two widest kept, `.gap`). | 6 300 / 14 900 |
-| `plain_line` | `line_done` | `line_buf` without decoration (houses, roads): the bank's bytes where it was drawn, so a line is bank, edge, water, edge, bank (twice with an island). | |
+| `span_line` | `line_done` | The new line's record from `dl_seg`'s pieces: a piece of one value is one colour (`span_class`) whole, a decoration's row the bank's (as the C++ port's bankRuns, the line without decoration); only an edge's bytes are looked at pixel by pixel (4 unrolled, unless the byte's are one colour); each colour change closes a run (`.change`). Then its gaps (`.gaps` from the edge's runs, `.bgaps` from the bank's: the two widest kept, `.gap`). | 4 900 / 12 000 |
 | `spans_clear` | `start_attract` | No runs on any line (screen memory cleared). The gaps are left: with no runs nothing can be touched whatever they say, and each new line makes them anew. | |
 | `span_init` | `init_tables` | The masks: bits i..j of a byte (`span_masks`). | |
 
@@ -218,24 +220,23 @@ a gap touches nothing on the line.
 As the C++ port's `displayGeometry` (branch `dli_removed`): no DLI. Each object stands at
 its slot's y, cut to the river, and its collisions are plain geometry. What it leaves:
 `ds_objs` (each object's rows for the sprites: 8 bytes, first line, row count, shape and
-colour pointers, x, size), `scan_bank` (the bank colour by river line, via `ds_bank_ev` →
-`build_copper`), the collision results in HIT and the slots' edge flags.
+colour pointers, x, size), `ds_bank_ev` (the bank colour's changes, for `build_copper`), the
+collision results in HIT and the slots' edge flags.
 
 `display` (~8 400 / 9 500 of its own):
 
 1. Maps SPAN_PAGE, `dh_lists` (the other sprites' descriptors), the registers cleared and set as B527–B55C, `bm_hitclr`, `dh_sprites` (HIT = $FF, then the other sprites with the bank and each other).
-2. `.slot`, per slot from FIRST_SLOT: `ds_fields`; the start = max(y, $5D); the first row = y + height[type] − start (≥ $80: gone above, the next); X = start + 3 (past 255: the end); rows = min(row + 1, 256 − X); `ds_rowp` the first row's byte; `ds_obj` (the rows into `ds_objs`); a bridge: `.road` (the road's colour from the scanline after each row's, X − 69 + 1; the section's bank colour after the last unless X wrapped, via `ds_bank`).
+2. `.slot`, per slot from FIRST_SLOT: IY at the slot's kind (page 5: type, X, size at IY + 11, + 22, + 33, read there, no copies), Y and the flags kept (`ds_y`, `ds_flags`), `ds_edge_kind`; the start = max(y, $5D); the first row = y + height[type] − start (≥ $80: gone above, the next); X = start + 3 (past 255: the end); rows = min(row + 1, 256 − X); `ds_rowp` the first row's byte; `ds_obj` (the rows into `ds_objs`); a bridge: `.road` (the road's colour from the scanline after each row's, X − 69 + 1; the section's bank colour after the last unless X wrapped, via `ds_bank`; a row's colour only when it differs from the row above). The shape's and colours' first rows are worked out in place (DE, BC for `ds_obj`).
 3. The edge (P3PF) for kinds 8–$0D (`ds_edge_kind`: helicopters, balloons, ships turn at it): `ds_edge_test`, then `ds_set_flags`.
 4. Against the bullet, the shell (not a bridge) and the plane: `dh_obj`; a touch stores the slot (HIT_BULLET_OBJECT, HIT_SHELL_OBJECT, HIT_PLANE_OBJECT), so the last one down the screen stays.
-5. `.end`: `test_ghost` (test builds), `ds_bank_fill`.
+5. `.end`: `test_ghost` (test builds); `ds_bank_fill` only with `-DBEAM`.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `ds_fields` | `display`, per slot | The slot's fields (kind, x, size, flags, y) and the addresses of its shapes and colours from the ROM tables; past the last slot zeros. | 5 700 / 6 500 |
-| `ds_edge_test` | `display`, per object of kinds 8–$0D | A = $02 if a dot of the object's rows is on an edge pixel. The object's box (X to X + 8, 16 or 32 clocks; none past clock 255) per row against the line's water gaps (`eg_*`, the line's ring index stepping by one); inside one, the next row. Else the row's first and last dots (`edge_lo`/`edge_hi` scaled by the size: `.s1`/`.s2`, plus X: `.ex1`/`.ex2`) against the line's edge runs (its record), and only a row over a run to the dots (`pf_v*`). | 3 400 / 11 000 |
+| `ds_edge_test` | `display`, per object of kinds 8–$0D | A = $02 if a row's span (its first dot to its last) meets an edge run on its line (the C++ port's `edgeTouches`). The object's box (X to X + 8, 16 or 32 clocks; none past clock 255) per row against the line's water gaps (`eg_*`, the line's ring index stepping by one); inside one, the next row. Else the row's first and last dots (`edge_lo`/`edge_hi` scaled by the size: `.s1`/`.s2`, plus X: `.ex1`/`.ex2`) against the line's edge runs (its record): a run between them is a touch, no dot by dot. | 3 200 / 10 200 |
 | `ds_set_flags` | `display` | The object's edge bit into its slot's flags (bit 0). | 1 100 / 1 300 |
 | `ds_bank` | `display` | A bank colour change from scanline A (a bridge's road and back): into `ds_bank_ev`. | |
-| `ds_bank_fill` | end of `display` | `scan_bank` for every river line from `ds_bank_ev` (also what nxcheck compares). | 1 800 / 1 600 |
+| `ds_bank_fill` | end of `display`, `-DBEAM` only | `scan_bank` for every river line from `ds_bank_ev` (the beam's display reads it; nxcheck compares the Copper's list with the C++ port instead). | |
 | `ds_row_hl`, `ds_edge_only` | `display` | HL += `ds_row`; the edge bit only for the kinds that read it. | |
 
 ## display_objs.asm
@@ -260,13 +261,14 @@ bullet $20). After a reset (`pm_empty`, until the next `prepare`) no rows.
 | `dh_lists` | start of `display` | The descriptors. | 2 000 / 2 000 |
 | `dh_sprites` | `display` | HIT = $FF, then HIT 0 where: the tank meets the edge (P1PF), the plane the bank (P2PF), the missile and the bullet the bank or the edge (M0PF, M2PF): `dh_pf`; the plane and the shell (P2PL bit 0), the missile and the plane (M0PL): `dh_pair`. | |
 | `dh_pf` | `dh_sprites` | NZ: sprite IX's rows meet the playfield (DE: `pf_edge`, `pf_bank`, `pf_under`). Per river line with dots (`dh_bits`): its box (X to X + its clocks) in the line's gaps first (A: bit 0 the edge's `eg_*`, bit 1 the bank's `bg_*`); inside them nothing; else the dots against the runs (the `pf_*` function). Stops at the first touch. | 8 100 / 9 400 |
-| `dh_pair` | `dh_sprites` | NZ: two sprites' rows overlap on a line both have, bit by bit (via `collide`'s list: `dh_add`, `dh_meet`). | |
+| `dh_pair` | `dh_sprites` | NZ: two sprites' rows meet: `hit_setup` on their clocks, then per line both have each one's bits (`dh_bits`, `hit_wide` by its size) into `hit_a`, `hit_b`, and `hit_line`. | |
 | `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Sprite IX's bits on line A, at bit 7 (Z: none); the line after its last row. | 4 400 / 4 700 |
-| `dh_add`, `dh_meet` | | A sprite with its bits into `collide`'s list; do sprites B and C touch? | |
-| `dh_obj` | `display`, per object (bullet, shell, plane) | NZ: sprite IX touches the current object's rows (`ds_rowp`, from the line of X = `ds_counter`, `ds_rows` of them, at `ds_x`, `ds_size`). Rejects first by rows, then X (the two clock spans), then the lines both have; per line the object's row byte and the sprite's bits; with both on the playfield's clocks (32–223) `ov_fast`, else `collide`. | 5 100 / 6 500 |
-| `ov_setup`, `ov_fast` | `dh_obj` | A byte at a time: the object's row widened to a clock a bit (`ov_exp2`, `ov_exp4`: tables made by `init_tables`, 1, 2 or 4 bytes into `ov_o`), the sprite's byte (a clock a bit) shifted onto byte k, bit s of it (`ov_k`, `ov_s`; or s clocks before it), one AND with each of the two bytes it covers. | |
+| `dh_obj` | `display`, per object (bullet, shell, plane) | NZ: sprite IX touches the current object's rows (`ds_rowp`, from the line of X = `ds_counter`, `ds_rows` of them, at the slot's X and size: IY + 22, + 33). `hit_setup` on the object's clocks (8, 16 or 32) and the sprite's, then the lines both have; per line the object's row byte (zero: the next) and the sprite's bits, each widened (`hit_wide`), `hit_line`. | 5 000 / 6 500 |
+| `hit_setup` | `dh_obj`, `dh_pair` | Z: the two boxes' clocks (B from, C wide; D from, E wide) do not meet; else the window where both are on the playfield's clocks (32–223, at most 8 wide): where it starts in each one's dots (`hit_ka`/`hit_sa`, `hit_kb`/`hit_sb`: byte, bit) and its clocks' bits (`hit_w`). | 2 300 / 3 700 |
+| `hit_wide` | `dh_obj`, `dh_pair` | Byte A's dots a clock a bit into DE on (size C: 1, 2 or 4 clocks a dot, from `ov_exp2`, `ov_exp4`: tables made by `init_tables`), a zero after. | |
+| `hit_line` | `dh_obj`, `dh_pair` | NZ: `hit_a`'s and `hit_b`'s dots meet in the window: each one's two bytes from its start shifted by `bsla de,b` (Z80N, 8 ticks), ANDed with each other and `hit_w`. | |
 
-## display.asm: the playfield tests and `collide` (and the old beam model)
+## display.asm: the playfield tests (and the old beam model)
 
 Most of this file is the full cycle-exact model of the DLI (`op`, `bm_events`, `bm_draw`,
 `rec_set`, `p3_scan`, `bm_wsync`, the beam's `collide` body…), kept for reference and
@@ -276,8 +278,8 @@ assembled only with `-DBEAM`. Assembled always:
 |---|---|---|---|
 | `pf_under`, `pf_bank`, `pf_edge`, `pf_none` | `dh_pf` | Is the sprite's row (bits D from bit 7, position E, size A: 1, 2 or 4 clocks a bit) on line `bm_line` over the bank, the edge, or either? Finds the line's record (`pf_line`), then walks its runs (`pf_size`). | 1 500 / 2 300 |
 | `pf_line` | `pf_bank`, `pf_edge` | HL = the record of line `bm_line` (carry: a river line). | 2 600 / 4 200 |
-| `pf_size`, `pf_v1`, `pf_v2`, `pf_v4` | `pf_*`, `ds_edge_test` | The runs under the sprite: a run that overlaps the sprite's clocks is tested against its bits with `span_masks` (D: the masks' page); one variant per size (N shifts turn a clock offset into a bit index). | 4 100 / 7 200 |
-| `collide` (`.add`, `.pair`, `.overlap`, `.entry`) | `dh_obj` (off the playfield's clocks), `dh_add`, `dh_meet` | A list of the sprites on a line (bits, position, size) and the bit-exact overlap test between two of them. | 1 500 / 1 200 |
+| `pf_size`, `pf_v1`, `pf_v2`, `pf_v4` | `pf_*` (`dh_pf`) | The runs under the sprite: a run that overlaps the sprite's clocks is tested against its bits with `span_masks` (D: the masks' page); one variant per size (N shifts turn a clock offset into a bit index). | 4 100 / 7 200 |
+| `collide` (`.add`, `.pair`, `.overlap`, `.entry`) | the beam's display (`-DBEAM`) | A list of the sprites on a line (bits, position, size) and the dot-by-dot overlap test between two of them; the game no longer uses it. | |
 | `bm_hitclr` | `display` | HITCLR: the collision bits cleared. | 1 500 / 1 700 |
 | `init_line_tables` | `tv_setup` | Per scanline: ANTIC's cycles at its start (`line_start`) and those left after its draw (`line_after_draw`); only the `-DBEAM` model reads them now. | |
 
@@ -319,7 +321,7 @@ game-over text in the lives' place.
 |---|---|---|---|
 | `sound_driver` | `vbi` | B2A5–B3D8: the original's driver: channel 1 the start beep, event sounds, the low-fuel beep or the engine; 2 an explosion or the missile; 3 firing or a bonus life; 4 the shell. Writes POKEY's AUDF/AUDC (`pokey_audf`, `pokey_audc`). | 770 / 930 |
 | `sound_init` | `restart` | The DACs on (NR $08), the ring and channels quiet, `sound_init7` (page 7: the AY, POKEY's tables, the DMA programmed), then the DMA enabled ($87) once page 12 is mapped back. | |
-| `pokey_frame` | `main_frame` | `ay_frame` (the pure tones to the AY), then how many samples: the lines left before `wait_line` (NR $1E/$1F), where the DMA is (its address read back), up to `SND_LEAD` (760) ahead, at least `SND_MIN_LEAD` (200), at most `SND_CAP` (700). Then: `snd_fill` (the stretch to 0), each channel not on the AY: volume × 8 (`add a,a` twice) as a constant level (volume only, or AUDF ≤ 4: half) or `pk_channel` (its turns as + and − into the ring), then `snd_sum` (the running sum makes the levels). Pages 14–15 at $0000 meanwhile (the 17-bit counter). | 2 400 / 2 500 |
+| `pokey_frame` | `main_frame` | `ay_frame` (the pure tones to the AY; all four there: the ring made quiet once, `snd_idle`, and done), then how many samples: the lines left before `wait_line` (NR $1E/$1F), where the DMA is (its address read back), up to `SND_LEAD` (760) ahead, at least `SND_MIN_LEAD` (200), at most `SND_CAP` (700). Then: `snd_fill` (the stretch to 0), each channel not on the AY: volume × 8 (`add a,a` twice) as a constant level (volume only, or AUDF ≤ 4: half) or `pk_channel` (its turns as + and − into the ring), then `snd_sum` (the running sum makes the levels). Pages 14–15 at $0000 meanwhile (the 17-bit counter). | 2 400 / 2 500 |
 | `snd_fill` | `pokey_frame` | DE bytes of A from HL in the ring (two stretches at the wrap), each by PUSH from its end down (SP saved). | 2 800 / 2 400 |
 | `snd_sum` | `pokey_frame` | The running sum over DE samples: `add a,(hl) / ld (hl),a / inc l`, 8 unrolled, entered at the right point for the remainder (self-modified `jp`), page by page in the ring. ~8 400 ticks for ~270 samples: about 31 a sample. | 8 600 / 7 300 |
 | `sound_random` | `sound_driver` | RANDOM for a noise's pitch (not `random_read`, which the checks count). | |
@@ -331,12 +333,12 @@ burst mode with prescaler 55 (15 909 Hz), restarting at its end. Levels 0–240.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `pk_channel` | `pokey_frame`, per channel with AUDF ≥ 5 | Sets up: the volume's partial values (× 0–3 of 4, for a turn inside a sample), the period's steps for the 4- and 5-bit counters (`snd_mod15/31`), the period as samples and ticks × 64 patched into the loops; the first pulse (`CH_D`, `CH_F`); K = pulses this frame (a division); then the loop for its kind. | 1 500 / 2 800 |
+| `pk_channel` | `pokey_frame`, per channel with AUDF ≥ 5 | Sets up: the volume's partial values (× 0–3 of 4, for a turn inside a sample), the period's steps for the 4- and 5-bit counters (`snd_mod15/31`), the period as samples and ticks × 64 patched into the loops; the first pulse (`CH_D`, `CH_F`); K = pulses this frame (a 12-bit division, unrolled: the ticks are below 4 × SND_CAP < 4096); then the loop for its kind. | 1 200 / 2 800 |
 | `pk_tone` | `pk_channel` | A tone: the output turns at every pulse. | |
-| `pk_noise` | `pk_channel` | Noise: the 17-bit counter's next bit at every pulse (bits in turn, mapped at $0000). | 4 400 / 8 000 |
-| `pk_g4` | `pk_channel` | The 4-bit counter let through by the 5-bit (AUDC 010: the helicopter's missile), straight. | 0 / 480 |
+| `pk_noise` | `pk_channel` | Noise: the 17-bit counter's next bit at every pulse (bits in turn, mapped at $0000); its turns at the sample's start (+ or − the volume, no part over two samples). | 4 600 / 12 900 |
+| `pk_g4` | `pk_channel` | The 4-bit counter let through by the 5-bit (AUDC 010: the helicopter's missile): both counters as one number m (`g4_crt`: m = b + 31 ((e − b) mod 15)), a pulse m + s, `g4_tab` per m ($FF not let through, else the bit); the counters back from m at the end. Turns at the sample's start. | 0 / 1 400 |
 | `pk_other` + `pk_handlers` (`adv31`, `adv15`) | `pk_channel` | The other kinds through handlers. | |
-| `pk_on`, `pk_off`, `pk_part*` | the loops | A turn at a pulse: the sample gets the change less the part before the turn, the next sample that part (no buzz from whole samples). | 1 800 / 3 400 |
+| `pk_on`, `pk_off`, `pk_part*` | the loops | A tone's or the rest's turn at a pulse: the sample gets the change less the part before the turn, the next sample that part (no buzz from whole samples; the noise and the missile turn at the sample's start instead). | |
 | `pk_done` | the loops | The rest of the frame's ticks into `CH_D`, `CH_F`, the output kept. | |
 
 ## sound_ay.asm (page 7), sound_ay_run.asm (page 6): the pure tones on the AY
@@ -345,9 +347,9 @@ burst mode with prescaler 55 (15 909 Hz), restarting at its end. Levels 0–240.
 |---|---|---|---|
 | `ay_init` | `sound_init7` | TurboSound on, the first AY mono, tones only, quiet. | |
 | `sound_init7` | `sound_init` | `ay_init`, POKEY's tables into page 1, `snd_mod15/31`, the DMA programmed (not enabled). | |
-| `ay_frame` | `pokey_frame` | For POKEY channels 1, 3, 4 with a pure tone (AUDC 101x or 111x, not volume only, volume ≠ 0): the AY period N = (AUDF + 1) × 3.454 (PAL) / 3.422 (NTSC) via `mul d,e`, the volume via `ay_vol`; `ay_mask` tells `pokey_frame` to skip them. The AY gets what was queued 2 frames ago (`ay_q`). | 1 300 / 1 500 |
-| `ay_out` | `ay_frame`, `ay_init`, `ay_quiet` | The AY's registers 0–5 and 8–10 from `ay_q`. | 740 / 740 |
-| `ay_quiet` | `pokey_frame` (sound off) | All quiet. | |
+| `ay_frame` | `pokey_frame` | For each POKEY channel with a pure tone (AUDC 101x or 111x, not volume only, volume ≠ 0): its own AY channel (`ay_slot`: 1 the second AY's A, 2 the third's A, 3 the first's B, 4 the first's C), the period N = (AUDF + 1) × 3.454 (PAL) / 3.422 (NTSC) via `mul d,e`, the volume via `ay_vol`, the mixer's tone bit; `ay_mask` tells `pokey_frame` to skip them. This frame's registers into `ay_q` (3 frames × 33: the three chips' 0–10, in turn by `ay_qi`), out those of 2 frames ago. | 2 200 / 2 800 |
+| `ay_out` | `ay_frame`, `ay_init`, `ay_quiet` | The three AYs' registers 0–10 from HL (the first left selected, B = $FF). | 3 400 / 3 400 |
+| `ay_quiet` | `pokey_frame` (sound off), `ay_init` | All quiet (volumes 0, mixers $3F). | |
 
 `sound_ay_run.asm` is in page 6, not 7, so that `pokey_frame` never maps page 7 over the
 ring (see NOTES: the crackle).
