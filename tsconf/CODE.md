@@ -244,12 +244,12 @@ The card's program, `gs/gs_pokey.asm` (built separately into `build/gs_pokey.bin
 
 | routine | what and how |
 |---|---|
-| `gs_start` | IM 2 (all vectors to `INT_AT` $4141, the handler copied there), the variables cleared, $6000–$60FF and $6200–$62FF a byte's own value (a read there latches the byte into DAC 1, 3), volumes: channels 1 and 3 at 63 (left, right), 2 and 4 off; `poly_make`, `tables_make`, the ring quiet, `GS_READY` out. |
+| `gs_start` | IM 2 (all vectors to `INT_AT` $4141, the handler copied there), the variables cleared, $6000–$63FF a byte's own value (a read at $6000 + 256 (n − 1) + v latches v into DAC n), all four volumes at 63; `poly_make`, `tables_make`, the ring quiet, `GS_READY` out. |
 | `main` | Waits for a command: $F4 (`GS_RESET`) DI, IM 1, JP 0 (the firmware again); $F0 (`GS_STATE`) `GS_READY` back; any other the 8 data bytes into `pokey_audf`/`pokey_audc`, then `pokey_frame`. |
-| `gs_int` | The card's INT, 37 500 a second: a DDA (`DDA_STEP` 108 of 256) takes a sample from the ring 15 820 times a second, latches it into DACs 1 and 3 (`ld a,(hl)` from $6000 + level and $6200 + level). |
+| `gs_int` | The card's INT, 37 500 a second: a DDA (`DDA_STEP` 108 of 256) takes a sample from the ring 15 820 times a second, latches it into all four DACs (`ld a,(hl)` from $6000, $6100, $6200, $6300 + level): 1 and 2 left, 3 and 4 right, each side the sum of its two. |
 | `poly_make` | POKEY's 17-bit counter's bits into $C000–$FFFF (16K), from the recurrence q(k) = q(k−9) ^ q(k−11) ^ q(k−12) ^ q(k−17) and its seeds; the Next reads them from `poly17.bin` (no room for 16K in the card's program). |
 | `tables_make` | `snd_tables`, `snd_mod15/31`, `g4_tab` (as the Next's `sound_init7`). |
-| `pokey_frame`, `snd_fill`, `snd_sum` | The Next's, without the AY, the zxnDMA and the time limit: the samples ahead of the INT's place (`rp`) up to `SND_LEAD`, at most `SND_CAP`, the last level held past them (`SND_HOLD`). |
+| `pokey_frame`, `snd_fill`, `snd_sum` | The Next's, without the AY, the zxnDMA and the time limit, and at 4 a volume step, not 8: all four channels are here (the Next's AYs take the tones), up to 60 × 4 = 240; at 8 they wrapped past 255 when explosions met (a hiss), and the two DACs a side make it as loud. Also: the samples ahead of the INT's place (`rp`) up to `SND_LEAD`, at most `SND_CAP`, the last level held past them (`SND_HOLD`). |
 | `gs_pulses.asm`, `gs_handlers.asm` | The Next's `sound_pulses.asm`, `sound_handlers.asm`: the 17-bit counter's pointer wraps to $C0 (its 16K at $C000), and no `mul`. |
 
 Its memory: $4000 the vectors, $4141 the handler, $4200 on the variables, `snd_tables` at
@@ -296,4 +296,4 @@ sector buffer is SPANS (made anew after the start).
 - **Registers taken at a line's end** (PALSEL, VPAGE, GYOFFS, GXOFFS): set them in the INT of the line before; the INT comes at HSINT 208 (the right border), so there is time at 3.5–14 MHz.
 - **The DMA** is shared by the picture's clearing (`clear_layer2_page`) and the panel's characters (`pc_put`): `pc_put` draws by CPU while the DMA is busy.
 - **The checks**: `make check` (3 000 frames; `FRAMES=`), and with a bot, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo or 0, as in [README.md](README.md). After any change: the state, the bank colour by line (`ev_built`), the General Sound's registers and the machine's picture of every frame pixel for pixel.
-- **Measuring**: `TSHISTALL=file` (every instruction's time over the run, the start, the INTs and the wait included), then `python3 ../tools/prof.py build/test.sym file 60`; the work's average and maximum are in tscheck's last lines. `TSTIME=N` prints the work of frames N−2..N+2.
+- **Measuring**: `TSHISTALL=file` (every instruction's time over the run, the start, the INTs and the wait included), then `python3 ../tools/prof.py build/test.sym file 60`; the work's average and maximum are in tscheck's last lines. `TSTIME=N` prints the work of frames N−2..N+2. `TSVOL=1`: the frames' sums of POKEY's volumes and the card's highest level (it must stay at most 255).

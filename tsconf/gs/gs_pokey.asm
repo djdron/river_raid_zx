@@ -5,12 +5,14 @@
 ; GS_ORG, started there) and sends POKEY's registers once a frame: a command (any but
 ; GS_RESET), then AUDF1-4 and AUDC1-4 as data. The program makes that frame's samples into
 ; a ring of 1024 bytes; the card's INT (37 500 a second) takes the next one at the POKEY's
-; rate (DDA_STEP / 256 of them: 15 820 a second, POKEY's PAL 15 834) and latches it into the
-; DACs of channels 1 (left) and 3 (right) at full volume: mono.
+; rate (DDA_STEP / 256 of them: 15 820 a second, POKEY's PAL 15 834) and latches it into all
+; four DACs at full volume: mono, 1 and 2 left, 3 and 4 right (each side the sum of its two:
+; the levels are 4 a volume's step, 0-240 for all four channels at 15, and the two DACs a
+; side make it as loud as the Next's 8 a step on one).
 ;
 ; The card's memory: $4000-$40FF the INT's vectors (IM 2, the bus's byte whatever it is),
-; INT_AT its handler, $4200 on the variables and tables, the stack below $6000; $6000-$60FF and
-; $6200-$62FF a byte's own value (a read there is what latches it into channel 1, 3); page 2
+; INT_AT its handler, $4200 on the variables and tables, the stack below $6000; $6000-$63FF
+; a byte's own value (a read at $6000 + 256 (n - 1) + v latches v into channel n); page 2
 ; (the firmware's page register, #12) at $8000: the ring at $8000, the program at GS_ORG, the
 ; 17-bit counter's bits at POLY17 (made at the start from its recurrence).
 ;
@@ -114,27 +116,21 @@ gs_start:
 	ld bc,vars_end - vars - 1
 	ld (hl),0
 	ldir
-	ld hl,$6000			; the DACs' tables: a byte's own value
+	ld hl,$6000			; the DACs' tables: a byte's own value, 4 pages
 .id	ld (hl),l
-	inc h
-	inc h
-	ld (hl),l
-	dec h
-	dec h
 	inc l
 	jr nz,.id
-	xor a				; all four DACs 0; channels 1 and 3 at full volume, 2 and
-	ld ($6100),a			; 4 off
-	ld ($6300),a
-	ld a,($6000)
+	inc h
+	bit 2,h
+	jr z,.id
+	ld a,($6000)			; all four DACs 0, at full volume
 	ld a,($6100)
 	ld a,($6200)
 	ld a,($6300)
 	ld a,63
 	out (P_VOL1),a
-	out (P_VOL1 + 2),a
-	xor a
 	out (P_VOL1 + 1),a
+	out (P_VOL1 + 2),a
 	out (P_VOL1 + 3),a
 	call poly_make
 	call tables_make
@@ -209,9 +205,13 @@ gs_int:	push af
 	res 2,h				; (the ring's end: its start)
 .n	ld (rp),hl
 	ld l,a
-	ld h,$60			; channel 1
+	ld h,$60			; channels 1 and 2 (left), 3 and 4 (right)
 	ld a,(hl)
-	ld h,$62			; channel 3
+	inc h
+	ld a,(hl)
+	inc h
+	ld a,(hl)
+	inc h
 	ld a,(hl)
 	pop hl
 	pop af
@@ -381,8 +381,7 @@ pokey_frame:
 	ld a,(iy+4)			; AUDC
 	and $0F
 	jr z,.next			; volume 0: nothing to hear
-	add a,a
-	add a,a
+	add a,a				; (x 2: half the level, pk_channel x 4)
 	ld c,a
 	bit 4,(iy+4)
 	jr nz,.full			; volume only: the volume all the time

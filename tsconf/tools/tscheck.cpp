@@ -445,6 +445,8 @@ int main(int argc, char **argv) {
 	// TSHISTALL=file: the time spent at each instruction over all the frames (the work, the
 	// INTs, apply and the wait for the frame: wait_frame); ../tools/prof.py sums it per routine
 	static long long histAll[0x10000];
+	static long volHist[64];
+	static int levelMax = 0, dacMax = 0;
 	const char *histAllPath = std::getenv("TSHISTALL");
 	auto runTo = [&](uint16_t hook) {
 		for (long n = 0; n < 50000000L; n++) {
@@ -665,7 +667,7 @@ int main(int argc, char **argv) {
 			const uint16_t w = uint16_t(readGs(comp, gsW) | readGs(comp, uint16_t(gsW + 1)) << 8);
 			if (havePrev)
 				for (uint16_t a = lastW; a != w; a = uint16_t(0x8000 | ((a + 1) & 0x3FF))) {
-					wavGs.push_back(int16_t((int(readGs(comp, a)) - 60) * 128));
+					{ const int lv = readGs(comp, a); levelMax = std::max(levelMax, lv); wavGs.push_back(int16_t((lv - 30) * 256)); }
 					gsSamples++;
 				}
 			lastW = w;
@@ -682,6 +684,17 @@ int main(int argc, char **argv) {
 					|| (prevNoise[c] && p.audf[c] == prevAudf[c]);
 				prevAudf[c] = p.audf[c];
 				prevAudc[c] = p.audc[c];
+			}
+			{   // the volumes' sum the card's levels get (all four channels on its DAC)
+				int sum = 0;
+				int dac = 0;   // (and those the Next's DAC gets: not the pure tones its AYs play)
+				for (int c = 0; c < 4; c++) {
+					sum += prevAudc[c] & 15;
+					const int k = prevAudc[c] >> 5;
+					if (!((k == 5 || k == 7) && !(prevAudc[c] & 16))) dac += prevAudc[c] & 15;
+				}
+				volHist[sum]++;
+				dacMax = std::max(dacMax, dac);
 			}
 			havePrev = true;
 		}
@@ -710,6 +723,7 @@ int main(int argc, char **argv) {
 			if (histAll[a]) std::fprintf(hf, "%04X %lld\n", a, histAll[a]);
 		std::fclose(hf);
 	}
+	if (std::getenv("TSVOL")) { std::printf("the volumes' sum: "); for (int v = 0; v < 61; v++) if (volHist[v]) std::printf("%d:%ld ", v, volHist[v]); std::printf("\nthe card's highest level: %d (of 255); the Next's DAC channels' sum at most %d (31 its limit)\n", levelMax, dacMax); }
 	std::printf("%d frames compared: %s\n", frames, errors ? "with differences" : "the same");
 	if (gsOn) {
 		const uint16_t fr = symbol(dir, "snd_frames", "gs.sym"), pa = symbol(dir, "snd_passed", "gs.sym");

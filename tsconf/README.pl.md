@@ -32,8 +32,7 @@ Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, 
 - Sterowanie: Q A O P, Spacja lub M ogień, Enter START, G SELECT, H pauza; Kempston.
 - Dźwięk: cały na General Sound (oryginalnej karcie lub NeoGS), jeśli jest: własny Z80 karty
   gra POKEY tak jak DAC na Next (`gs/`: `pokey_frame` z Next i jego impulsy, bity 17-bitowego
-  licznika karta tworzy sama z ich rekurencji), mono (te same próbki do kanałów 1 i 3, lewego i
-  prawego), 15 820 próbek na sekundę (jej przerwanie, 37 500 na sekundę, bierze 108 z 256).
+  licznika karta tworzy sama z ich rekurencji), mono (te same próbki do wszystkich czterech kanałów: 1 i 2 lewy, 3 i 4 prawy), 15 820 próbek na sekundę (jej przerwanie, 37 500 na sekundę, bierze 108 z 256).
   Start wgrywa program do karty przez jej firmware (`gs_load.asm`; uruchomiony ponownie, znajduje
   program już tam); potem apply raz na klatkę wysyła rejestry POKEY (`sound_gs.asm`). Bez karty
   (albo gdy nie odpowiada): tylko czyste tony (silnik, sygnały, strzał, premia, gwizd pocisku)

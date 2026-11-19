@@ -1,7 +1,7 @@
 ; The sound on the General Sound (gs_pokey.asm): a channel's pulses into the ring. The Next's
 ; sound_pulses.asm, but for the 17-bit counter's bits at $C000-$FFFF and no MUL.
 
-; One channel (IX its state, IY its AUDF, AUDC at IY + 4, C its volume x 4, its AUDF 5 or
+; One channel (IX its state, IY its AUDF, AUDC at IY + 4, C its volume x 2, its AUDF 5 or
 ; more): its changes from snd_w on. Its next pulse is CH_D samples and CH_F / 64 ticks
 ; ahead; every AUDF + 1 ticks after that another (K of them in this frame's samples). In the
 ; loops: HL the pulse's sample, E the ticks past it (x 64), B the pulses left (and pk_kh
@@ -9,7 +9,7 @@
 ; HL and C the 17-bit counter's byte and bit (a mask), B the 5-bit counter, D its step, E
 ; the 4-bit counter.
 pk_channel:
-	sla c				; the volume x 8
+	sla c				; the volume x 4 (four channels at 15: 240)
 	ld a,c				; and x 0-3 (the part of a turn before it, pk_on, pk_off)
 	rrca
 	rrca

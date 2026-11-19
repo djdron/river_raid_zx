@@ -35,8 +35,7 @@ Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Ne
 - I comandi: Q A O P, Spazio o M per sparare, Invio START, G SELECT, H pausa; Kempston.
 - Il suono: tutto su una General Sound (la scheda originale o una NeoGS), se c'è: lo Z80 della
   scheda suona il POKEY come il DAC del Next (`gs/`, `pokey_frame` del Next e i suoi impulsi, i
-  bit del contatore a 17 bit li crea la scheda stessa dalla loro ricorrenza), in mono (gli
-  stessi campioni ai canali 1 e 3, sinistro e destro), a 15 820 campioni al secondo (il suo INT,
+  bit del contatore a 17 bit li crea la scheda stessa dalla loro ricorrenza), in mono (gli stessi campioni a tutti e quattro i canali: 1 e 2 sinistro, 3 e 4 destro), a 15 820 campioni al secondo (il suo INT,
   37 500 al secondo, ne prende 108 su 256). L'avvio carica il programma nella scheda tramite il
   suo firmware (`gs_load.asm`; avviato di nuovo, trova il programma ancora lì); poi l'apply
   invia i registri del POKEY una volta per fotogramma (`sound_gs.asm`). Senza scheda (o se non

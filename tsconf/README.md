@@ -32,8 +32,7 @@ The source routine by routine, what changed in the Next's shared code, and a tab
 - The controls: Q A O P, Space or M to fire, Enter START, G SELECT, H pause; Kempston.
 - The sound: all of it on a General Sound (the original card or a NeoGS), when there is one:
   the card's own Z80 plays POKEY as the Next's DAC does (`gs/`, the Next's `pokey_frame` and
-  its pulses, the 17-bit counter's bits made by the card from their recurrence), in mono (the
-  same samples to channels 1 and 3, left and right), at 15 820 samples a second (its INT, 37 500
+  its pulses, the 17-bit counter's bits made by the card from their recurrence), in mono (the same samples to all four channels: 1 and 2 left, 3 and 4 right), at 15 820 samples a second (its INT, 37 500
   a second, takes 108 of 256). The start puts the program into the card through its firmware
   (`gs_load.asm`; run again, it finds the program still there); then the apply sends POKEY's
   registers once a frame (`sound_gs.asm`). Without a card (or one that does not answer): the

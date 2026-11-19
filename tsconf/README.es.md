@@ -34,7 +34,7 @@ El código fuente rutina a rutina, qué cambió en el código compartido con el 
 - El sonido: todo en una General Sound (la tarjeta original o una NeoGS), si la hay: el propio
   Z80 de la tarjeta toca el POKEY como lo hace el DAC del Next (`gs/`, el `pokey_frame` del Next
   y sus pulsos, los bits del contador de 17 bits los genera la propia tarjeta a partir de su
-  recurrencia), en mono (las mismas muestras a los canales 1 y 3, izquierdo y derecho), a
+  recurrencia), en mono (las mismas muestras a los cuatro canales: 1 y 2 izquierdo, 3 y 4 derecho), a
   15 820 muestras por segundo (su INT, 37 500 por segundo, toma 108 de cada 256). El arranque
   carga el programa en la tarjeta mediante su firmware (`gs_load.asm`; ejecutado otra vez,
   encuentra el programa todavía allí); después el apply envía los registros del POKEY una vez

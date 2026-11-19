@@ -34,7 +34,7 @@ Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert i
 - Der Ton: alles auf einer General Sound (der ursprünglichen Karte oder einer NeoGS), wenn eine
   da ist: Der eigene Z80 der Karte spielt POKEY wie der DAC des Next (`gs/`, `pokey_frame` des
   Next und seine Impulse, die Bits des 17-Bit-Zählers macht die Karte selbst aus ihrer
-  Rekursion), in Mono (dieselben Samples in die Kanäle 1 und 3, links und rechts), mit 15 820
+  Rekursion), in Mono (dieselben Samples in alle vier Kanäle: 1 und 2 links, 3 und 4 rechts), mit 15 820
   Samples pro Sekunde (ihr INT, 37 500 pro Sekunde, nimmt 108 von 256). Der Start legt das
   Programm über die Firmware der Karte hinein (`gs_load.asm`; erneut gestartet, findet er es
   noch dort); danach schickt das Apply einmal pro Bild die Register des POKEY (`sound_gs.asm`).
