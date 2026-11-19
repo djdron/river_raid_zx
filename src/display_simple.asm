@@ -165,7 +165,11 @@ display:
 	ifdef TEST
 	call test_ghost
 	endif
-	jp ds_bank_fill
+	ifdef BEAM			; (scan_bank: only the beam's display reads it; the Copper's
+	jp ds_bank_fill			; list is made from ds_bank_ev, build_copper)
+	else
+	ret
+	endif
 
 .road					; a bridge's rows: the road's colour from the scanline after
 	ld a,(ds_row)			; each row's, then the section's bank colour after the last
@@ -175,6 +179,7 @@ display:
 	ld c,a
 	ld a,(ds_rows)
 	ld b,a
+	ld d,$FF			; (D: the colour set last: a row's the same, no change)
 .rd	push bc
 	ld hl,ds_l1
 	ld a,(hl)
@@ -185,9 +190,13 @@ display:
 	adc a,0
 	ld h,a
 	ld e,(hl)
+	ld a,e
+	cp d
+	jr z,1F
+	ld d,a
 	ld a,c
 	call ds_bank
-	pop bc
+1:	pop bc
 	inc c
 	djnz .rd
 	ld a,(ds_counter)
@@ -367,6 +376,7 @@ ds_bank:
 .full	pop hl
 	ret
 
+	ifdef BEAM
 ; The bank colour of every scanline of the river into scan_bank: the VBI's, then as the DLI
 ; changed it
 ds_bank_fill:
@@ -414,3 +424,4 @@ ds_bank_fill:
 	inc hl
 	dec b
 	jr .seg
+	endif

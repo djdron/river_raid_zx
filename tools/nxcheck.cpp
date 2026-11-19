@@ -304,6 +304,7 @@ int main(int argc, char **argv) {
 	static std::set<long long> objKeys;
 	const uint16_t objN = symbol(argv[2], "ds_obj_n"), objList = symbol(argv[2], "ds_objs");
 	long copperBad = 0, copperListBad = 0;
+	std::array<uint8_t, 160> bankWant{};   // the C++ port's bank colour by river line (the Copper's list's check)
 	const uint16_t paletteAt = symbol(argv[2], "palette");
 	const uint16_t tvToggle = symbol(argv[2], "tv_toggle"), rndState = symbol(argv[2], "rnd_state");
 	auto word = [&](int at) { return uint16_t(code[0][size_t(at)] | (code[0][size_t(at + 1)] << 8)); };
@@ -666,14 +667,8 @@ int main(int argc, char **argv) {
 			if ((addr >> 8) == 0x2F) addr = 0x3000;
 			if ((addr >> 8) == 0x3F) addr = 0x2000;
 		}
-		for (int k = 0; k < kRiverLines; k++) {   // the bank's colour by river line (scan_bank)
-			const uint8_t want = game.scan[size_t(kRiverFirstLine + k)].bankColour;
-			const uint8_t z = readZ80(comp, uint16_t(kScan + 0x400 + kRiverFirstLine + k));
-			if (z != want) {
-				std::snprintf(b, sizeof b, "scan line %d bankColour: z80=%02X c++=%02X", k, z, want);
-				diffs.push_back(b);
-			}
-		}
+		for (int k = 0; k < kRiverLines; k++)   // the bank's colour by river line: the C++ port's,
+			bankWant[size_t(k)] = game.scan[size_t(kRiverFirstLine + k)].bankColour;   // (the Copper's list below)
 		{   // the objects as drawn (ds_objs: first scanline, rows, the first row's and colour's
 			// addresses, X, size; an object partly above the river may start higher, with its
 			// rows above it: compared from the C++ port's first)
@@ -876,15 +871,18 @@ int main(int argc, char **argv) {
 			const int n = readZ80(comp, copperBytes) | readZ80(comp, uint16_t(copperBytes + 1)) << 8;
 			const uint8_t *list = &comp->mem->ramData[sramOffset(12) + (copperList - 0x6000)];
 			// and the list's bank colours (after its first 12 bytes: WAIT, MOVE $41 pairs) the
-			// changes of scan_bank, each set on the line before
+			// changes of the C++ port's bank colour by river line, each set on the line before
 			{
-				const uint8_t *bank = &comp->mem->ramData[sramOffset(12) + (kScan + 4 * 256 - 0x6000)];
 				std::vector<std::pair<int, int>> want, have;
 				int prev = -1;
-				for (int l = 28; l < 28 + kRiverLines; l++)
-					if (bank[l] != prev) { prev = bank[l]; want.push_back({l + 40 - 32 - 1 - 28, readZ80(comp, uint16_t(paletteAt + bank[l]))}); }
+				for (int k = 0; k < kRiverLines; k++)
+					if (bankWant[size_t(k)] != prev) { prev = bankWant[size_t(k)]; want.push_back({k + 40 - 32 - 1, readZ80(comp, uint16_t(paletteAt + prev))}); }
 				for (int i = 12; i + 3 < n && (list[i] & 0x80) && list[i + 2] == 0x41; i += 4) have.push_back({list[i + 1], list[i + 3]});
-				if (want != have && copperListBad++ < 3) std::printf("frame %d: the Copper's list has not the bank's colours\n", f);
+				if (want != have) {
+					copperListBad++;
+					std::snprintf(b, sizeof b, "the Copper's list has not the bank's colours");
+					if (copperListBad < 4) std::printf("frame %d: %s\n", f, b);
+				}
 			}
 			if (n > 0 && n <= 2048 && std::memcmp(comp->next->coppMem, list, size_t(n))) {
 				if (copperBad++ < 3) {
@@ -915,7 +913,7 @@ int main(int argc, char **argv) {
 		applyTick = comp->tickTotal;
 		(void)lastApply;
 	}
-	if (errors) {
+	if (errors || copperListBad) {
 		std::printf("FAIL: frames differ\n");
 		return 1;
 	}
