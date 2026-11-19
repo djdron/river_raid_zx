@@ -698,13 +698,7 @@ ds_ev_n:	ds 1
 ds_ev_rd:	ds 1
 ds_ev:		ds 3 * DS_EVENTS		; HPOSP3 / SIZEP3 writes: scanline, which, value
 ds_y:		ds 1
-ds_x:		ds 1
 ds_flags:	ds 1
-ds_kind:	ds 1
-ds_type:	ds 1
-ds_size:	ds 1
-ds_shapes:	ds 2
-ds_colours:	ds 2
 ds_row:		ds 1
 ds_l1:		ds 1
 ds_rowp:	ds 2			; display: the object's first row's byte (its rows down from it)

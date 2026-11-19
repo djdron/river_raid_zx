@@ -57,14 +57,30 @@ display:
 	cp SLOTS
 	jp nc,.end
 	ld (ds_current),a
-	call ds_fields
+	ld e,a				; IY: the slot's fields where the game keeps them: kind, type
+	ld d,0				; (+11), X (+22), size (+33) (no copies)
+	ld iy,SLOT_KIND
+	add iy,de
+	ld hl,SLOT_Y			; (Y and the flags, read several times: kept)
+	add hl,de
+	ld a,(hl)
+	ld (ds_y),a
+	ld hl,SLOT_FLAGS
+	add hl,de
+	ld a,(hl)
+	ld (ds_flags),a
+	ld a,(iy + 0)			; tested against the edge: kinds 8-$0D ($FF, or 0)
+	sub 8
+	cp 6
+	sbc a,a
+	ld (ds_edge_kind),a
 	ld a,(ds_y)			; the start
 	cp $5D
 	jr nc,1F
 	ld a,$5D
 1:	ld (ds_start),a
 	ld b,a
-	ld a,(ds_type)			; the first row
+	ld a,(iy + 11)			; the first row (by its type)
 	ld l,a
 	ld h,0
 	ld de,ROM_OBJECT_HEIGHT
@@ -74,7 +90,7 @@ display:
 	sub b
 	ld (ds_row),a
 	cp $80
-	jr nc,.next			; (gone above)
+	jp nc,.next			; (gone above)
 	ld a,b				; its X: past 255, none from here on
 	add a,3
 	jp c,.end
@@ -88,14 +104,33 @@ display:
 	ld a,b
 1:	ld (ds_rows),a
 	ld ixl,a
-	ld hl,(ds_shapes)		; DE: the first row's byte, IY: its colour (ds_obj)
+	ld a,(ds_flags)			; DE: the first row's byte (the shape: mirrored frames + 16)
+	and $08
+	add a,a
+	add a,(iy + 0)
+	ld l,a
+	ld h,0
+	ld de,ROM_SHAPE_OFFSET
+	add hl,de
+	ld e,(hl)
+	ld d,0
+	ld hl,ROM_SHAPES
+	add hl,de
 	call ds_row_hl
-	ex de,hl
-	ld hl,(ds_colours)
+	ld (ds_rowp),hl
+	ld a,(iy + 11)			; BC: its colour's (ds_obj)
+	ld l,a
+	ld h,0
+	ld bc,ROM_COLOURS_OFFSET
+	add hl,bc
+	ld e,(hl)
+	ld d,0
+	ld hl,ROM_COLOURS
+	add hl,de
 	call ds_row_hl
-	push hl
-	pop iy
-	ld (ds_rowp),de
+	ld b,h
+	ld c,l
+	ld de,(ds_rowp)
 	call ds_obj			; (for the sprites: ds_objs)
 	ld a,(ds_flags)			; a bridge: the road's colours by row, the bank's back after
 	and $80
@@ -170,11 +205,11 @@ display:
 ; else 0. Its rows from ds_rowp (going down in memory), the first on the scanline of X =
 ; ds_counter, ds_rows of them; none past clock 255.
 ds_edge_test:
-	ld a,(ds_x)
+	ld a,(iy + 22)
 	ld (.pv_x + 1),a
 	ld (.ex1 + 1),a
 	ld (.ex2 + 1),a
-	ld a,(ds_size)
+	ld a,(iy + 33)
 	and 3				; the edge test's variant for its size (pf_size)
 	cp 3
 	ld de,pf_v4
@@ -191,7 +226,7 @@ ds_edge_test:
 	ld c,8
 1:	ld (.pv + 1),de
 	ld (.pv_bits + 1),hl
-	ld a,(ds_x)
+	ld a,(iy + 22)
 	ld (.bx1 + 1),a
 	ld (.bx2 + 1),a
 	add a,c
@@ -200,7 +235,7 @@ ds_edge_test:
 	ld (.be2 + 1),a
 	jp c,.none
 	jp z,.none
-	ld a,(ds_size)			; their dots' clocks: 1, 2 or 4 a dot (sizes 0 and 2, 1, 3)
+	ld a,(iy + 33)			; their dots' clocks: 1, 2 or 4 a dot (sizes 0 and 2, 1, 3)
 	and 3
 	ld hl,0				; (NOP NOP)
 	rra				; (bit 0: at least double)
@@ -290,82 +325,6 @@ ds_edge_test:
 	dec ixl
 	jp nz,.row
 .none	xor a
-	ret
-
-; The slot's fields (beyond the last one: zeros), its shapes' and colours' addresses
-ds_fields:
-	ld a,(ds_slot)
-	cp SLOTS
-	jr nc,.none
-	ld e,a
-	ld d,0
-	ld hl,SLOT_Y
-	add hl,de
-	ld a,(hl)
-	ld (ds_y),a
-	ld hl,SLOT_X
-	add hl,de
-	ld a,(hl)
-	ld (ds_x),a
-	ld hl,SLOT_FLAGS
-	add hl,de
-	ld a,(hl)
-	ld (ds_flags),a
-	ld hl,SLOT_KIND
-	add hl,de
-	ld a,(hl)
-	ld (ds_kind),a
-	ld hl,SLOT_TYPE
-	add hl,de
-	ld a,(hl)
-	ld (ds_type),a
-	ld hl,SLOT_SIZE
-	add hl,de
-	ld a,(hl)
-	ld (ds_size),a
-	jr .addr
-.none	xor a
-	ld (ds_y),a
-	ld (ds_x),a
-	ld (ds_flags),a
-	ld (ds_kind),a
-	ld (ds_type),a
-	ld (ds_size),a
-.addr	ld a,(ds_kind)			; tested against the edge: kinds 8-$0D ($FF, or 0)
-	sub 8
-	cp 6
-	sbc a,a
-	ld (ds_edge_kind),a
-	ld a,(ds_flags)			; the shape's address (mirrored frames + 16)
-	and $08
-	add a,a
-	ld hl,ds_kind
-	add a,(hl)
-	ld l,a
-	ld h,0
-	ld de,ROM_SHAPE_OFFSET
-	add hl,de
-	ld a,(hl)
-	ld hl,ROM_SHAPES
-	add a,l
-	ld l,a
-	adc a,h
-	sub l
-	ld h,a
-	ld (ds_shapes),hl
-	ld a,(ds_type)			; the colours' address
-	ld l,a
-	ld h,0
-	ld de,ROM_COLOURS_OFFSET
-	add hl,de
-	ld a,(hl)
-	ld hl,ROM_COLOURS
-	add a,l
-	ld l,a
-	adc a,h
-	sub l
-	ld h,a
-	ld (ds_colours),hl
 	ret
 
 ; P3PF (A) as the object's: only the kinds that turn at the edge are tested (moveObjects

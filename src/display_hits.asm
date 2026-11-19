@@ -346,13 +346,13 @@ dh_pf:
 	ret
 
 ; NZ: sprite IX touches the current object's rows (display: ds_rowp, the first on the
-; scanline of X = ds_counter, ds_rows of them going down in memory, at ds_x, ds_size), bit
+; scanline of X = ds_counter, ds_rows of them going down in memory, at the slot's X and size: IY + 22, + 33), bit
 ; by bit on the scanlines both have, after their clocks
 dh_obj:
 	ld a,(ix + 7)			; (no rows)
 	or a
 	ret z
-	ld a,(ds_size)			; their boxes' clocks: the object's 8, 16 or 32 from its X,
+	ld a,(iy + 33)			; their boxes' clocks (IY: the slot's fields, display): the object's 8, 16 or 32 from its X,
 	and 3				; the sprite's from its
 	ld c,8
 	rra
@@ -361,8 +361,7 @@ dh_obj:
 	or a
 	jr z,1F
 	ld c,32
-1:	ld a,(ds_x)
-	ld b,a
+1:	ld b,(iy + 22)
 	ld d,(ix + 3)
 	ld e,(ix + 8)
 	call hit_setup
@@ -397,8 +396,7 @@ dh_obj:
 	ld a,(hl)
 	or a
 	jr z,.n
-	ld hl,ds_size
-	ld c,(hl)
+	ld c,(iy + 33)
 	ld de,hit_a
 	call hit_wide
 	pop de

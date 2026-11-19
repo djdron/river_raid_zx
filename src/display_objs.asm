@@ -2,7 +2,7 @@
 
 ; The object's rows for the sprites (build_sprites): the scanline of its first row, how many,
 ; the address of the first row's byte (DE) and colour (IY), its position and size. 8 bytes
-; in ds_objs. DE, BC, IY kept.
+; in ds_objs. DE, BC (the colour's address), IY (the slot's fields) kept.
 ds_obj:
 	ld a,(ds_obj_n)
 	cp DS_OBJS
@@ -25,9 +25,7 @@ ds_obj:
 	sub l
 	ld h,a
 	ld (ds_obj_last),hl
-	push bc
-	push iy
-	pop bc				; (BC: the colour's address)
+	push bc				; (BC: the colour's address)
 	ld a,(ds_counter)
 	sub $44
 	cp RIVER_FIRST + 1		; its first row on the river's first line or above: the rows
@@ -91,10 +89,10 @@ ds_obj:
 	ld (hl),b
 	inc hl
 	pop bc
-	ld a,(ds_x)
+	ld a,(iy + 22)			; (IY: the slot's fields, display)
 	ld (hl),a
 	inc hl
-	ld a,(ds_size)
+	ld a,(iy + 33)
 	ld (hl),a
 	pop de
 	ret
