@@ -442,9 +442,16 @@ int main(int argc, char **argv) {
 			game.g.fuel = 0xFF;
 		}
 	};
+	// TSHISTALL=file: the time spent at each instruction over all the frames (the work, the
+	// INTs, apply and the wait for the frame: wait_frame); ../tools/prof.py sums it per routine
+	static long long histAll[0x10000];
+	const char *histAllPath = std::getenv("TSHISTALL");
 	auto runTo = [&](uint16_t hook) {
 		for (long n = 0; n < 50000000L; n++) {
+			const uint16_t pc = comp->cpu->regPC;
+			const long long t = comp->tickTotal;
 			compExec(comp);
+			if (histAllPath) histAll[pc] += comp->tickTotal - t;
 			if (comp->cpu->regPC == hook) return true;
 		}
 		return false;
@@ -697,6 +704,12 @@ int main(int argc, char **argv) {
 		frames, lateShown, swapsFirst - swaps0);
 	std::printf("a frame's work: %lld ticks on average, %lld at most (frame %d), of %lld a frame\n",
 		frames > 1 ? workSum / (frames - 1) : 0, workMax, workMaxFrame, (comp->tickTotal - tick0) / std::max(1, bufSwaps - swaps0));
+	if (histAllPath) {
+		FILE *hf = std::fopen(histAllPath, "w");
+		for (int a = 0; a < 0x10000; a++)
+			if (histAll[a]) std::fprintf(hf, "%04X %lld\n", a, histAll[a]);
+		std::fclose(hf);
+	}
 	std::printf("%d frames compared: %s\n", frames, errors ? "with differences" : "the same");
 	if (gsOn) {
 		const uint16_t fr = symbol(dir, "snd_frames", "gs.sym"), pa = symbol(dir, "snd_passed", "gs.sym");
