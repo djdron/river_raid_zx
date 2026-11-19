@@ -708,12 +708,14 @@ ds_colours:	ds 2
 ds_row:		ds 1
 ds_l1:		ds 1
 ds_rowp:	ds 2			; display: the object's first row's byte (its rows down from it)
-ov_mode:	ds 1			; ov_setup, ov_fast (display_hits.asm)
-ov_k:		ds 1
-ov_s:		ds 1
-ov_r:		ds 1
-ov_o:		ds 5
-	assert high ov_o == high (ov_o + 4)
+hit_ka:		ds 1			; hit_setup, hit_line (display_hits.asm): the window's first
+hit_sa:		ds 1			; clock in A's dots (byte, bit) and in B's, the window's
+hit_kb:		ds 1			; clocks (their bits)
+hit_sb:		ds 1
+hit_w:		ds 1
+hit_a:		ds 5			; a line's dots, a clock a bit (1, 2 or 4 bytes, a zero after)
+hit_b:		ds 5
+	assert high hit_a == high (hit_b + 4)
 ds_le:		ds 1
 ds_bridge:	ds 1
 ds_bullet:	ds 1

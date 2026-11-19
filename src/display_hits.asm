@@ -147,7 +147,13 @@ dh_sprites:
 
 ; NZ: sprites IX and IY touch on a scanline both have
 dh_pair:
-	ld a,(ix + 6)			; from the later first line
+	ld b,(ix + 3)			; their boxes' clocks
+	ld c,(ix + 8)
+	ld d,(iy + 3)
+	ld e,(iy + 8)
+	call hit_setup
+	ret z
+	ld a,(ix + 6)			; their lines: from the later first
 	cp (iy + 6)
 	jr nc,1F
 	ld a,(iy + 6)
@@ -166,30 +172,29 @@ dh_pair:
 	cp e
 	jr nc,.no
 	push de
-	call dh_bits			; the first's bits
+	call dh_bits			; the first's dots
 	jr z,.n
+	ld c,(ix + 4)
+	ld de,hit_a
+	call hit_wide
+	pop de
+	push de
 	push ix
 	push iy
 	pop ix				; (IX: the second)
-	push af
 	ld a,d
 	call dh_bits
 	jr z,.n2
-	call dh_add
-	ld c,(ix + 5)
-	pop af
-	pop ix				; (the first)
-	push bc
-	call dh_add
-	pop bc
-	ld b,(ix + 5)
-	call dh_meet
+	ld c,(ix + 4)
+	ld de,hit_b
+	call hit_wide
+	pop ix
+	call hit_line
 	jr z,.n
 	pop de
 	or 1
 	ret
-.n2	pop af
-	pop ix
+.n2	pop ix
 .n	pop de
 	inc d
 	jr .l
@@ -240,24 +245,6 @@ dh_bits:
 	jr 2F
 1:	rlca
 2:	djnz 1B
-	or a
-	ret
-
-; Sprite IX with bits A into collide's list (for dh_meet)
-dh_add:
-	ld d,a
-	ld e,(ix + 3)
-	ld b,(ix + 5)
-	ld a,(ix + 4)
-	jp collide.add
-
-; Do sprites B and C (in collide's list) touch? NZ: yes
-dh_meet:
-	ld hl,ds_obj_t
-	ld (hl),0
-	ld e,1
-	call collide.pair
-	ld a,(ds_obj_t)
 	or a
 	ret
 
@@ -365,27 +352,22 @@ dh_obj:
 	ld a,(ix + 7)			; (no rows)
 	or a
 	ret z
-	ld a,(ds_size)			; first their clocks: the object's 8, 16 or 32 from its X,
+	ld a,(ds_size)			; their boxes' clocks: the object's 8, 16 or 32 from its X,
 	and 3				; the sprite's from its
-	ld b,8
+	ld c,8
 	rra
 	jr nc,1F
-	ld b,16
+	ld c,16
 	or a
 	jr z,1F
-	ld b,32
+	ld c,32
 1:	ld a,(ds_x)
-	ld c,a
-	ld a,(ix + 3)
-	sub c
-	jr c,1F
-	cp b				; the sprite from the object's X on: before its end?
-	jp nc,.no
-	jr 2F
-1:	neg				; before it: its end past the object's X?
-	cp (ix + 8)
-	jp nc,.no
-2:	call dh_end			; the lines: to min(the sprite's end, the object's end)
+	ld b,a
+	ld d,(ix + 3)
+	ld e,(ix + 8)
+	call hit_setup
+	ret z
+	call dh_end			; the lines: to min(the sprite's end, the object's end)
 	ld e,a
 	ld a,(ds_counter)
 	sub $44
@@ -401,8 +383,7 @@ dh_obj:
 	cp d
 	jr c,1F
 	ld d,a
-1:	call ov_setup			; (the fast way when both are on the playfield's clocks)
-	ld a,d
+1:	ld a,d
 .l	cp e
 	jr nc,.no
 	push de
@@ -416,34 +397,19 @@ dh_obj:
 	ld a,(hl)
 	or a
 	jr z,.n
-	ld (ov_r),a
-	ld a,(ov_mode)
-	or a
-	jr z,.slow
+	ld hl,ds_size
+	ld c,(hl)
+	ld de,hit_a
+	call hit_wide
 	pop de
 	push de
-	ld a,d
+	ld a,d				; the sprite's
 	call dh_bits
 	jr z,.n
-	call ov_fast
-	jr nz,.yes
-	jr .n
-.slow	ld a,(ov_r)
-	ld d,a
-	ld a,(ds_x)
-	ld e,a
-	ld a,(ds_size)
-	ld b,3
-	call collide.add
-	pop de
-	push de
-	ld a,d
-	call dh_bits
-	jr z,.n
-	call dh_add
-	ld b,(ix + 5)
-	ld c,3
-	call dh_meet
+	ld c,(ix + 4)
+	ld de,hit_b
+	call hit_wide
+	call hit_line
 	jr nz,.yes
 .n	pop de
 	inc d
@@ -455,118 +421,152 @@ dh_obj:
 .no	xor a
 	ret
 
-; dh_obj's fast way for sprite IX and the current object: when both are on the playfield's
-; clocks (32-223), their dots compared a byte at a time: the object's row widened to a
-; clock a bit (ov_exp2, ov_exp4: 1, 2 or 4 bytes), the sprite's byte (a clock a bit) shifted
-; to it. ov_mode: the object's bytes (0: the slow way, collide); ov_k, ov_s: the sprite from
-; the object's byte k, bit s on; ov_k $FF: it starts ov_s clocks before the object. D, E kept.
-ov_setup:
-	xor a
-	ld (ov_mode),a
-	ld a,(ds_size)			; the object's width and bytes
-	and 3
-	ld bc,8 << 8 | 1
-	rra
+; ------------------------------------------------------------------------------------------
+; The collisions' test, for any two (an object and a sprite, two sprites): their boxes'
+; clocks first (hit_setup, once: the window where both are, on the playfield's clocks 32-223,
+; as GTIA's masks were kept; never wider than a sprite, 8), then on each line both have, their
+; dots (a clock a bit: an object's or a sprite's byte widened by its size from ov_exp2,
+; ov_exp4) shifted by the barrel shifter to the window's first clock and ANDed (hit_line).
+
+; Z: A's clocks (from B, C wide) and B's (from D, E wide) don't meet on the playfield; else
+; the window: where it starts in A's dots and in B's (byte, bit), its clocks' bits
+hit_setup:
+	ld a,d				; the boxes first: B's start before A's end, A's before B's
+	sub b
+	jr c,1F
+	cp c
+	jr nc,.none
+	jr 2F
+1:	neg
+	cp e
+	jr nc,.none
+2:	ld a,b				; H: the window's end (the earliest)
+	add a,c
 	jr nc,1F
-	ld bc,16 << 8 | 2
-	or a
-	jr z,1F
-	ld bc,32 << 8 | 4
-1:	ld a,(ds_x)
-	cp 32
-	ret c
-	add a,b
-	ret c
-	cp 224 + 1
-	ret nc
-	ld a,(ix + 3)			; the sprite's (8 clocks)
-	cp 32
-	ret c
-	cp 224 - 8 + 1
-	ret nc
-	ld hl,ds_x
-	sub (hl)
-	jr c,.before
-	ld b,a
+	ld a,255
+1:	ld h,a
+	ld a,d
+	add a,e
+	jr nc,1F
+	ld a,255
+1:	cp h
+	jr c,1F
+	ld a,h
+1:	cp 224
+	jr c,1F
+	ld a,224
+1:	ld h,a
+	ld a,b				; L: its start (the latest)
+	cp d
+	jr nc,1F
+	ld a,d
+1:	cp 32
+	jr nc,1F
+	ld a,32
+1:	ld l,a
+	ld a,h
+	sub l
+	jr c,.none
+	jr z,.none
+	cp 8
+	jr c,1F
+	ld a,8
+1:	ld c,a				; its bits: the top C
+	ld a,8
+	sub c
+	ld c,a
+	ld a,$FF
+	inc c
+	jr 2F
+1:	add a,a
+2:	dec c
+	jr nz,1B
+	ld (hit_w),a
+	ld a,l				; in A's dots
+	sub b
+	ld c,a
 	rrca
 	rrca
 	rrca
 	and $1F
-	ld (ov_k),a
-	ld a,b
+	ld (hit_ka),a
+	ld a,c
 	and 7
-	ld (ov_s),a
+	ld (hit_sa),a
+	ld a,l				; in B's
+	sub d
+	ld c,a
+	rrca
+	rrca
+	rrca
+	and $1F
+	ld (hit_kb),a
 	ld a,c
-	ld (ov_mode),a
+	and 7
+	ld (hit_sb),a
+	or 1
 	ret
-.before	neg
-	ld (ov_s),a
-	ld a,$FF
-	ld (ov_k),a
-	ld a,c
-	ld (ov_mode),a
+.none	xor a
 	ret
 
-; NZ: the sprite's byte A (from dh_bits) meets the object's row ov_r (ov_setup)
-ov_fast:
-	ld b,a
-	ld a,(ov_r)			; the row, a clock a bit, into ov_o (a zero after it)
+; NZ: the dots in hit_a and hit_b meet in the window
+hit_line:
+	ld a,(hit_ka)
+	add a,low hit_a
 	ld l,a
-	ld a,(ov_mode)
-	ld de,ov_o
-	cp 2
-	jr c,.w1
-	ld h,high ov_exp2
-	jr z,.w2
-	ld h,high ov_exp4
-	ld c,4
-.w4	ld a,(hl)
+	ld h,high hit_a
+	ld d,(hl)
+	inc l
+	ld e,(hl)
+	ld a,(hit_sa)
+	ld b,a
+	bsla de,b
+	ld c,d
+	ld a,(hit_kb)
+	add a,low hit_b
+	ld l,a
+	ld d,(hl)
+	inc l
+	ld e,(hl)
+	ld a,(hit_sb)
+	ld b,a
+	bsla de,b
+	ld a,(hit_w)
+	and c
+	and d
+	ret
+
+; byte A's dots (size C: 1, 2 or 4 clocks a bit as GTIA's 0 or 2, 1, 3) a clock a bit into DE
+; on, a zero after
+hit_wide:
+	bit 0,c
+	jr nz,1F
 	ld (de),a
 	inc e
-	inc h
-	dec c
-	jr nz,.w4
-	jr .w0
-.w2	ld a,(hl)
+	xor a
+	ld (de),a
+	ret
+1:	ld l,a
+	bit 1,c
+	jr nz,2F
+	ld h,high ov_exp2
+	ld a,(hl)
 	ld (de),a
 	inc e
 	inc h
 	ld a,(hl)
 	ld (de),a
 	inc e
-	jr .w0
-.w1	ld a,l
+	xor a
+	ld (de),a
+	ret
+2:	ld h,high ov_exp4
+	ld b,4
+3:	ld a,(hl)
 	ld (de),a
 	inc e
-.w0	xor a
+	inc h
+	djnz 3B
+	xor a
 	ld (de),a
-	ld a,(ov_s)
-	ld c,a
-	ld a,(ov_k)
-	cp $FF
-	jr z,.before
-	ld e,a				; the sprite from byte k, bit s: its byte over k and k + 1
-	ld d,0
-	ld hl,ov_o
-	add hl,de
-	ld a,b
-	ld e,0
-	inc c
-	jr .sh
-.shl	srl a
-	rr e
-.sh	dec c
-	jr nz,.shl
-	and (hl)
-	ret nz
-	inc hl
-	ld a,e
-	and (hl)
-	ret
-.before	ld a,b				; s clocks before the object: its byte moved left by s
-.bl	add a,a
-	dec c
-	jr nz,.bl
-	ld hl,ov_o
-	and (hl)
 	ret
