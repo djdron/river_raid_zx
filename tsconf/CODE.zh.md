@@ -1,6 +1,6 @@
 # TS-Conf 移植版的汇编源码，逐个文件说明
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | 中文
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | 中文 | [日本語](CODE.ja.md)
 
 写给想读懂 TS-Conf 移植版代码或让它更快的 Z80 程序员。游戏本身（逻辑、河流生成器、物体摆放和碰撞）
 是 Next 的代码，复制在 `src/` 中；[docs/CODE.zh.md](../docs/CODE.zh.md) 描述那些例程，本文只说明它们

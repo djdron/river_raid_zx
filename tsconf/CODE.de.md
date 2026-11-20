@@ -1,6 +1,6 @@
 # Der Assembler-Quelltext des TS-Conf-Ports, Datei für Datei
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | Deutsch
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | Deutsch | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Für Z80-Programmierer, die den Code des TS-Conf-Ports lesen oder schneller machen wollen. Das
 Spiel selbst (seine Logik, der Flussgenerator, das Platzieren der Objekte und die Kollisionen)

@@ -13,7 +13,7 @@ Jak to działa na obu maszynach, dla wszystkich: [../docs/HOW_IT_WORKS.pl.md](..
 
 Jak to zrobiono na tej płycie i co się okazało, z liczbami: [NOTES.pl.md](NOTES.pl.md).
 
-Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, i tabela różnic obu maszyn: [CODE.md](CODE.md) (po angielsku i rosyjsku).
+Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, i tabela różnic obu maszyn: [CODE.pl.md](CODE.pl.md).
 
 - Rzeka: tryb 16 kolorów, 320x240, linia obrazu ma 256 bajtów (160 na jej początku), 512 linii
   w pierścieniu przewijanym sprzętowo (GYOFFS); nowa linia rzeki jest pisana od razu w swój

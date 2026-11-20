@@ -1,6 +1,6 @@
 # Der Assembler-Quelltext des Ports für den ZX Spectrum Next, Datei für Datei
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | Deutsch
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | Deutsch | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Für Z80-Programmierer, die den Code lesen oder schneller machen wollen. Zu jeder Datei: was
 darin steht, was jede Routine tut, wer sie wann aufruft, wie sie funktioniert und was sie

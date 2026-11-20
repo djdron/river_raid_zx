@@ -66,8 +66,8 @@ TS-Conf（ZX Evolution / Pentevo）への移植。`tsconf/` にある独自の�
 | [docs/NOTES.ja.md](docs/NOTES.ja.md) | どう作ったか、何がわかったか、数字付き |
 | [tsconf/NOTES.ja.md](tsconf/NOTES.ja.md) | TS-Conf 移植独自のもの：ボード、割り込み、General Sound、起動、数字付き |
 | [docs/HOW_IT_WORKS.ja.md](docs/HOW_IT_WORKS.ja.md) | Atari の画面、衝突、音が Next と TS-Conf でどう作られているか、誰にでもわかるように |
-| [docs/CODE.md](docs/CODE.md) | Next のアセンブリファイルをルーチンごとに（ゲーム部分は TS-Conf と共有）：何を、いつ、どうやって、それぞれ何クロックかかるか（英語とロシア語） |
-| [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf 移植独自のファイルを同じ形で、共有ファイルへの変更、2 つのマシンの違い（英語とロシア語） |
+| [docs/CODE.ja.md](docs/CODE.ja.md) | Next のアセンブリファイルをルーチンごとに（ゲーム部分は TS-Conf と共有）：何を、いつ、どうやって、それぞれ何クロックかかるか |
+| [tsconf/CODE.ja.md](tsconf/CODE.ja.md) | TS-Conf 移植独自のファイルを同じ形で、共有ファイルへの変更、2 つのマシンの違い |
 
 ## 確定した事実（すべて照合済み）
 1. **同じ RAM。** Atari の 16 KB の RAM は $0000–$3FFF の 8K ページ 30–31：すべての変数がオリジナルのアドレスにあります。RAM のダンプはオリジナルおよび C++ 移植とバイト単位で比較します（`Game::diffWithRam`）。
@@ -83,7 +83,7 @@ TS-Conf（ZX Evolution / Pentevo）への移植。`tsconf/` にある独自の�
 - sjasmplus 1.24.1（コミット 5c44bea）、Xpeccy+ コミット 0ec06e33、river_raid コミット 1273aba（ブランチ `dli_removed`）：`tools/get_deps.sh`。プログラムが追う C++ 移植の変更のたびに、このコミットも動かす必要があります。Xpeccy+ 2026.10.1（ユーザーのもの）は、ウィンドウなしのコアが描かない、可視ラインより下のラインを描きます（`NXFULL=1` はフレームバッファー全体を書き出す）。
 - Xpeccy+ の Next コアは libxpeccy を通してウィンドウなしで使います：ファームウェアなし（パレットは 0 から始まる）、`comp_power_on` なし。60 Hz では画面は Layer 2 の 0 行目から、50 Hz では 24 行目から始まります。
 - 照合には ROM が必要。CI は .nex をビルドするだけ（アーティファクトは zip にしない）。
-- コードはタブでインデント。ドキュメント：`X.md` が英語、`X.ru.md` がロシア語、そして `X.uk.md`、`X.de.md`、`X.pl.md`、`X.it.md`、`X.es.md`、`X.zh.md`、`X.ja.md`（C++ 移植と同じ）。`docs/CODE.md` と `tsconf/CODE.md` は英語とロシア語のみ。`tools/doc_languages.py` が各タイトルの下に言語の行を書きます（新しい翻訳ではそこに LANGUAGES という語を置く）。ドキュメントの変更はすべての言語に入れます。
+- コードはタブでインデント。ドキュメント：`X.md` が英語、`X.ru.md` がロシア語、そして `X.uk.md`、`X.de.md`、`X.pl.md`、`X.it.md`、`X.es.md`、`X.zh.md`、`X.ja.md`（C++ 移植と同じ）。`tools/doc_languages.py` が各タイトルの下に言語の行を書きます（新しい翻訳ではそこに LANGUAGES という語を置く）。ドキュメントの変更はすべての言語に入れます。
 - コミット：作成者 `djdron <djdron@gmail.com>`、メッセージの最後は `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`、セッションのリンクなし。
 
 ## 方法

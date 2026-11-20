@@ -14,7 +14,7 @@ Cómo funciona en las dos máquinas, para todos: [../docs/HOW_IT_WORKS.es.md](..
 
 Cómo está hecho en esta placa y qué se descubrió, con cifras: [NOTES.es.md](NOTES.es.md).
 
-El código fuente rutina a rutina, qué cambió en el código compartido con el Next y una tabla de en qué se diferencian las dos máquinas: [CODE.md](CODE.md) (en inglés y en ruso).
+El código fuente rutina a rutina, qué cambió en el código compartido con el Next y una tabla de en qué se diferencian las dos máquinas: [CODE.es.md](CODE.es.md).
 
 - El río: el modo de 16 colores, 320x240, una línea de imagen de 256 bytes (160 al principio),
   512 líneas en anillo desplazadas por el hardware (GYOFFS); una línea nueva del río se escribe

@@ -1,6 +1,6 @@
 # Il sorgente assembly del port per TS-Conf, file per file
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | Italiano
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | Italiano | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Per i programmatori Z80 che vogliono leggere il codice del port per TS-Conf o renderlo più veloce.
 Il gioco in sé (la logica, il generatore del fiume, il posizionamento degli oggetti e le

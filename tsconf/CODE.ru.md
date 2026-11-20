@@ -1,6 +1,6 @@
 # Исходный код порта для TS-Conf на ассемблере, файл за файлом
 
-[English](CODE.md) | Русский
+[English](CODE.md) | Русский | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Для программистов на Z80, которые хотят читать код порта для TS-Conf или ускорять его. Сама
 игра (её логика, генератор реки, расстановка объектов и столкновения) — это код Next,

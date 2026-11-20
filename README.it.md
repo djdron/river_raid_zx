@@ -84,8 +84,8 @@ Per compilare basta sjasmplus; le verifiche richiedono il resto e la tua ROM in 
 | [docs/HOW_IT_WORKS.it.md](docs/HOW_IT_WORKS.it.md) | come l'immagine, le collisioni e il suono dell'Atari sono fatti sul Next e su TS-Conf, per tutti |
 | [docs/NOTES.it.md](docs/NOTES.it.md) | come è fatto il programma per il Next e cosa si è scoperto, con i numeri |
 | [tsconf/NOTES.it.md](tsconf/NOTES.it.md) | il proprio del port per TS-Conf: la scheda, l'interrupt, la General Sound, l'avvio, con i numeri |
-| [docs/CODE.md](docs/CODE.md) | il sorgente assembly per il Next, routine per routine (in inglese e in russo) |
-| [tsconf/CODE.md](tsconf/CODE.md) | il sorgente assembly per TS-Conf, routine per routine, e in cosa differiscono le due macchine (in inglese e in russo) |
+| [docs/CODE.it.md](docs/CODE.it.md) | il sorgente assembly per il Next, routine per routine |
+| [tsconf/CODE.it.md](tsconf/CODE.it.md) | il sorgente assembly per TS-Conf, routine per routine, e in cosa differiscono le due macchine |
 | [HANDOFF.it.md](HANDOFF.it.md) | lo stato del progetto, per riprendere il lavoro |
 
 ## Licenza

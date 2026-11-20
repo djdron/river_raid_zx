@@ -11,7 +11,7 @@ der ermittelt, wie das Original alles macht, und Bild für Bild mit ihm abgeglic
 Ein inoffizielles Fanprojekt zu Lernzwecken, ohne Verbindung zu Activision oder Microsoft. Das
 Spiel ist nicht enthalten: Das Programm liest zur Laufzeit dein eigenes Cartridge-Abbild.
 
-Wie es auf dem Next funktioniert, für alle: [docs/HOW_IT_WORKS.de.md](docs/HOW_IT_WORKS.de.md). Um die Arbeit fortzusetzen: [HANDOFF.de.md](HANDOFF.de.md); wie es gemacht ist, mit Zahlen: [docs/NOTES.de.md](docs/NOTES.de.md); der Assembler-Quelltext Routine für Routine (Englisch und Russisch): [docs/CODE.md](docs/CODE.md).
+Wie es auf dem Next funktioniert, für alle: [docs/HOW_IT_WORKS.de.md](docs/HOW_IT_WORKS.de.md). Um die Arbeit fortzusetzen: [HANDOFF.de.md](HANDOFF.de.md); wie es gemacht ist, mit Zahlen: [docs/NOTES.de.md](docs/NOTES.de.md); der Assembler-Quelltext Routine für Routine: [docs/CODE.de.md](docs/CODE.de.md).
 
 ## Stand
 

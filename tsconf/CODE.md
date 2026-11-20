@@ -1,6 +1,6 @@
 # The TS-Conf port's assembly source, file by file
 
-English | [Русский](CODE.ru.md)
+English | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 For Z80 programmers who want to read the TS-Conf port's code or make it faster. The game
 itself (its logic, the river's generator, the objects' placement and collisions) is the

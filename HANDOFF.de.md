@@ -66,8 +66,8 @@ Ein Port auf TS-Conf (ZX Evolution / Pentevo), ein eigenes Projekt mit eigenem B
 | [docs/NOTES.de.md](docs/NOTES.de.md) | wie es gemacht ist und was sich zeigte, mit Zahlen |
 | [tsconf/NOTES.de.md](tsconf/NOTES.de.md) | das Eigene des TS-Conf-Ports: die Platine, der Interrupt, die General Sound, der Start, mit Zahlen |
 | [docs/HOW_IT_WORKS.de.md](docs/HOW_IT_WORKS.de.md) | wie Bild, Kollisionen und Ton des Atari auf dem Next und auf TS-Conf entstehen, für alle |
-| [docs/CODE.md](docs/CODE.md) | die Assembler-Dateien des Next Routine für Routine (der Spielteil gemeinsam mit TS-Conf): was, wann, wie und was jede an Takten kostet (Englisch und Russisch) |
-| [tsconf/CODE.md](tsconf/CODE.md) | die eigenen Dateien des TS-Conf-Ports ebenso, die Änderungen an den gemeinsamen und wie sich die beiden Maschinen unterscheiden (Englisch und Russisch) |
+| [docs/CODE.de.md](docs/CODE.de.md) | die Assembler-Dateien des Next Routine für Routine (der Spielteil gemeinsam mit TS-Conf): was, wann, wie und was jede an Takten kostet |
+| [tsconf/CODE.de.md](tsconf/CODE.de.md) | die eigenen Dateien des TS-Conf-Ports ebenso, die Änderungen an den gemeinsamen und wie sich die beiden Maschinen unterscheiden |
 
 ## Festgestellte Tatsachen (alle geprüft)
 1. **Dasselbe RAM.** Die 16 KB RAM des Atari sind die 8K-Seiten 30–31 an $0000–$3FFF: jede Variable an der Adresse des Originals. Ein RAM-Abzug stimmt Byte für Byte mit dem des Originals und des C++-Ports überein (`Game::diffWithRam`).
@@ -83,7 +83,7 @@ Ein Port auf TS-Conf (ZX Evolution / Pentevo), ein eigenes Projekt mit eigenem B
 - sjasmplus 1.24.1 (Commit 5c44bea), Xpeccy+ Commit 0ec06e33, river_raid Commit 1273aba (Zweig `dli_removed`): `tools/get_deps.sh`. Jede Änderung des C++-Ports, der das Programm folgt, verlangt, dass auch dieser Commit nachgezogen wird. Xpeccy+ 2026.10.1 (das des Benutzers) zeichnet Zeilen unter den sichtbaren, die der fensterlose Kern nicht zeichnet (`NXFULL=1` schreibt den ganzen Bildpuffer).
 - Der Next-Kern von Xpeccy+ wird fensterlos über libxpeccy benutzt: keine Firmware (Paletten beginnen bei 0), kein `comp_power_on`; bei 60 Hz beginnt sein Bild bei Zeile 0 von Layer 2, bei 50 Hz bei 24.
 - Die Prüfungen brauchen das ROM; CI baut nur die .nex (Artefakt ohne Zip).
-- Code ist mit Tabs eingerückt. Dokumentation: `X.md` auf Englisch, `X.ru.md` auf Russisch und `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (wie beim C++-Port); `docs/CODE.md` und `tsconf/CODE.md` nur auf Englisch und Russisch. `tools/doc_languages.py` schreibt die Sprachzeile unter jeden Titel (in einer neuen Übersetzung steht dort das Wort LANGUAGES). Eine Änderung an einem Dokument geht in jede Sprache.
+- Code ist mit Tabs eingerückt. Dokumentation: `X.md` auf Englisch, `X.ru.md` auf Russisch und `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (wie beim C++-Port). `tools/doc_languages.py` schreibt die Sprachzeile unter jeden Titel (in einer neuen Übersetzung steht dort das Wort LANGUAGES). Eine Änderung an einem Dokument geht in jede Sprache.
 - Commits: Autor `djdron <djdron@gmail.com>`, Nachricht endet mit `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, kein Sitzungslink.
 
 ## Methode

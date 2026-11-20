@@ -2,7 +2,7 @@
 
 [English](NOTES.md) | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | [中文](NOTES.zh.md) | 日本語
 
-TS-Conf 移植がどう作られているか、その過程で何が分かったかを、数字とともに記す。ゲームそのもの（ロジック、川の生成器、物体の配置と衝突）は Next のコードを `src/` にコピーしたもので、それについて分かったことは Next の [docs/NOTES.ja.md](../docs/NOTES.ja.md) にある。ここでは TS-Conf 独自の部分を扱う。ルーチンごとの説明は [CODE.md](CODE.md)（英語とロシア語）。
+TS-Conf 移植がどう作られているか、その過程で何が分かったかを、数字とともに記す。ゲームそのもの（ロジック、川の生成器、物体の配置と衝突）は Next のコードを `src/` にコピーしたもので、それについて分かったことは Next の [docs/NOTES.ja.md](../docs/NOTES.ja.md) にある。ここでは TS-Conf 独自の部分を扱う。ルーチンごとの説明は [CODE.ja.md](CODE.ja.md)。
 
 ## ボードの使い方
 - **プロセッサー**：14 MHz の Z80、キャッシュ有効（SYSCONFIG $06）、起動時に設定。Z80N 命令はない：`nextreg` は `ld bc,ポート / out (c),a` に、`bsla de,b` はループ（`shl_de_b`）に、`mul` は足し算になった。

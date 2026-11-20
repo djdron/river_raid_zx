@@ -1,6 +1,6 @@
 # Kod źródłowy portu na ZX Spectrum Next w asemblerze, plik po pliku
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | Polski
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | Polski | [Italiano](CODE.it.md) | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Dla programistów Z80, którzy chcą czytać kod albo go przyspieszyć. Dla każdego pliku: co w nim
 jest, co robi każda procedura, kto i kiedy ją wywołuje, jak działa i ile kosztuje. Dlaczego

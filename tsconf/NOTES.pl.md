@@ -2,7 +2,7 @@
 
 [English](NOTES.md) | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | Polski | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | [中文](NOTES.zh.md) | [日本語](NOTES.ja.md)
 
-Jak zrobiony jest port na TS-Conf i co wyszło po drodze, z liczbami. Sama gra (logika, generator rzeki, rozmieszczanie obiektów i kolizje) to kod Next skopiowany do `src/`: czego się o nim dowiedziano, jest w [docs/NOTES.pl.md](../docs/NOTES.pl.md) Next. Tutaj: to, co własne TS-Conf. Procedury po kolei są w [CODE.md](CODE.md) (po angielsku i rosyjsku).
+Jak zrobiony jest port na TS-Conf i co wyszło po drodze, z liczbami. Sama gra (logika, generator rzeki, rozmieszczanie obiektów i kolizje) to kod Next skopiowany do `src/`: czego się o nim dowiedziano, jest w [docs/NOTES.pl.md](../docs/NOTES.pl.md) Next. Tutaj: to, co własne TS-Conf. Procedury po kolei są w [CODE.pl.md](CODE.pl.md).
 
 ## Płyta, jak jest używana
 - **Procesor**: Z80 na 14 MHz z włączoną pamięcią podręczną (SYSCONFIG $06), ustawiany przy starcie. Brak instrukcji Z80N: `nextreg` stał się `ld bc,port / out (c),a`, `bsla de,b` pętlą (`shl_de_b`), `mul` dodawaniami.

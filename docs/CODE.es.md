@@ -1,6 +1,6 @@
 # El código fuente en ensamblador del port para ZX Spectrum Next, archivo por archivo
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | Español
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | Español | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Para programadores de Z80 que quieran leer el código o hacerlo más rápido. Para cada archivo: qué
 contiene, qué hace cada rutina, quién la llama y cuándo, cómo funciona y cuánto cuesta. El porqué

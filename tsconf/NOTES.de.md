@@ -2,7 +2,7 @@
 
 [English](NOTES.md) | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | Deutsch | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | [中文](NOTES.zh.md) | [日本語](NOTES.ja.md)
 
-Wie der TS-Conf-Port gemacht ist und was sich unterwegs herausstellte, mit Zahlen. Das Spiel selbst (seine Logik, der Flussgenerator, das Platzieren der Objekte und die Kollisionen) ist der Code des Next, nach `src/` kopiert: Was darüber gelernt wurde, steht in [docs/NOTES.de.md](../docs/NOTES.de.md) des Next. Hier: was TS-Conf eigen ist. Die Routinen einzeln stehen in [CODE.md](CODE.md) (Englisch und Russisch).
+Wie der TS-Conf-Port gemacht ist und was sich unterwegs herausstellte, mit Zahlen. Das Spiel selbst (seine Logik, der Flussgenerator, das Platzieren der Objekte und die Kollisionen) ist der Code des Next, nach `src/` kopiert: Was darüber gelernt wurde, steht in [docs/NOTES.de.md](../docs/NOTES.de.md) des Next. Hier: was TS-Conf eigen ist. Die Routinen einzeln stehen in [CODE.de.md](CODE.de.md).
 
 ## Die Platine, wie sie genutzt wird
 - **Prozessor**: Z80 mit 14 MHz und eingeschaltetem Cache (SYSCONFIG $06), beim Start gesetzt. Keine Z80N-Befehle: `nextreg` wurde zu `ld bc,port / out (c),a`, `bsla de,b` zu einer Schleife (`shl_de_b`), `mul` zu Additionen.

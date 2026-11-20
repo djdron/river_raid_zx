@@ -1,6 +1,6 @@
 # ZX Spectrum Next 移植版的汇编源码，逐个文件说明
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | 中文
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | 中文 | [日本語](CODE.ja.md)
 
 写给想读懂这份代码或让它更快的 Z80 程序员。每个文件：里面有什么，每个例程做什么、由谁在何时调用、
 怎样工作、花多少时间。为什么这样做见 [NOTES.zh.md](NOTES.zh.md) 和 [HANDOFF.zh.md](../HANDOFF.zh.md)；

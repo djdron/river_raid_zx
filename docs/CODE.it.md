@@ -1,6 +1,6 @@
 # Il sorgente assembly del port per ZX Spectrum Next, file per file
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | Italiano
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | Italiano | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Per i programmatori Z80 che vogliono leggere il codice o renderlo più veloce. Per ogni file: cosa
 contiene, cosa fa ogni routine, chi la chiama e quando, come funziona e quanto costa. Il perché

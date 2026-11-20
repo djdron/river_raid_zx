@@ -8,7 +8,7 @@ River Raid（Activision，Atari 8 位机，1983，作者 Carol Shaw）到 ZX Spe
 
 非官方的爱好者项目，用于学习目的，与 Activision 和 Microsoft 无关。项目中不包含游戏本身：程序在运行时读取你自己的卡带映像。
 
-它在 Next 上如何工作（面向所有人）：[docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md)。接手工作：[HANDOFF.zh.md](HANDOFF.zh.md)；具体做法和数据：[docs/NOTES.zh.md](docs/NOTES.zh.md)；逐个例程的汇编源码（英文和俄文）：[docs/CODE.md](docs/CODE.md)。
+它在 Next 上如何工作（面向所有人）：[docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md)。接手工作：[HANDOFF.zh.md](HANDOFF.zh.md)；具体做法和数据：[docs/NOTES.zh.md](docs/NOTES.zh.md)；逐个例程的汇编源码：[docs/CODE.zh.md](docs/CODE.zh.md)。
 
 ## 状态
 

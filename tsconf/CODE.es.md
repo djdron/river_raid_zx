@@ -1,6 +1,6 @@
 # El código fuente en ensamblador del port para TS-Conf, archivo por archivo
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | Español
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | Español | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Para programadores de Z80 que quieran leer el código del port para TS-Conf o hacerlo más rápido.
 El juego en sí (la lógica, el generador del río, la colocación de objetos y las colisiones) es el

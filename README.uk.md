@@ -80,8 +80,8 @@ make -C tsconf     # tsconf/build/river_raid.spg
 | [docs/HOW_IT_WORKS.uk.md](docs/HOW_IT_WORKS.uk.md) | як картинку, зіткнення і звук Atari зроблено на Next і на TS-Conf, для всіх |
 | [docs/NOTES.uk.md](docs/NOTES.uk.md) | як зроблено програму для Next і що з'ясувалося, з цифрами |
 | [tsconf/NOTES.uk.md](tsconf/NOTES.uk.md) | власне в порту для TS-Conf: плата, переривання, General Sound, старт, з цифрами |
-| [docs/CODE.md](docs/CODE.md) | вихідний код для Next на асемблері за процедурами (англійською і російською) |
-| [tsconf/CODE.md](tsconf/CODE.md) | вихідний код для TS-Conf на асемблері за процедурами і чим дві машини відрізняються (англійською і російською) |
+| [docs/CODE.uk.md](docs/CODE.uk.md) | вихідний код для Next на асемблері за процедурами |
+| [tsconf/CODE.uk.md](tsconf/CODE.uk.md) | вихідний код для TS-Conf на асемблері за процедурами і чим дві машини відрізняються |
 | [HANDOFF.uk.md](HANDOFF.uk.md) | стан проєкту, щоб продовжити роботу |
 
 ## Ліцензія

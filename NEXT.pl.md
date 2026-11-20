@@ -11,7 +11,7 @@ ustala, jak oryginał robi wszystko, i jest z nim porównywany klatka po klatce.
 Nieoficjalny projekt fanowski w celach edukacyjnych, niezwiązany z Activision ani Microsoft.
 Gry w nim nie ma: program w czasie działania czyta twój własny obraz kartridża.
 
-Jak to działa na Next, dla wszystkich: [docs/HOW_IT_WORKS.pl.md](docs/HOW_IT_WORKS.pl.md). Żeby podjąć pracę: [HANDOFF.pl.md](HANDOFF.pl.md); jak to zrobiono, z liczbami: [docs/NOTES.pl.md](docs/NOTES.pl.md); kod źródłowy w asemblerze procedura po procedurze (po angielsku i rosyjsku): [docs/CODE.md](docs/CODE.md).
+Jak to działa na Next, dla wszystkich: [docs/HOW_IT_WORKS.pl.md](docs/HOW_IT_WORKS.pl.md). Żeby podjąć pracę: [HANDOFF.pl.md](HANDOFF.pl.md); jak to zrobiono, z liczbami: [docs/NOTES.pl.md](docs/NOTES.pl.md); kod źródłowy w asemblerze procedura po procedurze: [docs/CODE.pl.md](docs/CODE.pl.md).
 
 ## Stan
 

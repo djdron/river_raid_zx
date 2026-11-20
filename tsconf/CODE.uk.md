@@ -1,6 +1,6 @@
 # Вихідний код порту для TS-Conf на асемблері, файл за файлом
 
-[English](CODE.md) | [Русский](CODE.ru.md) | Українська
+[English](CODE.md) | [Русский](CODE.ru.md) | Українська | [Deutsch](CODE.de.md) | [Polski](CODE.pl.md) | [Italiano](CODE.it.md) | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Для програмістів на Z80, які хочуть читати код порту для TS-Conf або пришвидшувати його. Сама
 гра (її логіка, генератор річки, розставляння об'єктів і зіткнення) — це код Next,

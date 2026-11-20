@@ -81,8 +81,8 @@ Do zbudowania wystarczy sjasmplus; testy potrzebują reszty i twojego ROM-u w `r
 | [docs/HOW_IT_WORKS.pl.md](docs/HOW_IT_WORKS.pl.md) | jak obraz, kolizje i dźwięk Atari powstają na Next i na TS-Conf, dla wszystkich |
 | [docs/NOTES.pl.md](docs/NOTES.pl.md) | jak zrobiony jest program na Next i co się okazało, z liczbami |
 | [tsconf/NOTES.pl.md](tsconf/NOTES.pl.md) | własne portu na TS-Conf: płyta, przerwanie, General Sound, start, z liczbami |
-| [docs/CODE.md](docs/CODE.md) | kod źródłowy w asemblerze dla Next, procedura po procedurze (po angielsku i rosyjsku) |
-| [tsconf/CODE.md](tsconf/CODE.md) | kod źródłowy w asemblerze dla TS-Conf, procedura po procedurze, i czym różnią się obie maszyny (po angielsku i rosyjsku) |
+| [docs/CODE.pl.md](docs/CODE.pl.md) | kod źródłowy w asemblerze dla Next, procedura po procedurze |
+| [tsconf/CODE.pl.md](tsconf/CODE.pl.md) | kod źródłowy w asemblerze dla TS-Conf, procedura po procedurze, i czym różnią się obie maszyny |
 | [HANDOFF.pl.md](HANDOFF.pl.md) | stan projektu, żeby podjąć pracę |
 
 ## Licencja

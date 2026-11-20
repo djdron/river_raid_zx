@@ -12,7 +12,7 @@ Un proyecto de aficionados no oficial con fines educativos, sin relación con Ac
 Microsoft. El juego no está incluido: el programa lee en tiempo de ejecución tu propia imagen
 del cartucho.
 
-Cómo funciona en el Next, para todos: [docs/HOW_IT_WORKS.es.md](docs/HOW_IT_WORKS.es.md). Para retomar el trabajo: [HANDOFF.es.md](HANDOFF.es.md); cómo está hecho, con cifras: [docs/NOTES.es.md](docs/NOTES.es.md); el código fuente en ensamblador rutina a rutina (en inglés y en ruso): [docs/CODE.md](docs/CODE.md).
+Cómo funciona en el Next, para todos: [docs/HOW_IT_WORKS.es.md](docs/HOW_IT_WORKS.es.md). Para retomar el trabajo: [HANDOFF.es.md](HANDOFF.es.md); cómo está hecho, con cifras: [docs/NOTES.es.md](docs/NOTES.es.md); el código fuente en ensamblador rutina a rutina: [docs/CODE.es.md](docs/CODE.es.md).
 
 ## Estado
 

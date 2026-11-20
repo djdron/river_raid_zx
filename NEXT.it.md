@@ -12,7 +12,7 @@ Un progetto amatoriale non ufficiale a scopo didattico, non affiliato ad Activis
 Microsoft. Il gioco non è incluso: il programma legge durante l'esecuzione la tua immagine
 della cartuccia.
 
-Come funziona sul Next, per tutti: [docs/HOW_IT_WORKS.it.md](docs/HOW_IT_WORKS.it.md). Per riprendere il lavoro: [HANDOFF.it.md](HANDOFF.it.md); come è fatto, con i numeri: [docs/NOTES.it.md](docs/NOTES.it.md); il sorgente assembly routine per routine (in inglese e in russo): [docs/CODE.md](docs/CODE.md).
+Come funziona sul Next, per tutti: [docs/HOW_IT_WORKS.it.md](docs/HOW_IT_WORKS.it.md). Per riprendere il lavoro: [HANDOFF.it.md](HANDOFF.it.md); come è fatto, con i numeri: [docs/NOTES.it.md](docs/NOTES.it.md); il sorgente assembly routine per routine: [docs/CODE.it.md](docs/CODE.it.md).
 
 ## Stato
 

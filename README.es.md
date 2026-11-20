@@ -83,8 +83,8 @@ Para compilar basta con sjasmplus; las comprobaciones necesitan el resto y tu RO
 | [docs/HOW_IT_WORKS.es.md](docs/HOW_IT_WORKS.es.md) | cómo se hacen en el Next y en TS-Conf la imagen, las colisiones y el sonido del Atari, para todos |
 | [docs/NOTES.es.md](docs/NOTES.es.md) | cómo está hecho el programa del Next y qué se descubrió, con cifras |
 | [tsconf/NOTES.es.md](tsconf/NOTES.es.md) | lo propio del port a TS-Conf: la placa, la interrupción, la General Sound, el arranque, con cifras |
-| [docs/CODE.md](docs/CODE.md) | el código fuente en ensamblador del Next, rutina a rutina (en inglés y en ruso) |
-| [tsconf/CODE.md](tsconf/CODE.md) | el código fuente en ensamblador de TS-Conf, rutina a rutina, y en qué se diferencian las dos máquinas (en inglés y en ruso) |
+| [docs/CODE.es.md](docs/CODE.es.md) | el código fuente en ensamblador del Next, rutina a rutina |
+| [tsconf/CODE.es.md](tsconf/CODE.es.md) | el código fuente en ensamblador de TS-Conf, rutina a rutina, y en qué se diferencian las dos máquinas |
 | [HANDOFF.es.md](HANDOFF.es.md) | el estado del proyecto, para retomar el trabajo |
 
 ## Licencia

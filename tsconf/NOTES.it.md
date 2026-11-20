@@ -2,7 +2,7 @@
 
 [English](NOTES.md) | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | Italiano | [Español](NOTES.es.md) | [中文](NOTES.zh.md) | [日本語](NOTES.ja.md)
 
-Come è fatto il port per TS-Conf e cosa si è scoperto lungo la strada, con i numeri. Il gioco in sé (la logica, il generatore del fiume, il posizionamento degli oggetti e le collisioni) è il codice del Next, copiato in `src/`: ciò che si è imparato su di esso è nel [docs/NOTES.it.md](../docs/NOTES.it.md) del Next. Qui: ciò che è proprio di TS-Conf. Le routine una per una sono in [CODE.md](CODE.md) (in inglese e in russo).
+Come è fatto il port per TS-Conf e cosa si è scoperto lungo la strada, con i numeri. Il gioco in sé (la logica, il generatore del fiume, il posizionamento degli oggetti e le collisioni) è il codice del Next, copiato in `src/`: ciò che si è imparato su di esso è nel [docs/NOTES.it.md](../docs/NOTES.it.md) del Next. Qui: ciò che è proprio di TS-Conf. Le routine una per una sono in [CODE.it.md](CODE.it.md).
 
 ## La scheda come è usata
 - **Processore**: Z80 a 14 MHz con la cache accesa (SYSCONFIG $06), impostato all'avvio. Niente istruzioni Z80N: `nextreg` è diventato `ld bc,porta / out (c),a`, `bsla de,b` un ciclo (`shl_de_b`), `mul` addizioni.

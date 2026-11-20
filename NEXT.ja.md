@@ -8,7 +8,7 @@ River Raid（Activision、Atari 8 ビット、1983、作者 Carol Shaw）の ZX 
 
 学習目的の非公式なファンプロジェクトで、Activision や Microsoft とは関係ありません。ゲーム自体は含まれていません。プログラムは実行時にあなた自身のカートリッジイメージを読み込みます。
 
-Next でどう動いているか（誰にでもわかるように）：[docs/HOW_IT_WORKS.ja.md](docs/HOW_IT_WORKS.ja.md)。作業の引き継ぎ：[HANDOFF.ja.md](HANDOFF.ja.md)。どう作ったか、数字付き：[docs/NOTES.ja.md](docs/NOTES.ja.md)。アセンブリソース、ルーチンごと（英語とロシア語）：[docs/CODE.md](docs/CODE.md)。
+Next でどう動いているか（誰にでもわかるように）：[docs/HOW_IT_WORKS.ja.md](docs/HOW_IT_WORKS.ja.md)。作業の引き継ぎ：[HANDOFF.ja.md](HANDOFF.ja.md)。どう作ったか、数字付き：[docs/NOTES.ja.md](docs/NOTES.ja.md)。アセンブリソース、ルーチンごと：[docs/CODE.ja.md](docs/CODE.ja.md)。
 
 ## 状態
 

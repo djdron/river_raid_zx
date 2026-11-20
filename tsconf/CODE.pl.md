@@ -1,6 +1,6 @@
 # Kod źródłowy portu na TS-Conf w asemblerze, plik po pliku
 
-[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | Polski
+[English](CODE.md) | [Русский](CODE.ru.md) | [Українська](CODE.uk.md) | [Deutsch](CODE.de.md) | Polski | [Italiano](CODE.it.md) | [Español](CODE.es.md) | [中文](CODE.zh.md) | [日本語](CODE.ja.md)
 
 Dla programistów Z80, którzy chcą czytać kod portu na TS-Conf albo go przyspieszyć. Sama gra
 (jej logika, generator rzeki, rozmieszczanie obiektów i kolizje) to kod Next skopiowany do

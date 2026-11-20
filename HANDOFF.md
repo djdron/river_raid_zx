@@ -83,7 +83,7 @@ A port to TS-Conf (ZX Evolution / Pentevo), its own project with its own build i
 - sjasmplus 1.24.1 (commit 5c44bea), Xpeccy+ commit 0ec06e33, river_raid commit 1273aba (branch `dli_removed`): `tools/get_deps.sh`. Every change of the C++ port that the program follows needs this commit moved too. Xpeccy+ 2026.10.1 (the user's) draws lines below the visible ones that the headless core does not (`NXFULL=1` writes the whole frame buffer).
 - Xpeccy+'s Next core is used headless through libxpeccy: no firmware (palettes start at 0), not `comp_power_on`; at 60 Hz its picture starts at Layer 2 row 0, at 50 Hz at 24.
 - The checks need the ROM; CI only builds the .nex (artifact without a zip).
-- Code is indented with tabs. Documentation: `X.md` in English, `X.ru.md` in Russian, and `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (as the C++ port's); `docs/CODE.md` and `tsconf/CODE.md` only in English and Russian. `tools/doc_languages.py` writes the language line under each title (a new translation: the word LANGUAGES there). A change to a document goes into every language.
+- Code is indented with tabs. Documentation: `X.md` in English, `X.ru.md` in Russian, and `X.uk.md`, `X.de.md`, `X.pl.md`, `X.it.md`, `X.es.md`, `X.zh.md`, `X.ja.md` (as the C++ port's). `tools/doc_languages.py` writes the language line under each title (a new translation: the word LANGUAGES there). A change to a document goes into every language.
 - Commits: author `djdron <djdron@gmail.com>`, message ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, no session link.
 
 ## Method

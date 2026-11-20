@@ -2,7 +2,7 @@
 
 [English](NOTES.md) | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | 中文 | [日本語](NOTES.ja.md)
 
-TS-Conf 移植是怎样做的，以及一路上发现了什么，附带数字。游戏本身（逻辑、河流生成器、物体的摆放和碰撞）是 Next 的代码，复制到了 `src/`：关于它学到的东西在 Next 的 [docs/NOTES.zh.md](../docs/NOTES.zh.md) 中。这里讲 TS-Conf 自己的部分。逐个例程的说明在 [CODE.md](CODE.md)（英文和俄文）。
+TS-Conf 移植是怎样做的，以及一路上发现了什么，附带数字。游戏本身（逻辑、河流生成器、物体的摆放和碰撞）是 Next 的代码，复制到了 `src/`：关于它学到的东西在 Next 的 [docs/NOTES.zh.md](../docs/NOTES.zh.md) 中。这里讲 TS-Conf 自己的部分。逐个例程的说明在 [CODE.zh.md](CODE.zh.md)。
 
 ## 主板的用法
 - **处理器**：14 MHz 的 Z80，打开缓存（SYSCONFIG $06），启动时设置。没有 Z80N 指令：`nextreg` 变成 `ld bc,端口 / out (c),a`，`bsla de,b` 变成循环（`shl_de_b`），`mul` 变成加法。
