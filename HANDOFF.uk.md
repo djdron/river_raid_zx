@@ -2,7 +2,7 @@
 
 [English](HANDOFF.md) | [Русский](HANDOFF.ru.md) | Українська | [Deutsch](HANDOFF.de.md) | [Polski](HANDOFF.pl.md) | [Italiano](HANDOFF.it.md) | [Español](HANDOFF.es.md) | [中文](HANDOFF.zh.md) | [日本語](HANDOFF.ja.md)
 
-Цей файл — щоб продовжити роботу на будь-якому комп'ютері або в новому чаті. Почніть нову сесію з «прочитай HANDOFF.uk.md і docs/NOTES.uk.md» (для порту на TS-Conf ще tsconf/README.uk.md).
+Цей файл — щоб продовжити роботу на будь-якому комп'ютері або в новому чаті. Почніть нову сесію з «прочитай HANDOFF.uk.md і docs/NOTES.uk.md» (для порту на TS-Conf ще tsconf/README.uk.md, tsconf/NOTES.uk.md).
 
 ## Мета
 River Raid (Activision, Atari 800, 1983, авторка Керол Шоу) на ZX Spectrum Next, на основі C++-порту [djdron/river_raid](https://github.com/djdron/river_raid):
@@ -64,6 +64,7 @@ DLI більше немає зовсім, ні його тактів, ні йо�
 | `tools/check_original.sh` | `make check-original`: вісім прогонів оригіналу |
 | `tools/prof.py` | час за процедурами з гістограм nxcheck |
 | [docs/NOTES.uk.md](docs/NOTES.uk.md) | як зроблено і що з'ясувалося, з цифрами |
+| [tsconf/NOTES.uk.md](tsconf/NOTES.uk.md) | власне в порту для TS-Conf: плата, переривання, General Sound, старт, з цифрами |
 | [docs/HOW_IT_WORKS.uk.md](docs/HOW_IT_WORKS.uk.md) | як картинку, зіткнення і звук Atari зроблено на Next і на TS-Conf, для всіх |
 | [docs/CODE.md](docs/CODE.md) | файли асемблера Next за процедурами (ігрова частина спільна з TS-Conf): що, коли, як і скільки тактів коштує кожна (англійською і російською) |
 | [tsconf/CODE.md](tsconf/CODE.md) | власні файли порту для TS-Conf так само, зміни в спільних і чим дві машини відрізняються (англійською і російською) |

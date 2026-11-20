@@ -11,6 +11,8 @@ The game as the Next's runs it (the same game logic, display and river generator
 
 How it works on both machines, for everyone: [../docs/HOW_IT_WORKS.md](../docs/HOW_IT_WORKS.md).
 
+How it is done on this board and what was found, with numbers: [NOTES.md](NOTES.md).
+
 The source routine by routine, what changed in the Next's shared code, and a table of how the two machines differ: [CODE.md](CODE.md).
 
 - The river: the 16-colour mode, 320x240, a picture line of 256 bytes (160 at its start), 512

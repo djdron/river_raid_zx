@@ -2,7 +2,7 @@
 
 [English](HANDOFF.md) | [Русский](HANDOFF.ru.md) | [Українська](HANDOFF.uk.md) | [Deutsch](HANDOFF.de.md) | [Polski](HANDOFF.pl.md) | [Italiano](HANDOFF.it.md) | [Español](HANDOFF.es.md) | [中文](HANDOFF.zh.md) | 日本語
 
-このファイルは、どのコンピューターでも、新しいチャットでも作業を引き継げるようにするためのものです。新しいセッションは「HANDOFF.ja.md と docs/NOTES.ja.md を読んで」から始めてください（TS-Conf 移植については tsconf/README.ja.md も）。
+このファイルは、どのコンピューターでも、新しいチャットでも作業を引き継げるようにするためのものです。新しいセッションは「HANDOFF.ja.md と docs/NOTES.ja.md を読んで」から始めてください（TS-Conf 移植については tsconf/README.ja.md, tsconf/NOTES.ja.md も）。
 
 ## 目標
 River Raid（Activision、Atari 800、1983、作者 Carol Shaw）を ZX Spectrum Next で。[djdron/river_raid](https://github.com/djdron/river_raid) の C++ 移植をもとにします：
@@ -64,6 +64,7 @@ TS-Conf（ZX Evolution / Pentevo）への移植。`tsconf/` にある独自の�
 | `tools/check_original.sh` | `make check-original`：オリジナルの 8 回の実行 |
 | `tools/prof.py` | nxcheck のヒストグラムからルーチンごとの時間 |
 | [docs/NOTES.ja.md](docs/NOTES.ja.md) | どう作ったか、何がわかったか、数字付き |
+| [tsconf/NOTES.ja.md](tsconf/NOTES.ja.md) | TS-Conf 移植独自のもの：ボード、割り込み、General Sound、起動、数字付き |
 | [docs/HOW_IT_WORKS.ja.md](docs/HOW_IT_WORKS.ja.md) | Atari の画面、衝突、音が Next と TS-Conf でどう作られているか、誰にでもわかるように |
 | [docs/CODE.md](docs/CODE.md) | Next のアセンブリファイルをルーチンごとに（ゲーム部分は TS-Conf と共有）：何を、いつ、どうやって、それぞれ何クロックかかるか（英語とロシア語） |
 | [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf 移植独自のファイルを同じ形で、共有ファイルへの変更、2 つのマシンの違い（英語とロシア語） |

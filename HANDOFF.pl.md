@@ -2,7 +2,7 @@
 
 [English](HANDOFF.md) | [Русский](HANDOFF.ru.md) | [Українська](HANDOFF.uk.md) | [Deutsch](HANDOFF.de.md) | Polski | [Italiano](HANDOFF.it.md) | [Español](HANDOFF.es.md) | [中文](HANDOFF.zh.md) | [日本語](HANDOFF.ja.md)
 
-Ten plik służy do podjęcia pracy na dowolnym komputerze albo w nowym czacie. Zacznij nową sesję od „przeczytaj HANDOFF.pl.md i docs/NOTES.pl.md” (dla portu na TS-Conf także tsconf/README.pl.md).
+Ten plik służy do podjęcia pracy na dowolnym komputerze albo w nowym czacie. Zacznij nową sesję od „przeczytaj HANDOFF.pl.md i docs/NOTES.pl.md” (dla portu na TS-Conf także tsconf/README.pl.md, tsconf/NOTES.pl.md).
 
 ## Cel
 River Raid (Activision, Atari 800, 1983, autorka Carol Shaw) na ZX Spectrum Next, na bazie portu C++ w [djdron/river_raid](https://github.com/djdron/river_raid):
@@ -64,6 +64,7 @@ Port na TS-Conf (ZX Evolution / Pentevo), osobny projekt z własnym budowaniem w
 | `tools/check_original.sh` | `make check-original`: osiem przebiegów oryginału |
 | `tools/prof.py` | czas na procedurę z histogramów nxcheck |
 | [docs/NOTES.pl.md](docs/NOTES.pl.md) | jak to zrobiono i co się okazało, z liczbami |
+| [tsconf/NOTES.pl.md](tsconf/NOTES.pl.md) | własne portu na TS-Conf: płyta, przerwanie, General Sound, start, z liczbami |
 | [docs/HOW_IT_WORKS.pl.md](docs/HOW_IT_WORKS.pl.md) | jak obraz, kolizje i dźwięk Atari powstają na Next i na TS-Conf, dla wszystkich |
 | [docs/CODE.md](docs/CODE.md) | pliki asemblera Next procedura po procedurze (część gry wspólna z TS-Conf): co, kiedy, jak i ile taktów kosztuje każda (po angielsku i rosyjsku) |
 | [tsconf/CODE.md](tsconf/CODE.md) | własne pliki portu na TS-Conf tak samo, zmiany we wspólnych i czym różnią się obie maszyny (po angielsku i rosyjsku) |

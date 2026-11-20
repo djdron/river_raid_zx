@@ -1,0 +1,60 @@
+# River Raid on TS-Conf — notes
+
+English | [Русский](NOTES.ru.md) | [Українська](NOTES.uk.md) | [Deutsch](NOTES.de.md) | [Polski](NOTES.pl.md) | [Italiano](NOTES.it.md) | [Español](NOTES.es.md) | [中文](NOTES.zh.md) | [日本語](NOTES.ja.md)
+
+How the TS-Conf port is done and what was found on the way, with numbers. The game (its logic, the river's generator, the objects' placement and collisions) is the Next's code, copied into `src/`: what was learned about it is in the Next's [docs/NOTES.md](../docs/NOTES.md). Here: what is TS-Conf's own. The routines one by one are in [CODE.md](CODE.md).
+
+## The board as it is used
+- **Processor**: Z80 at 14 MHz with the cache on (SYSCONFIG $06), set at the start. No Z80N instructions: `nextreg` became `ld bc,port / out (c),a`, `bsla de,b` a loop (`shl_de_b`), `mul` adds.
+- **Memory**: 16K windows (PAGE0–PAGE3). Window 0 is RAM, written (MEMCONFIG $0E), so the Atari's RAM sits at $0000 at the original's addresses (page 1), as on the Next. The start's work (the sprites' pictures, the SD card, the General Sound's program) is in a page of its own (3) at $0000 while it runs, then the Atari's RAM goes in.
+- **The river**: 16 colours (VCONFIG $81), 320×240, a line of 256 bytes (2 dots a byte, 160 bytes shown), 512 lines a ring from page 32 (16 pages), scrolled by GYOFFS (9 bits). A new line is 160 bytes written along its row in one page (the Next writes 320 bytes down columns over 10 pages). The river's rows are screen rows 24–183.
+- **Colours**: CRAM (512 bytes, a colour a 15-bit word, 5 bits a component at levels 0–24, `palette_ts.inc` from the C++ port's PAL colours) and the sprites' list (SFILE, 512 bytes) through the FM window at $E000, on for good. A write there goes to CRAM and to the RAM under it, which `apply` reads back.
+- **The bank colour by line**: the 16-colour mode's colours come from one of 16 palettes, PALSEL says which, latched at the end of a line. Each bank colour the river has had gets a palette of its own (`pal_get`: its colour 1; colours 2 and 3, the edge and the water, written into all of them each frame); the INT, moved down the frame from change to change, sets PALSEL a line before. No Copper: the INT is the Copper.
+- **The INT**: only the frame INT (INTMASK 1), IM 2, its vector at $FEFF. VSINT moves it to any line, HSINT 208 puts it at the line's right border. A list per frame (`build_events`, `apply`): EV_PAL the river's palette, EV_PANEL the panel's picture at row 184, EV_GX the scrolling line's X, then the frame's INT below the panel (`FRAME_LINE`), which ends `wait_frame`'s HALT. Events on one line are taken together. Two buffers (`ev_a`, `ev_b`): one is built while the other is shown.
+- **Sprites**: up to 85 in the SFILE, any size to 64×64 in 8-dot steps, 16 colours from a palette of 16, their dots in one 512×512-dot picture (SGPAGE, pages 24–31, 4 bits a dot). No scale, so each picture is made at the start three times, 16, 32 and 64 dots across. S0, the river's sprites, under tile layer 0; S1, the needle and the logo, over it.
+- **Tile layer 0** (map in page 7, tiles in page 8): black over rows 0–23 (above the river) and 224–239, grey under the panel (185–223, row 184 a black line then grey). It hides what the river's sprites have outside the river: no clip window needed.
+- **The panel**: a picture of its own (pages 64–79, 256 colours), put in at row 184 by EV_PANEL (VPAGE, GYOFFS = 0, VCONFIG $8A: 256 colours with the bitmap over tiles and sprites, GFXOVR). Its dots of 0 are holes: under them tile layer 0's grey and the S1 sprites. Colours 4–7 the panel's PF0–PF3, 8 the scrolling line's.
+- **The DMA**: clears the river's picture after a reset (a fill, half the picture a frame) and the sprites' 128K at the start, and copies the panel's characters from where they were drawn once.
+- **Controls**: keyboard (Q A O P, Space or M, Enter, G, H) and Kempston at $1F. No 60 Hz (the board's frame is 50 Hz), no CAPS + 2/3, no T.
+
+## The frame
+`main_frame`: as the Next's (`prepare`, `display`, `build_sprites`, `main_loop`, `vbi`), with `build_events` after the sprites and `snd_frame` at the end; then `wait_frame` (HALT until the frame INT), `apply`, `panel_draw`. `apply` comes at the frame INT, below the panel (row 241 of 240: in the bottom border), so everything it sets is there for the next picture's first row: the river's scroll and mode, the sound, the colours, the SFILE, the palette at the top and the INT armed at the list's first event. `panel_draw` writes the panel's characters after it: the panel is shown only from row 184, more than a frame's work later.
+
+While the picture is being cleared after a reset (from its second frame), the river's palette and the edge and water colours are black, so the river goes black at once, as the C++ port's screen.
+
+## The start
+- **SPG** (SPG 1.0, `tools/mkspg.py`): loaded and started by Wild Commander. Its resident area must be $5B00: with 0, WC did not start it.
+- **A black screen**: Wild Commander leaves its own mode on (VPAGE 5, VCONFIG 0: the ZX screen in page 5), and page 5 is where the start's buffers go, so for the start's ~40 frames that garbage showed. `screen_black`, the start's first call: TSCONFIG 0 (no sprites or tiles), BORDER 0, all 1K of CRAM and SFILE zeroed through the FM window. Whatever mode is left on then shows black. (Checked in tscheck with CRAM filled with a colour first, `TSCRAM=1`: the old build showed non-black frames, this one none.)
+- **The cartridge from the SD card**: WC gives the program neither a folder nor a DOS, so `load_rom.asm` reads the card through the Z-controller (SPI, SDHC block addresses or SD byte addresses), the first MBR partition or the whole card, FAT16 or FAT32, the root first, then every folder depth first, 8 deep; the long name River_Raid.rom in any case, or the short RIVER_~1.ROM. Without it: CRAM entry 1 red and BORDER 1 (the rest of CRAM is black), and a stop.
+
+## Sound
+- **On a General Sound**: the card's Z80 (12 MHz) runs the Next's `pokey_frame` and its pulses (`gs/`: without the AY, the zxnDMA and the time limit; the 17-bit counter's pointer wraps at $C0, no `mul`). Its own INT, 37 500 a second, takes a sample from the ring 108 times in 256 (a DDA: 15 820 a second, POKEY's PAL rate 15 834) and latches it into the four DACs (a read at $6000 + 256 (n − 1) + level). The main CPU sends a command and POKEY's 8 registers a frame (`gs_send`), each once the card has read the one before: ~2 400 ticks a frame, mostly waiting.
+- **The 17-bit counter** is 16K of bits; the card's program does not carry it (the upload would be 18K instead of ~1.9K) but makes it at the start from its recurrence, q(k) = q(k−9) ^ q(k−11) ^ q(k−12) ^ q(k−17), from three seed bytes ($CF, $37, $33). tscheck compares it with `poly17.bin`: exact.
+- **The gain**: all four POKEY channels are on the card's DACs (on the Next the pure tones go to the AYs), and their volumes add up to 41 (`-stress` from bridge 30: two explosions with the engine's noise). At the Next's 8 a volume step that is past 255, the running sum wrapped and the sound hissed (heard by the user: a tank's shell exploding while a ship was shot). Now 4 a step (240 at most, all four at 15) and the same sample in all four DACs, 1 and 2 left, 3 and 4 right: each side the sum of its two, as loud as 8 on one. `TSVOL=1` prints the sums and the card's highest level (164 in that run).
+- **Loading the program** (`gs_load`): first command $F0, the firmware's "status". No answer: no card. `GS_READY` ($5A): our program is already there from a run before (the card keeps it until power-off), go on with it. Else through the firmware: #12 page 2 at $8000, #18 the address, #19/#1B the bytes, #13 a jump to $8400, then wait for `GS_READY` (the program makes its tables first). A first version reset the card with $F4 first: on Xpeccy+'s 2M card the firmware takes ~5 s to start, and the upload timed out. A card that stops answering during the game is dropped (`gs_on` 0) and the AY plays from then on. Open: a newer build is not uploaded over an old program still in the card.
+- **Without a card**: the pure tones on TurboSound's two AYs (NedoPC), as the Next's: POKEY 1 and 2 the second chip's A and B, 3 and 4 the first's B and C, the periods by adds. Not 2 frames late, as on the Next (there they wait for the DAC's samples); `apply` puts this frame's out. ~5 800 ticks a frame with the driver.
+- **Checked**: after every frame, the registers the card has against the C++ port's POKEY of the frame before (a noise's pitch from RANDOM left out, as nxcheck does); `TSWAV`/`TSWAVCPP` write the card's samples and the C++ port's PokeySound at the card's rate, the level envelopes alike (0.96 at a ~2-frame lag). NeoGS (`TSGS=neo`) and no card (`TSGS=0`) too.
+
+## Speed
+Ticks at 14 MHz, ~286 800 a frame. tscheck: the work from `apply_done` to `frame_done` (without the wait for the INT); `TSHISTALL` for routines.
+
+| run | average | heaviest | late |
+|---|---|---|---|
+| bot 1, 3 000 frames from the start | ~74 000 | ~124 000 | 0 |
+| `-stress` from bridge 80 (all slots taken, full speed, always firing), 6 000 | ~116 000 | ~153 000 | 0 |
+| the same at 7 MHz (~143 400 a frame) | ~96 000 | ~143 000 | 0 |
+
+At 3.5 MHz it does not keep up. By part in the heaviest scenes: the display (placement and collisions) ~57 000, the river's new lines ~34 000, sprites and the palette's events ~16 000, apply, the panel and the INTs ~7 000, the game's logic ~9 000, the sound ~3 500 (on the card).
+
+The numbers are from the check's build (`-DTEST`: with the Atari's screen memory, which the game does not have); the game is ~1 000–2 500 lighter.
+
+## The checks (tools/tscheck.cpp)
+Xpeccy+'s TSConf core (and its General Sound) as a library, no window, beside the C++ port. The check's build: the program's pages put into RAM, the cartridge at $A000, started at $8000; the same POKEY counter and controls (nxcheck's bot) for both. After every frame: the game's state, the bank colour by line (`ev_built` against the C++ port's), the General Sound's registers, and the machine's picture of the frame, pixel for pixel (the panel too). `make check` 3 000 frames; also `-bot N`, `-stress`, `TSBRIDGE`, `TSGHOST`, `NXGAME`, `TSSPEED=1`, `TSGS=neo|0`. `-spg file frames out.ppm -sd folder` runs the .spg itself with a host folder as the SD card (`-img` a card's image), `-sna` a snapshot.
+
+## Things learned the hard way
+- The first way to change the bank colour by line wrote the colour into CRAM in the INT: at 7 MHz the INT came late and a line showed the wrong colour. A palette per colour and PALSEL (latched at the line's end) is exact at any speed (the user's idea: fill the palettes once).
+- In the emulator a CRAM byte written directly does not change the colours shown until its palette is worked out again: a test that fills CRAM needs `tslUpdatePal`.
+- The GS firmware's own reset ($F4) takes seconds; ask its state ($F0) instead.
+- A level sum past 255 wraps silently: the samples look normal, only the ear finds it. Sum the volumes (`TSVOL`) rather than look at samples.
+- `make check` does not run the .spg: the start (SD card, screen, GS upload) is checked with `-spg … -sd`.
+- Not run on a real board yet: the keyboard, Kempston, the SD card, the GS's real firmware and a NeoGS's are as Xpeccy+ models them.

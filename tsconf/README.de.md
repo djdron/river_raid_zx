@@ -12,6 +12,8 @@ Platine.
 
 Wie es auf beiden Maschinen funktioniert, für alle: [../docs/HOW_IT_WORKS.de.md](../docs/HOW_IT_WORKS.de.md).
 
+Wie es auf dieser Platine gemacht ist und was sich zeigte, mit Zahlen: [NOTES.de.md](NOTES.de.md).
+
 Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert ist, und eine Tabelle, wie sich die beiden Maschinen unterscheiden: [CODE.md](CODE.md) (Englisch und Russisch).
 
 - Der Fluss: der 16-Farben-Modus, 320x240, eine Bildzeile 256 Bytes (160 an ihrem Anfang), 512

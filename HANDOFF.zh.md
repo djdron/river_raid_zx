@@ -2,7 +2,7 @@
 
 [English](HANDOFF.md) | [Русский](HANDOFF.ru.md) | [Українська](HANDOFF.uk.md) | [Deutsch](HANDOFF.de.md) | [Polski](HANDOFF.pl.md) | [Italiano](HANDOFF.it.md) | [Español](HANDOFF.es.md) | 中文 | [日本語](HANDOFF.ja.md)
 
-这个文件用于在任何电脑上或新的对话中接手工作。新会话请以“阅读 HANDOFF.zh.md 和 docs/NOTES.zh.md”开始（TS-Conf 移植还要读 tsconf/README.zh.md）。
+这个文件用于在任何电脑上或新的对话中接手工作。新会话请以“阅读 HANDOFF.zh.md 和 docs/NOTES.zh.md”开始（TS-Conf 移植还要读 tsconf/README.zh.md, tsconf/NOTES.zh.md）。
 
 ## 目标
 River Raid（Activision，Atari 800，1983，作者 Carol Shaw）在 ZX Spectrum Next 上运行，基于 [djdron/river_raid](https://github.com/djdron/river_raid) 中的 C++ 移植：
@@ -64,6 +64,7 @@ DLI 已经完全没有了，它的时钟周期和它的循环都没有了：每�
 | `tools/check_original.sh` | `make check-original`：原版的八次运行 |
 | `tools/prof.py` | 根据 nxcheck 的直方图统计各例程耗时 |
 | [docs/NOTES.zh.md](docs/NOTES.zh.md) | 做法和发现，附数据 |
+| [tsconf/NOTES.zh.md](tsconf/NOTES.zh.md) | TS-Conf 移植自己的部分：主板、中断、General Sound、启动，附数据 |
 | [docs/HOW_IT_WORKS.zh.md](docs/HOW_IT_WORKS.zh.md) | Atari 的画面、碰撞和声音如何在 Next 和 TS-Conf 上实现，面向所有人 |
 | [docs/CODE.md](docs/CODE.md) | 逐个例程介绍 Next 的汇编文件（游戏部分与 TS-Conf 共用）：做什么、何时、怎样做、各花多少周期（英文和俄文） |
 | [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf 移植自己的文件（同样的写法）、对共用文件的改动，以及两台机器的区别（英文和俄文） |

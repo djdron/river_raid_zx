@@ -2,7 +2,7 @@
 
 [English](HANDOFF.md) | [Русский](HANDOFF.ru.md) | [Українська](HANDOFF.uk.md) | [Deutsch](HANDOFF.de.md) | [Polski](HANDOFF.pl.md) | [Italiano](HANDOFF.it.md) | Español | [中文](HANDOFF.zh.md) | [日本語](HANDOFF.ja.md)
 
-Este archivo sirve para retomar el trabajo en cualquier ordenador o en un chat nuevo. Empieza una sesión nueva con "lee HANDOFF.es.md y docs/NOTES.es.md" (para el port a TS-Conf, también tsconf/README.es.md).
+Este archivo sirve para retomar el trabajo en cualquier ordenador o en un chat nuevo. Empieza una sesión nueva con "lee HANDOFF.es.md y docs/NOTES.es.md" (para el port a TS-Conf, también tsconf/README.es.md, tsconf/NOTES.es.md).
 
 ## Objetivo
 River Raid (Activision, Atari 800, 1983, de Carol Shaw) en el ZX Spectrum Next, basado en el port a C++ de [djdron/river_raid](https://github.com/djdron/river_raid):
@@ -64,6 +64,7 @@ Un port a TS-Conf (ZX Evolution / Pentevo), un proyecto propio con su propia com
 | `tools/check_original.sh` | `make check-original`: las ocho ejecuciones del original |
 | `tools/prof.py` | tiempo por rutina a partir de los histogramas de nxcheck |
 | [docs/NOTES.es.md](docs/NOTES.es.md) | cómo está hecho y qué se descubrió, con cifras |
+| [tsconf/NOTES.es.md](tsconf/NOTES.es.md) | lo propio del port a TS-Conf: la placa, la interrupción, la General Sound, el arranque, con cifras |
 | [docs/HOW_IT_WORKS.es.md](docs/HOW_IT_WORKS.es.md) | cómo se hacen en el Next y en TS-Conf la imagen, las colisiones y el sonido del Atari, para todos |
 | [docs/CODE.md](docs/CODE.md) | los archivos de ensamblador del Next rutina a rutina (la parte del juego compartida con TS-Conf): qué, cuándo, cómo y cuántos ciclos cuesta cada una (en inglés y en ruso) |
 | [tsconf/CODE.md](tsconf/CODE.md) | los archivos propios del port a TS-Conf del mismo modo, los cambios en los compartidos y en qué se diferencian las dos máquinas (en inglés y en ruso) |

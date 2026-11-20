@@ -60,6 +60,7 @@ make -C tsconf     # tsconf/build/river_raid.spg
 | `tsconf/` | TS-Conf 移植：独自のプロジェクトとビルド、ゲームのコードは `src/` からコピー（[tsconf/README.ja.md](tsconf/README.ja.md)） |
 | [docs/HOW_IT_WORKS.ja.md](docs/HOW_IT_WORKS.ja.md) | Atari の画面、衝突、音が Next と TS-Conf でどう作られているか、誰にでもわかるように |
 | [docs/NOTES.ja.md](docs/NOTES.ja.md) | Next のプログラムをどう作ったか、何がわかったか、数字付き |
+| [tsconf/NOTES.ja.md](tsconf/NOTES.ja.md) | TS-Conf 移植独自のもの：ボード、割り込み、General Sound、起動、数字付き |
 | [docs/CODE.md](docs/CODE.md) | Next のアセンブリソース、ルーチンごと（英語とロシア語） |
 | [tsconf/CODE.md](tsconf/CODE.md) | TS-Conf のアセンブリソース、ルーチンごと、そして 2 つのマシンの違い（英語とロシア語） |
 | [HANDOFF.ja.md](HANDOFF.ja.md) | 作業を引き継ぐためのプロジェクトの状態 |

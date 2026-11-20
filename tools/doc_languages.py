@@ -12,7 +12,7 @@ import re
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 DOCUMENTS = ['README.md', 'NEXT.md', 'HANDOFF.md', 'docs/HOW_IT_WORKS.md', 'docs/NOTES.md', 'docs/CODE.md',
-	'tsconf/README.md', 'tsconf/CODE.md']
+	'tsconf/README.md', 'tsconf/CODE.md', 'tsconf/NOTES.md']
 LANGUAGES = [('en', 'English'), ('ru', 'Русский'), ('uk', 'Українська'), ('de', 'Deutsch'),
 	('pl', 'Polski'), ('it', 'Italiano'), ('es', 'Español'), ('zh', '中文'), ('ja', '日本語')]
 

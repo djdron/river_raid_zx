@@ -12,6 +12,8 @@ copiados en `src/`), mostrado a la manera del TS-Conf. Solo 50 Hz (PAL): el cuad
 
 Cómo funciona en las dos máquinas, para todos: [../docs/HOW_IT_WORKS.es.md](../docs/HOW_IT_WORKS.es.md).
 
+Cómo está hecho en esta placa y qué se descubrió, con cifras: [NOTES.es.md](NOTES.es.md).
+
 El código fuente rutina a rutina, qué cambió en el código compartido con el Next y una tabla de en qué se diferencian las dos máquinas: [CODE.md](CODE.md) (en inglés y en ruso).
 
 - El río: el modo de 16 colores, 320x240, una línea de imagen de 256 bytes (160 al principio),

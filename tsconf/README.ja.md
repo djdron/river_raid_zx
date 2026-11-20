@@ -8,6 +8,8 @@ TS-Conf（ZX Evolution / Pentevo）への移植：ZX Spectrum Next 版とは別�
 
 両方のマシンでどう動いているか（誰にでもわかるように）：[../docs/HOW_IT_WORKS.ja.md](../docs/HOW_IT_WORKS.ja.md)。
 
+このボードでどう作ったか、何がわかったか、数字付き：[NOTES.ja.md](NOTES.ja.md)。
+
 ルーチンごとのソース、Next と共有するコードへの変更、2 つのマシンの違いの表：[CODE.md](CODE.md)（英語とロシア語）。
 
 - 川：16 色モード、320x240、画面の 1 ラインは 256 バイト（先頭 160 バイト）、512 ラインのリングをハードウェアでスクロール（GYOFFS）。川の新しいラインはその行に直接書き込み（`render.asm`）、コピーはしません。

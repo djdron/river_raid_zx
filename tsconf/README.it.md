@@ -13,6 +13,8 @@ scheda.
 
 Come funziona su entrambe le macchine, per tutti: [../docs/HOW_IT_WORKS.it.md](../docs/HOW_IT_WORKS.it.md).
 
+Come è fatto su questa scheda e cosa si è scoperto, con i numeri: [NOTES.it.md](NOTES.it.md).
+
 Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Next e una tabella delle differenze tra le due macchine: [CODE.md](CODE.md) (in inglese e in russo).
 
 - Il fiume: la modalità a 16 colori, 320x240, una riga dell'immagine di 256 byte (160 al suo

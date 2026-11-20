@@ -4,6 +4,8 @@
 
 移植是怎样做的，以及一路上发现了什么，附带数字。A205 这样的地址指原版代码；$xxxx 指 Z80 地址空间，另有说明的除外。C++ 移植的文件在 `deps/river_raid/port/src`。
 
+TS-Conf 移植自己的笔记（主板、代替 Copper 的中断、General Sound、从 SD 卡启动）：[tsconf/NOTES.zh.md](../tsconf/NOTES.zh.md)。
+
 ## 内存
 | Z80 | 8K 页 | 内容 |
 |---|---|---|

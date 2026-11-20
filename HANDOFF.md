@@ -2,7 +2,7 @@
 
 English | [Русский](HANDOFF.ru.md) | [Українська](HANDOFF.uk.md) | [Deutsch](HANDOFF.de.md) | [Polski](HANDOFF.pl.md) | [Italiano](HANDOFF.it.md) | [Español](HANDOFF.es.md) | [中文](HANDOFF.zh.md) | [日本語](HANDOFF.ja.md)
 
-This file is for picking the work up on any computer or in a new chat. Start a new session with "read HANDOFF.md and docs/NOTES.md" (for the TS-Conf port also tsconf/README.md).
+This file is for picking the work up on any computer or in a new chat. Start a new session with "read HANDOFF.md and docs/NOTES.md" (for the TS-Conf port also tsconf/README.md, tsconf/NOTES.md).
 
 ## Goal
 River Raid (Activision, Atari 800, 1983, by Carol Shaw) on the ZX Spectrum Next, built on the C++ port in [djdron/river_raid](https://github.com/djdron/river_raid):
@@ -64,6 +64,7 @@ A port to TS-Conf (ZX Evolution / Pentevo), its own project with its own build i
 | `tools/check_original.sh` | `make check-original`: the eight runs of the original |
 | `tools/prof.py` | per-routine time from nxcheck's histograms |
 | [docs/NOTES.md](docs/NOTES.md) | how it is done and what was found, with numbers |
+| [tsconf/NOTES.md](tsconf/NOTES.md) | the TS-Conf port's own: the board, the INT, the General Sound, the start, with numbers |
 | [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | how the Atari's picture, collisions and sound are made on the Next and on TS-Conf, for everyone |
 | [docs/CODE.md](docs/CODE.md) | the Next's assembly files routine by routine (the game's part shared with TS-Conf): what, when, how, and the ticks each costs |
 | [tsconf/CODE.md](tsconf/CODE.md) | the TS-Conf port's own files the same way, the changes to the shared ones, and how the two machines differ |

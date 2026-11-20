@@ -4,6 +4,8 @@
 
 Cómo está hecho el port y qué se descubrió por el camino, con números. Direcciones como A205 son el código del original; $xxxx en el espacio de direcciones del Z80, salvo que se diga otra cosa. Los archivos del port en C++ están en `deps/river_raid/port/src`.
 
+Las notas propias del port a TS-Conf (la placa, la interrupción en lugar del Copper, la General Sound, el arranque desde la tarjeta SD): [tsconf/NOTES.es.md](../tsconf/NOTES.es.md).
+
 ## Memoria
 | Z80 | Página de 8K | Qué |
 |---|---|---|

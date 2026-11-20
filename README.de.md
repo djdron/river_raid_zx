@@ -82,6 +82,7 @@ Zum Bauen genügt sjasmplus; die Prüfungen brauchen den Rest und dein ROM unter
 | `tsconf/` | der TS-Conf-Port: eigenes Projekt und eigener Build, der Spielcode aus `src/` kopiert ([tsconf/README.de.md](tsconf/README.de.md)) |
 | [docs/HOW_IT_WORKS.de.md](docs/HOW_IT_WORKS.de.md) | wie Bild, Kollisionen und Ton des Atari auf dem Next und auf TS-Conf entstehen, für alle |
 | [docs/NOTES.de.md](docs/NOTES.de.md) | wie das Programm für den Next gemacht ist und was sich zeigte, mit Zahlen |
+| [tsconf/NOTES.de.md](tsconf/NOTES.de.md) | das Eigene des TS-Conf-Ports: die Platine, der Interrupt, die General Sound, der Start, mit Zahlen |
 | [docs/CODE.md](docs/CODE.md) | der Assembler-Quelltext für den Next, Routine für Routine (Englisch und Russisch) |
 | [tsconf/CODE.md](tsconf/CODE.md) | der Assembler-Quelltext für TS-Conf, Routine für Routine, und wie sich die beiden Maschinen unterscheiden (Englisch und Russisch) |
 | [HANDOFF.de.md](HANDOFF.de.md) | der Stand des Projekts, um die Arbeit fortzusetzen |

@@ -11,6 +11,8 @@ Gra działa tak samo jak na Next (ta sama logika gry, display i generator rzeki,
 
 Jak to działa na obu maszynach, dla wszystkich: [../docs/HOW_IT_WORKS.pl.md](../docs/HOW_IT_WORKS.pl.md).
 
+Jak to zrobiono na tej płycie i co się okazało, z liczbami: [NOTES.pl.md](NOTES.pl.md).
+
 Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, i tabela różnic obu maszyn: [CODE.md](CODE.md) (po angielsku i rosyjsku).
 
 - Rzeka: tryb 16 kolorów, 320x240, linia obrazu ma 256 bajtów (160 na jej początku), 512 linii

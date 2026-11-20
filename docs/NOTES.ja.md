@@ -4,6 +4,8 @@
 
 移植がどう作られているか、その過程で何が分かったかを、数字とともに記す。A205 のようなアドレスはオリジナルのコード、$xxxx は特に断りがない限り Z80 のアドレス空間。C++ 移植のファイルは `deps/river_raid/port/src` にある。
 
+TS-Conf 移植独自のノート（ボード、Copper の代わりの割り込み、General Sound、SD カードからの起動）：[tsconf/NOTES.ja.md](../tsconf/NOTES.ja.md)。
+
 ## メモリ
 | Z80 | 8K ページ | 内容 |
 |---|---|---|
