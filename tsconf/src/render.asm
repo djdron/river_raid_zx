@@ -8,6 +8,7 @@
 WINDOW_FIRST	equ 20		; the first colour clock shown (the water never comes nearer)
 
 WINDOW_END	equ WINDOW_FIRST / 4 + 40	; the byte after the last shown
+RL_DMA_MIN	equ 5		; a run of one value this long or longer: filled by the DMA
 
 ; By draw_line's pieces (dl_seg): bytes of one value are one colour, 8 dots each; an edge's
 ; bytes (from its piece in the table at $B800) and a decoration's row (from its bitmap)
@@ -27,6 +28,7 @@ render_line:
 	ld l,0
 	ld a,e
 	add a,VID_PAGE
+	ld (rl_page),a
 	ld bc,PAGE1
 	out (c),a
 	ld iy,dl_seg
@@ -35,7 +37,7 @@ render_line:
 	add iy,bc
 .seg	ld a,(iy+0)			; B: its first byte, C: past its last, in the window
 	cp WINDOW_END
-	jr nc,.end			; (the end: byte 48)
+	jp nc,.end			; (the end: byte 48)
 	ld b,a
 	ld a,(iy+4)
 	cp WINDOW_END
@@ -65,12 +67,61 @@ render_line:
 	jr nz,.table			; (kind 1: one value, E)
 	ld d,high pix_tab
 	ld a,(de)
+	ld b,a
+	ld a,c				; a long run by the DMA (a fill from rl_word), while it is
+	cp RL_DMA_MIN			; free (the CPU's own: the one before it, a reset's clearing)
+	jr c,.cpu
+	push bc
+	ld bc,DMACTRL
+	in a,(c)
+	rla
+	pop bc
+	jr nc,.dma
+.cpu	ld a,b
 .fill	rept 4
 	ld (hl),a
 	inc l
 	endr
 	dec c
 	jr nz,.fill
+	jp .next
+.dma	ld a,b
+	ld (rl_word),a
+	ld (rl_word + 1),a
+	ld a,c				; E: its words - 1, D: the low byte after it
+	add a,a
+	ld e,a
+	dec e
+	add a,a
+	add a,l
+	ld d,a
+	ld bc,DMASADDRX
+	ld a,HIGH_PAGE
+	out (c),a
+	dec b
+	ld a,high (rl_word - $C000)
+	out (c),a
+	dec b
+	ld a,low rl_word
+	out (c),a
+	ld bc,DMADADDRX			; the picture's page, the line in it, the byte
+	ld a,(rl_page)
+	out (c),a
+	dec b
+	ld a,h
+	sub $40
+	out (c),a
+	dec b
+	out (c),l
+	ld bc,DMALEN
+	out (c),e
+	ld bc,DMANUM
+	xor a
+	out (c),a
+	ld bc,DMACTRL			; fill
+	ld a,$04
+	out (c),a
+	ld l,d
 	jp .next
 .table	ld a,(iy+1)			; an edge's bytes: in the table's page
 	or a

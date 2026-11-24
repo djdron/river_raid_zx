@@ -1158,6 +1158,9 @@ ev_show:	ds 2			; the list the frame shown reads
 ev_built:	ds 2			; the one made this frame
 frame_flag:	ds 1			; the frame INT came
 rl_count:	ds 1			; render_line: an edge's bytes left
+rl_page:	ds 1			; the picture's page of its line
+	align 2
+rl_word:	ds 2			; a run's value (twice) for the DMA's fill
 dma_zero:	dw 0			; clear_layer2_page's fill
 bh_obj_x:	ds 1
 bh_obj_size:	ds 1
