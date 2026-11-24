@@ -5,9 +5,9 @@
 ; counts a collision if its scanline is between the last HITCLR's (ds_cleared) and its own.
 
 ; The sprites (10 bytes each): their rows' base (low byte; a row of line L at base + L: the
-; ROM's shape, as prepare puts it into player-missile memory, from the first line), mask,
-; rotations to bit 7, X, size, sprite (collide's), first line, rows, clocks wide, the base's
-; high byte
+; ROM's shape, as prepare puts it into player-missile memory, from the first line), mask
+; (turned to the dots' places at the top already: the missiles' rows are all set), unused,
+; X, size, sprite (collide's), first line, rows, clocks wide, the base's high byte
 DH_SIZE		equ 10
 DH_SHELL	equ 0
 DH_TANK		equ DH_SIZE
@@ -18,8 +18,8 @@ dh_template:
 	db 0, $FF, 0, 0, 0, 0, 0, 16, 8, 0	; the shell 16 rows from shellY,
 	db 0, $FF, 0, 0, 0, 1, 0, 11, 8, 0	; the tank 11 from tankY,
 	db 0, $FF, 0, 0, 0, 2, $AA, 14, 8, 0	; the plane 14 from $AA,
-	db 0, $03, 6, 0, 1, 4, 0, 1, 4, 0	; the missile (M0, double) its row,
-	db 0, $20, 2, 0, 0, 6, 0, 8, 2, 0	; the bullet (M2's bit 5) 8 below bulletY
+	db 0, $C0, 0, 0, 1, 4, 0, 1, 4, 0	; the missile (M0, double: $03 turned 6) its row,
+	db 0, $80, 0, 0, 0, 6, 0, 8, 2, 0	; the bullet (M2's bit 5 turned 2) 8 below bulletY
 dh_template_end:
 dh_ones:	db $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF	; the missiles' rows: all set
 
@@ -239,13 +239,6 @@ dh_bits:
 	ld h,a
 	ld a,(hl)
 	and (ix + 1)
-	ret z
-	ld b,(ix + 2)
-	inc b
-	jr 2F
-1:	rlca
-2:	djnz 1B
-	or a
 	ret
 
 ; NZ: sprite IX's rows meet the playfield on a river line (DE: pf_edge, pf_bank, pf_under;
@@ -279,7 +272,7 @@ dh_pf:
 	jp c,.n
 	push bc
 	ld (bm_line),a
-	add a,(ix + 0)			; the row's byte (dh_bits without the turn: no dots, nothing)
+	add a,(ix + 0)			; the row's byte (as dh_bits: no dots, nothing)
 	ld l,a
 	ld a,(ix + 9)
 	adc a,0
@@ -290,7 +283,7 @@ dh_pf:
 	ld (.raw + 1),a
 	ld a,(bm_line)
 	sub RIVER_FIRST			; the line's span record (its gaps' index); the box against
-	ld hl,span_top			; the gaps first, the dots turned only if it is not inside
+	ld hl,span_top			; the gaps first, the dots looked at only if it is not inside
 	add a,(hl)			; one (most lines: the plane over the water)
 	ld l,a
 .mode	ld c,0
@@ -333,13 +326,8 @@ dh_pf:
 .gap	ld a,c				; (mode 0: no gaps, the dots looked at)
 	or a
 	jr nz,.n0
-.look	ld b,(ix + 2)			; the dots at the top (as dh_bits)
-	inc b
-.raw	ld a,0
-	jr 2F
-1:	rlca
-2:	djnz 1B
-	ld d,a
+.look
+.raw	ld d,0				; the dots (as dh_bits)
 	ld e,(ix + 3)
 	ld a,(ix + 4)
 .fn	call 0
