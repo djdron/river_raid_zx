@@ -279,9 +279,19 @@ dh_pf:
 	jp c,.n
 	push bc
 	ld (bm_line),a
+	add a,(ix + 0)			; the row's byte (dh_bits without the turn: no dots, nothing)
+	ld l,a
+	ld a,(ix + 9)
+	adc a,0
+	ld h,a
+	ld a,(hl)
+	and (ix + 1)
+	jr z,.n0
+	ld (.raw + 1),a
+	ld a,(bm_line)
 	sub RIVER_FIRST			; the line's span record (its gaps' index); the box against
-	ld hl,span_top			; the gaps first, the dots only if it is not inside one
-	add a,(hl)				; (most lines: the plane over the water)
+	ld hl,span_top			; the gaps first, the dots turned only if it is not inside
+	add a,(hl)			; one (most lines: the plane over the water)
 	ld l,a
 .mode	ld c,0
 	bit 0,c
@@ -323,9 +333,12 @@ dh_pf:
 .gap	ld a,c				; (mode 0: no gaps, the dots looked at)
 	or a
 	jr nz,.n0
-.look	ld a,(bm_line)
-	call dh_bits			; (no dots on the line: nothing)
-	jr z,.n0
+.look	ld b,(ix + 2)			; the dots at the top (as dh_bits)
+	inc b
+.raw	ld a,0
+	jr 2F
+1:	rlca
+2:	djnz 1B
 	ld d,a
 	ld e,(ix + 3)
 	ld a,(ix + 4)
