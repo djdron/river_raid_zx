@@ -256,6 +256,7 @@ wait_frame:
 
 init_tables:
 	call edge_runs_init		; (spans.asm, page 6)
+	call dh_init			; (display_hits.asm)
 	ld hl,ov_exp2			; dh_obj's: a byte's dots twice and 4 times as wide
 .ov	ld a,l
 	rrca

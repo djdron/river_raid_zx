@@ -81,10 +81,11 @@ display:
 1:	ld (ds_start),a
 	ld b,a
 	ld a,(iy + 11)			; the first row (by its type)
+	add a,low ROM_OBJECT_HEIGHT
 	ld l,a
-	ld h,0
-	ld de,ROM_OBJECT_HEIGHT
-	add hl,de
+	adc a,high ROM_OBJECT_HEIGHT
+	sub l
+	ld h,a
 	ld a,(ds_y)
 	add a,(hl)
 	sub b
@@ -108,29 +109,33 @@ display:
 	and $08
 	add a,a
 	add a,(iy + 0)
+	add a,low ROM_SHAPE_OFFSET	; (the ROM's tables by 8-bit sums: ROM_SHAPES and
+	ld l,a				; ROM_COLOURS start pages)
+	adc a,high ROM_SHAPE_OFFSET
+	sub l
+	ld h,a
+	ld a,(ds_row)
+	ld c,a
+	add a,(hl)
 	ld l,a
-	ld h,0
-	ld de,ROM_SHAPE_OFFSET
-	add hl,de
-	ld e,(hl)
-	ld d,0
-	ld hl,ROM_SHAPES
-	add hl,de
-	call ds_row_hl
+	ld a,high ROM_SHAPES
+	adc a,0
+	ld h,a
 	ld (ds_rowp),hl
 	ld a,(iy + 11)			; BC: its colour's (ds_obj)
+	add a,low ROM_COLOURS_OFFSET
 	ld l,a
-	ld h,0
-	ld bc,ROM_COLOURS_OFFSET
-	add hl,bc
-	ld e,(hl)
-	ld d,0
-	ld hl,ROM_COLOURS
-	add hl,de
-	call ds_row_hl
-	ld b,h
-	ld c,l
+	adc a,high ROM_COLOURS_OFFSET
+	sub l
+	ld h,a
+	ld a,c
+	add a,(hl)
+	ld c,a
+	ld a,high ROM_COLOURS
+	adc a,0
+	ld b,a
 	ld de,(ds_rowp)
+	assert low ROM_SHAPES == 0 && low ROM_COLOURS == 0
 	call ds_obj			; (for the sprites: ds_objs)
 	ld a,(ds_flags)			; a bridge: the road's colours by row, the bank's back after
 	and $80
@@ -330,15 +335,6 @@ ds_edge_only:
 	ld hl,ds_edge_kind
 	and (hl)
 	pop hl
-	ret
-
-; HL += ds_row
-ds_row_hl:
-	ld a,(ds_row)
-	add a,l
-	ld l,a
-	ret nc
-	inc h
 	ret
 
 ; The current object's edge bit (A: $02 set) into its slot's flags (bit 0)

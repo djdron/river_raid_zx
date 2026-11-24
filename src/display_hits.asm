@@ -6,8 +6,8 @@
 
 ; The sprites (10 bytes each): their rows' base (low byte; a row of line L at base + L: the
 ; ROM's shape, as prepare puts it into player-missile memory, from the first line), mask
-; (turned to the dots' places at the top already: the missiles' rows are all set), unused,
-; X, size, sprite (collide's), first line, rows, clocks wide, the base's high byte
+; (turned to the dots' places at the top already: the missiles' rows are all set), the
+; end of its rows (dh_lists: the line after the last, past 255 255), X, size, sprite (collide's), first line, rows, clocks wide, the base's high byte
 DH_SIZE		equ 10
 DH_SHELL	equ 0
 DH_TANK		equ DH_SIZE
@@ -25,10 +25,16 @@ dh_ones:	db $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF	; the missiles' rows: all set
 
 ; At the frame's start: the other sprites' descriptors (their rows, boxes, positions)
 dh_lists:
-	ld hl,dh_template
-	ld de,dh_desc
-	ld bc,dh_template_end - dh_template
-	ldir
+	ld a,(dh_template + DH_SHELL + 7)	; the rows: the template's (cleared below if
+	ld (dh_desc + DH_SHELL + 7),a	; none; the fields that stay: dh_init)
+	ld a,(dh_template + DH_TANK + 7)
+	ld (dh_desc + DH_TANK + 7),a
+	ld a,(dh_template + DH_PLANE + 7)
+	ld (dh_desc + DH_PLANE + 7),a
+	ld a,(dh_template + DH_MISSILE + 7)
+	ld (dh_desc + DH_MISSILE + 7),a
+	ld a,(dh_template + DH_BULLET + 7)
+	ld (dh_desc + DH_BULLET + 7),a
 	ld a,(SHELL_X)
 	ld (dh_desc + DH_SHELL + 3),a
 	ld a,(SHELL_Y)
@@ -92,7 +98,22 @@ dh_lists:
 	ld (dh_desc + DH_PLANE + 7),a
 	ld (dh_desc + DH_MISSILE + 7),a
 	ld (dh_desc + DH_BULLET + 7),a
-1:	ret
+1:	ld ix,dh_desc			; each one's end (dh_end)
+	ld b,5
+	ld de,DH_SIZE
+2:	call dh_end
+	ld (ix + 2),a
+	add ix,de
+	djnz 2B
+	ret
+
+; At the start: the sprites' fields that stay (dh_lists sets the others every frame)
+dh_init:
+	ld hl,dh_template
+	ld de,dh_desc
+	ld bc,dh_template_end - dh_template
+	ldir
+	ret
 
 ; At the frame's start the other sprites' collisions with the bank and each other, as plain
 ; geometry (anywhere on their rows): HIT 0 where they touch. P1PF the tank and the edge, P2PF
@@ -158,13 +179,8 @@ dh_pair:
 	jr nc,1F
 	ld a,(iy + 6)
 1:	ld d,a
-	call dh_end			; to the earlier end
-	ld e,a
-	push ix
-	push iy
-	pop ix
-	call dh_end
-	pop ix
+	ld a,(ix + 2)			; to the earlier end
+	ld e,(iy + 2)
 	cp e
 	jr nc,.l
 	ld e,a
@@ -350,9 +366,8 @@ dh_obj:
 	ld a,(ix + 7)			; (no rows)
 	or a
 	ret z
-	call dh_end			; the lines first (most objects are on none of the sprite's):
-	ld e,a				; to min(the sprite's end, the object's: ds_l2, display)
-	ld a,(ds_l2)
+	ld e,(ix + 2)			; the lines first (most objects are on none of the sprite's):
+	ld a,(ds_l2)			; to min(the sprite's end, the object's: ds_l2, display)
 	cp e
 	jr nc,1F
 	ld e,a
