@@ -44,7 +44,7 @@ Ticks at 14 MHz, ~286 800 a frame. tscheck: the work from `apply_done` to `frame
 | `-stress` from bridge 80 (all slots taken, full speed, always firing), 6 000 | ~108 000 | ~144 000 | 0 |
 | the same at 7 MHz (~143 400 a frame) | ~93 000 | ~125 000 | 0 |
 
-At 3.5 MHz it does not keep up. By part in the heaviest scenes: the display (placement and collisions) ~51 000, the river's new lines ~32 000, sprites and the palette's events ~15 000, apply, the panel and the INTs ~7 000, the game's logic ~8 800, the sound ~3 500 (on the card).
+At 3.5 MHz it does not keep up: a late frame shows the last one again (the frame's INT puts apply's registers and events back, and `wait_frame` waits for the next INT, as the Next's for its line), never the panel's picture over the river. By part in the heaviest scenes: the display (placement and collisions) ~51 000, the river's new lines ~32 000, sprites and the palette's events ~15 000, apply, the panel and the INTs ~7 000, the game's logic ~8 800, the sound ~3 500 (on the card).
 
 The numbers are from the check's build (`-DTEST`: with the Atari's screen memory, which the game does not have); the game is ~1 000–2 500 lighter.
 

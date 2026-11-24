@@ -44,7 +44,7 @@ Takty przy 14 MHz, ~286 800 na klatkę. tscheck: praca od `apply_done` do `frame
 | `-stress` od mostu 80 (wszystkie sloty zajęte, pełny gaz, ciągły ogień), 6 000 | ~108 000 | ~144 000 | 0 |
 | to samo przy 7 MHz (~143 400 na klatkę) | ~93 000 | ~125 000 | 0 |
 
-Przy 3,5 MHz nie nadąża. Według części w najcięższych scenach: wyświetlanie (rozmieszczanie i kolizje) ~51 000, nowe linie rzeki ~32 000, sprite'y i zdarzenia palety ~15 000, apply, panel i przerwania ~7 000, logika gry ~8 800, dźwięk ~3 500 (na karcie).
+Przy 3,5 MHz nie nadąża: spóźniona klatka pokazuje poprzednią jeszcze raz (przerwanie klatki przywraca rejestry i zdarzenia z `apply`, a `wait_frame` czeka na następne przerwanie, jak Next na swoją linię), nigdy obraz panelu nad rzeką. Według części w najcięższych scenach: wyświetlanie (rozmieszczanie i kolizje) ~51 000, nowe linie rzeki ~32 000, sprite'y i zdarzenia palety ~15 000, apply, panel i przerwania ~7 000, logika gry ~8 800, dźwięk ~3 500 (na karcie).
 
 Liczby pochodzą z wersji testowej (`-DTEST`: z pamięcią ekranu Atari, której gra nie ma); gra jest lżejsza o ~1 000–2 500.
 

@@ -97,8 +97,8 @@ Okna 16K i strony w nich (strony 16K płyty):
 |---|---|---|---|
 | 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): RAM Atari pod adresami oryginału | przy starcie: 3 (`INIT_PAGE`: tam działają `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): odcinki linii od $4000 (`SPANS`, 32 bajty × 256 linii), bufory od $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), czcionka systemu pod $7D00 | `render_line`: strona obrazu rzeki (32–47); `panel_draw`/`pc_*`: obraz panelu (64–79); przy starcie mapa kafelków (7), kafelki (8), obrazki sprite'ów (24–31); zawsze z powrotem 5 |
-| 2 | $8000–$BFFF | 2 (`CODE_PAGE`): kod do ~$9FE1, kartridż od $A000 | — |
-| 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): kod do ~$D75A, potem pod $E000 okno FM (`CRAM_SHADOW`: CRAM $E000–$E1FF, SFILE $E200–$E3FF; zapisy idą też do RAM pod nim), tablice i zmienne do ~$FD65, stos, wektory IM 2 pod $FE00 | — |
+| 2 | $8000–$BFFF | 2 (`CODE_PAGE`): kod do ~$9F6F, kartridż od $A000 | — |
+| 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): kod do ~$D7EC, potem pod $E000 okno FM (`CRAM_SHADOW`: CRAM $E000–$E1FF, SFILE $E200–$E3FF; zapisy idą też do RAM pod nim), tablice i zmienne do ~$FD65, stos, wektory IM 2 pod $FE00 | — |
 
 Obrazy: rzeka od strony 32 (`VID_PAGE`, 16 stron: 512 linii po 512 bajtów, z każdej widać 320
 punktów), panel od strony 64 (`VPANEL`), mapa kafelków w stronie 7, punkty kafelków w stronie 8,
@@ -149,8 +149,8 @@ zmienne i bufory.
 | `start` | przy ładowaniu | 14 MHz i pamięć podręczna (SYSCONFIG $06), okno 0 RAM (MEMCONFIG $0E), strony, `screen_black`, `load_rom` (wersje SPG), `init_tables`, `init_video`, obrazki sprite'ów (`obj_pics`, `pl_pics`, `panel_pics`), `gs_load`, potem RAM Atari w oknie 0, `panel_init`, `ay_quiet`, ziarno RANDOM, IM 2 (wektory pod $FE00), `restart`. | raz |
 | `restart` | `start` | `tv_setup`, obraz wyczyszczony (obie połowy przez DMA, z czekaniem), przerwanie klatki na `FRAME_LINE`, `start_attract`, panel narysowany w całości, przechodzi do `main_frame`. | raz |
 | `main_frame` | co klatkę | Zob. *Klatka*. | 340 / 340 |
-| `wait_frame` | `main_frame` | HALT do `frame_flag`: bezczynność, nie praca. | — |
-| `irq` | przerwanie | Zdarzenie pod `ev_ptr`: EV_PAL PALSEL; EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 kolorów, bitmapa nad kafelkami i sprite'ami); EV_GX GXOFFS; przerwanie klatki (EV_END) `frame_flag`. Zdarzenia z jednej linii obsługiwane razem; potem VSINT na linię następnego (`vsint_set`) albo klatki. | 1 400 / 1 400 |
+| `wait_frame` | `main_frame` | HALT do następnego przerwania klatki (`frame_flag` najpierw zerowany: to, które przyszło w trakcie pracy, jest dla `apply` za późne): bezczynność, nie praca. | — |
+| `irq` | przerwanie | Zdarzenie pod `ev_ptr`: EV_PAL PALSEL; EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 kolorów, bitmapa nad kafelkami i sprite'ami); EV_GX GXOFFS; przerwanie klatki (EV_END) `frame_flag`. Zdarzenia z jednej linii obsługiwane razem; potem VSINT na linię następnego (`vsint_set`) albo klatki. Przy zdarzeniu klatki przywraca też rejestry obrazu i zdarzenia z `apply` (`river_regs`, `ap_pal`, `ev_go` z `ap_list`): spóźniona klatka pokazuje poprzednią jeszcze raz. | 1 400 / 1 400 |
 | `vsint_set` | `irq`, `apply`, `restart` | VSINT = HL (9 bitów), zapamiętany w `ev_line`. | 340 / 330 |
 | `apply` | po `wait_frame` | GYOFFS = `show_scroll`, VPAGE rzeki, VCONFIG $81 (16 kolorów), GXOFFS 0; `snd_out` (rejestry AY albo klatka dla karty); `panel_frame`; kolory pocisku czołgu i samolotu do CRAM; `sfile_put`; gdy obraz jest czyszczony po resecie (od jego drugiej klatki): rzeka czarna (paleta koloru 0, krawędź i woda 0, tylko zdarzenia panelu); inaczej PALSEL paleta u góry (`ev_built`), `pal_edges`, zdarzenia panelu skopiowane po zdarzeniach brzegu (`ev_tail`); przerwanie ustawione na pierwsze zdarzenie (wokół DI); `ev_show` = właśnie ustawiona lista (`build_events` pisze drugą). | 1 200 / 1 200 |
 | `pal_get` | `build_events`, `apply` | Paleta rzeki (PALSEL 0–7) dla koloru Atari E: każdy kolor brzegu ma własną, robioną przy pierwszym wystąpieniu (`pal_of`, `pal_n`): jej kolor 1 to ten kolor, w CRAM. Ponad 8 — znowu ostatnia (nie wystąpiło). | 110 / 110 |

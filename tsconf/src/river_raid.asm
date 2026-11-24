@@ -247,6 +247,7 @@ restart:
 	ld hl,ev_none
 	ld (ev_ptr),hl
 	ld (ev_show),hl
+	ld (ap_list),hl
 	ld hl,FRAME_LINE
 	call vsint_set
 	ei
@@ -313,15 +314,16 @@ apply_done:
 panel_done:				; it may take a while)
 	jp main_frame
 
-; The frame INT below the river (frame_flag, irq)
+; The next frame INT below the river (frame_flag, irq): one that came during the work (a late
+; frame) is too late for apply (the picture's top already shown), so the one after it, as the
+; Next's wait for its line
 wait_frame:
+	xor a
+	ld (frame_flag),a
+1:	halt
 	ld a,(frame_flag)
 	or a
-	jr nz,.go
-	halt
-	jr wait_frame
-.go	xor a
-	ld (frame_flag),a
+	jr z,1B
 	ret
 
 ; The frame INT and the events of the frame (ev_ptr): each its kind, its data (2 bytes), its
@@ -402,13 +404,57 @@ irq:
 	pop af
 	ei
 	ret
-.frame	ld a,1
-	ld (frame_flag),a
+.frame	ld a,1				; EV_END: the frame (wait_frame); the picture's registers and
+	ld (frame_flag),a		; the events as apply left them, again from the top: a frame
+	push de				; late (its apply not yet done) shows the last one again, as
+	ld hl,(ap_scroll)		; the Next's copper (else the panel's picture from the top,
+	call river_regs			; the bank's colours not changed)
+	ld bc,PALSEL
+	ld a,(ap_pal)
+	out (c),a
+	ld hl,(ap_list)
+	call ev_go
+	pop de
 	pop bc
 	pop hl
 	pop af
 	ei
 	ret
+
+; The river's picture from the top (apply; again at a late frame's INT): GYOFFS HL, its pages,
+; 16 colours, no X offset
+river_regs:
+	ld bc,GYOFFSL
+	out (c),l
+	inc b
+	out (c),h
+	ld bc,VPAGE
+	ld a,VID_PAGE
+	out (c),a
+	ld bc,VCONFIG
+	ld a,$81
+	out (c),a
+	ld bc,GXOFFSL
+	xor a
+	out (c),a
+	inc b
+	out (c),a
+	ret
+
+; The events from list HL: ev_ptr, the INT at the first one's line (or the frame's)
+ev_go:
+	ld (ev_ptr),hl
+	ld a,(hl)
+	cp EV_END
+	inc hl
+	inc hl
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ex de,hl
+	jr nz,vsint_set
+	ld hl,FRAME_LINE
 
 ; The frame INT at line HL (9 bits): VSINT, ev_line
 vsint_set:
@@ -426,21 +472,8 @@ vsint_set:
 ; reset's second frame)
 apply:
 	ld hl,(show_scroll)		; the river's picture again from the top, the panel's (its
-	ld bc,GYOFFSL			; INT's) after it
-	out (c),l
-	inc b
-	out (c),h
-	ld bc,VPAGE
-	ld a,VID_PAGE
-	out (c),a
-	ld bc,VCONFIG			; (16 colours: the river)
-	ld a,$81
-	out (c),a
-	ld bc,GXOFFSL
-	xor a
-	out (c),a
-	inc b
-	out (c),a
+	ld (ap_scroll),hl		; INT's) after it
+	call river_regs
 	call snd_out			; the frame's sound: the AY's tones or the General Sound's
 	call panel_frame
 	ld hl,(pf_gx)			; the panel's events: its picture, the scrolling line's X
@@ -476,6 +509,7 @@ apply:
 	call pal_get			; water, no changes: the panel's events only
 	ld bc,PALSEL
 	out (c),a
+	ld (ap_pal),a
 	ld de,0
 	call pal_edges
 	ld hl,ev_panel
@@ -484,6 +518,7 @@ apply:
 	ld a,(hl)
 	ld bc,PALSEL
 	out (c),a
+	ld (ap_pal),a
 	ld a,(show_water)		; the edge and the water this frame
 	ld d,a
 	ld a,(show_edge)
@@ -497,19 +532,8 @@ apply:
 	inc hl
 	inc hl
 .events	di
-	ld (ev_ptr),hl
-	ld a,(hl)
-	cp EV_END
-	inc hl
-	inc hl
-	inc hl
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	ex de,hl
-	jr nz,1F
-	ld hl,FRAME_LINE
-1:	call vsint_set
+	ld (ap_list),hl
+	call ev_go
 	ei
 	ld hl,(ev_built)		; the other buffer for the next list
 	ld (ev_show),hl
@@ -1111,7 +1135,6 @@ init_video:
 	include "sound.asm"
 	include "sound_ay.asm"
 	include "sound_gs.asm"
-	include "display_objs.asm"
 	include "panel.asm"
 random_columns:
 	include "random.inc"
@@ -1127,7 +1150,8 @@ random_columns:
 	include "display_hits.asm"
 	include "sprites.asm"
 	include "panel_ts.asm"
-	include "render.asm"		; (from page $8000: room there)
+	include "render.asm"		; (render.asm, display_objs.asm: from page $8000, room there)
+	include "display_objs.asm"
 
 	display "page $C000 end: ",$
 	assert $ <= $E000
@@ -1178,6 +1202,9 @@ spr_s1:		ds 3 * SPR_SIZE		; the needle and the logo (S1),
 		db 0, $40, 0, 0, 0, 0	; its end
 sf_tail_end:
 ev_ptr:		ds 2			; the INT's next event
+ap_list:	ds 2			; apply's: the events, the top's palette and scroll (the frame
+ap_pal:		ds 1			; INT puts them again: a late frame)
+ap_scroll:	ds 2
 ev_show:	ds 2			; the list the frame shown reads
 ev_built:	ds 2			; the one made this frame
 frame_flag:	ds 1			; the frame INT came

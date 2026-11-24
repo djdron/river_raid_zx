@@ -98,8 +98,8 @@ below $4000 are the start's work in INIT_PAGE: leave them out.)
 |---|---|---|---|
 | 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): the Atari's RAM at the original's addresses | at the start: 3 (`INIT_PAGE`: `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm` run there) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): the lines' runs at $4000 (`SPANS`, 32 bytes × 256 lines), buffers at $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), the OS font at $7D00 | `render_line`: a page of the river's picture (32–47); `panel_draw`/`pc_*`: the panel's picture (64–79); at the start the tile map (7), the tiles (8), the sprites' pictures (24–31); always put back to 5 |
-| 2 | $8000–$BFFF | 2 (`CODE_PAGE`): code to ~$9FE1, the cartridge at $A000 | — |
-| 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): code to ~$D75A, then at $E000 the FM window (`CRAM_SHADOW`: CRAM $E000–$E1FF, the SFILE $E200–$E3FF; the writes also go to the RAM under it), tables and variables to ~$FD65, the stack, the IM 2 vectors at $FE00 | — |
+| 2 | $8000–$BFFF | 2 (`CODE_PAGE`): code to ~$9F6F, the cartridge at $A000 | — |
+| 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): code to ~$D7EC, then at $E000 the FM window (`CRAM_SHADOW`: CRAM $E000–$E1FF, the SFILE $E200–$E3FF; the writes also go to the RAM under it), tables and variables to ~$FD65, the stack, the IM 2 vectors at $FE00 | — |
 
 The pictures: the river from page 32 (`VID_PAGE`, 16 pages: 512 lines of 512 bytes, 320 dots
 of each shown), the panel from page 64 (`VPANEL`), the tile map in page 7, the tiles' dots in
@@ -150,8 +150,8 @@ the river's palettes, variables and buffers.
 | `start` | at load | 14 MHz and the cache (SYSCONFIG $06), window 0 RAM (MEMCONFIG $0E), the pages, `screen_black`, `load_rom` (SPG builds), `init_tables`, `init_video`, the sprites' pictures (`obj_pics`, `pl_pics`, `panel_pics`), `gs_load`, then the Atari's RAM in window 0, `panel_init`, `ay_quiet`, RANDOM's seed, IM 2 (vectors at $FE00), `restart`. | once |
 | `restart` | `start` | `tv_setup`, the picture cleared (both halves by the DMA, waited for), the frame INT at `FRAME_LINE`, `start_attract`, the panel drawn whole, falls into `main_frame`. | once |
 | `main_frame` | every frame | See *The frame*. | 340 / 340 |
-| `wait_frame` | `main_frame` | HALT until `frame_flag`: idle time, not work. | — |
-| `irq` | the INT | The event at `ev_ptr`: EV_PAL PALSEL; EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 colours, the bitmap over tiles and sprites); EV_GX GXOFFS; the frame's (EV_END) `frame_flag`. Events on the same line taken together; then VSINT set to the next one's line (`vsint_set`), or the frame's. | 1 400 / 1 400 |
+| `wait_frame` | `main_frame` | HALT until the next frame INT (`frame_flag` cleared first: one that came during the work is too late for `apply`): idle time, not work. | — |
+| `irq` | the INT | The event at `ev_ptr`: EV_PAL PALSEL; EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 colours, the bitmap over tiles and sprites); EV_GX GXOFFS; the frame's (EV_END) `frame_flag`. Events on the same line taken together; then VSINT set to the next one's line (`vsint_set`), or the frame's. At the frame's event it also puts apply's picture registers and events back (`river_regs`, `ap_pal`, `ev_go` from `ap_list`): a late frame shows the last one again. | 1 400 / 1 400 |
 | `vsint_set` | `irq`, `apply`, `restart` | VSINT = HL (9 bits), kept in `ev_line`. | 340 / 330 |
 | `apply` | after `wait_frame` | GYOFFS = `show_scroll`, VPAGE the river's, VCONFIG $81 (16 colours), GXOFFS 0; `snd_out` (the AY's registers or the card's frame); `panel_frame`; the shell's and the plane's colours into CRAM; `sfile_put`; while the picture is being cleared after a reset (from its second frame): the river black (palette of colour 0, edge and water 0, only the panel's events); else PALSEL the palette at the top (`ev_built`), `pal_edges`, the panel's events copied after the bank's (`ev_tail`); the INT armed at the first event (DI around it); `ev_show` = the list just armed (`build_events` writes the other). | 1 200 / 1 200 |
 | `pal_get` | `build_events`, `apply` | The river's palette (PALSEL 0–7) of Atari colour E: each bank colour has its own, made when first seen (`pal_of`, `pal_n`): its colour 1 that colour, in CRAM. Past 8, the last again (never seen). | 110 / 110 |

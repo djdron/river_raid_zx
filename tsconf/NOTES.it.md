@@ -44,7 +44,7 @@ Cicli a 14 MHz, ~286 800 a fotogramma. tscheck: il lavoro da `apply_done` a `fra
 | `-stress` dal ponte 80 (tutti gli slot occupati, tutta velocità, sempre sparando), 6 000 | ~108 000 | ~144 000 | 0 |
 | lo stesso a 7 MHz (~143 400 a fotogramma) | ~93 000 | ~125 000 | 0 |
 
-A 3,5 MHz non regge. Per parti nelle scene più pesanti: il display (posizionamento e collisioni) ~51 000, le nuove righe del fiume ~32 000, gli sprite e gli eventi della palette ~15 000, apply, il pannello e gli interrupt ~7 000, la logica del gioco ~8 800, il suono ~3 500 (sulla scheda).
+A 3,5 MHz non regge: un fotogramma in ritardo mostra di nuovo l'ultimo (l'INT del fotogramma rimette i registri e gli eventi di `apply`, e `wait_frame` aspetta l'INT successivo, come il Next la sua riga), mai l'immagine del pannello sopra il fiume. Per parti nelle scene più pesanti: il display (posizionamento e collisioni) ~51 000, le nuove righe del fiume ~32 000, gli sprite e gli eventi della palette ~15 000, apply, il pannello e gli interrupt ~7 000, la logica del gioco ~8 800, il suono ~3 500 (sulla scheda).
 
 I numeri sono della build di verifica (`-DTEST`: con la memoria dello schermo dell'Atari, che il gioco non ha); il gioco è più leggero di ~1 000–2 500.
 

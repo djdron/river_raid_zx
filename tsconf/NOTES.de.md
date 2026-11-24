@@ -44,7 +44,7 @@ Takte bei 14 MHz, ~286 800 pro Frame. tscheck: die Arbeit von `apply_done` bis `
 | `-stress` ab Brücke 80 (alle Slots belegt, Vollgas, Dauerfeuer), 6 000 | ~108 000 | ~144 000 | 0 |
 | dasselbe mit 7 MHz (~143 400 pro Frame) | ~93 000 | ~125 000 | 0 |
 
-Mit 3,5 MHz kommt es nicht mit. Nach Teilen in den schwersten Szenen: das Display (Platzieren und Kollisionen) ~51 000, die neuen Zeilen des Flusses ~32 000, Sprites und die Ereignisse der Palette ~15 000, apply, Panel und Interrupts ~7 000, die Logik des Spiels ~8 800, der Ton ~3 500 (auf der Karte).
+Mit 3,5 MHz kommt es nicht mit: ein verspätetes Frame zeigt das letzte noch einmal (der Frame-INT setzt die Register und Ereignisse von `apply` zurück, und `wait_frame` wartet auf den nächsten INT, wie der Next auf seine Zeile), nie das Bild des Panels über dem Fluss. Nach Teilen in den schwersten Szenen: das Display (Platzieren und Kollisionen) ~51 000, die neuen Zeilen des Flusses ~32 000, Sprites und die Ereignisse der Palette ~15 000, apply, Panel und Interrupts ~7 000, die Logik des Spiels ~8 800, der Ton ~3 500 (auf der Karte).
 
 Die Zahlen stammen vom Prüf-Build (`-DTEST`: mit dem Bildschirmspeicher des Atari, den das Spiel nicht hat); das Spiel ist ~1 000–2 500 leichter.
 
