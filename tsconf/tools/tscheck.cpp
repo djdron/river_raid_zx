@@ -10,9 +10,9 @@
 //   - the machine's picture of every frame against the C++ port's of the frame it shows (the
 //     one whose apply came in the machine's frame before it).
 //
-// usage: tscheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-start N | -bot N [-stress]]
+// usage: tscheck <River_Raid.rom> <build dir> <frames> [frame.ppm] [-seed N] [-start N | -bot N | -stress]
 //   -start N: START pressed in frame N; -bot N: nxcheck's made-up player plays (its choices
-//   from N), -stress: at full speed, always firing
+//   from N), -stress: at full speed, always firing (the bot of seed 1 if no -bot)
 //   TSBRIDGE=n: every game starts at bridge n; TSGHOST=1: the plane cannot crash, the fuel
 //   stays full; NXGAME=n (the made-up player's): game n, started at once; TSSPEED=n: the CPU
 //   at 3.5 (0), 7 (1) or 14 MHz (2, as the program sets it)
@@ -343,6 +343,7 @@ int main(int argc, char **argv) {
 		else if (!std::strcmp(argv[i], "-stress")) stressBot = true;
 		else ppm = argv[i];
 	}
+	if (stressBot && !botSeed) botSeed = 1;   // -stress alone: the bot of seed 1 (as nxcheck's)
 	const std::string dir = argv[2];
 	std::vector<uint8_t> romData, code, high;
 	rr::Rom rom;
