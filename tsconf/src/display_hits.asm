@@ -352,7 +352,22 @@ dh_obj:
 	ld a,(ix + 7)			; (no rows)
 	or a
 	ret z
-	ld a,(iy + 33)			; their boxes' clocks (IY: the slot's fields, display): the object's 8, 16 or 32 from its X,
+	call dh_end			; the lines first (most objects are on none of the sprite's):
+	ld e,a				; to min(the sprite's end, the object's: ds_l2, display)
+	ld a,(ds_l2)
+	cp e
+	jr nc,1F
+	ld e,a
+1:	ld a,(ds_l1)			; from max(the object's first, the sprite's)
+	ld d,(ix + 6)
+	cp d
+	jr c,1F
+	ld d,a
+1:	ld a,d
+	cp e
+	jr nc,.no
+	push de
+	ld a,(iy + 33)			; then their boxes' clocks (IY: the slot's fields, display): the object's 8, 16 or 32 from its X,
 	and 3				; the sprite's from its
 	ld c,8
 	rra
@@ -365,24 +380,9 @@ dh_obj:
 	ld d,(ix + 3)
 	ld e,(ix + 8)
 	call hit_setup
+	pop de
 	ret z
-	call dh_end			; the lines: to min(the sprite's end, the object's end)
-	ld e,a
-	ld a,(ds_counter)
-	sub $44
-	ld (ds_l1),a			; (the object's first)
-	ld hl,ds_rows
-	add a,(hl)
-	jr c,1F
-	cp e
-	jr nc,1F
-	ld e,a
-1:	ld a,(ds_l1)			; from max(the object's first, the sprite's)
-	ld d,(ix + 6)
-	cp d
-	jr c,1F
-	ld d,a
-1:	ld a,d
+	ld a,d
 .l	cp e
 	jr nc,.no
 	push de

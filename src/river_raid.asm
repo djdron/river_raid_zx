@@ -705,6 +705,7 @@ ds_y:		ds 1
 ds_flags:	ds 1
 ds_row:		ds 1
 ds_l1:		ds 1
+ds_l2:		ds 1			; display: past the object's last line (dh_obj; 255 past the end)
 ds_rowp:	ds 2			; display: the object's first row's byte (its rows down from it)
 hit_ka:		ds 1			; hit_setup, hit_line (display_hits.asm): the window's first
 hit_sa:		ds 1			; clock in A's dots (byte, bit) and in B's, the window's

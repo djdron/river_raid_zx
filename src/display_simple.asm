@@ -139,6 +139,14 @@ display:
 	or a
 	call nz,ds_edge_test
 	call ds_set_flags
+	ld a,(ds_counter)		; the object's lines, for the three (dh_obj): its first,
+	sub $44
+	ld (ds_l1),a
+	ld hl,ds_rows			; past its last (255: past the end)
+	add a,(hl)
+	jr nc,1F
+	ld a,255
+1:	ld (ds_l2),a
 	ld ix,dh_desc + DH_BULLET	; the bullet, the shell (not a bridge) and the plane against
 	call dh_obj			; its rows
 	jr z,1F

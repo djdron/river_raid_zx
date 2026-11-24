@@ -1247,6 +1247,7 @@ ds_y:		ds 1
 ds_flags:	ds 1
 ds_row:		ds 1
 ds_l1:		ds 1
+ds_l2:		ds 1			; display: past the object's last line (dh_obj; 255 past the end)
 ds_rowp:	ds 2
 hit_ka:		ds 1
 hit_sa:		ds 1
