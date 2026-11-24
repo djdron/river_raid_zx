@@ -47,8 +47,12 @@ TM_VBI		equ $FF			; white: vbi
 TM_SOUND	equ $1F			; cyan: pokey_frame (the sound)
 TM_IDLE		equ $00			; black: the work done, waiting for the next frame
 	macro TM_COLOUR c
+	ld a,(tm_show)			; (off: no call, the frame's time as without it)
+	or a
+	jr z,.tm_off
 	ld a,c
-	call tm_colour			; (game.asm; A, B and the flags spent)
+	call tm_colour			; (game.asm)
+.tm_off
 	endm
 
 ATARI_RAM_PAGE	equ 30
@@ -492,7 +496,6 @@ COLOUR_WATER		equ $84
 
 
 	include "river_gen.asm"
-	include "render.asm"
 	assert $ <= $9000
 
 	align 256
@@ -518,6 +521,7 @@ random_columns:
 	include "spans.asm"
 	include "display_hits.asm"
 	include "panel.asm"
+	include "render.asm"		; (from page 4: room there for T, TM_COLOUR)
 
 	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full

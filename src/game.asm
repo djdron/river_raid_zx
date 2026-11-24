@@ -316,13 +316,8 @@ draw_logo_and_needle:			; (PAL: B133-B15C, 12 and 7 rows lower)
 ; ------------------------------------------------------------------------------------------
 ; A new river line at the top of the screen (Game::pushLine): the generator, screen memory
 ; (the address of the top line moves up by one line), and the line on Layer 2.
-; T: the border's colour A (TM_COLOUR) while tm_show is on
+; T: the border's colour A (TM_COLOUR, while tm_show is on)
 tm_colour:
-	ld b,a
-	ld a,(tm_show)
-	or a
-	ret z
-	ld a,b
 	nextreg $4A,a
 	ret
 
