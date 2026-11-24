@@ -36,7 +36,7 @@ Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Ne
   scritta scorrevole è un anello di 32 caratteri sui 512 punti dell'immagine, mostrato da
   GXOFFS.
 - Il livello di tile 0 è anche il nero sopra il fiume.
-- I comandi: Q A O P, Spazio o M per sparare, Invio START, G SELECT, H pausa; Kempston.
+- I comandi: Q A O P, Spazio o M per sparare, Invio START, G SELECT, H pausa, T il lavoro del fotogramma sul bordo (un colore per parte, come sul Next); Kempston.
 - Il suono: tutto su una General Sound (la scheda originale o una NeoGS), se c'è: lo Z80 della
   scheda suona il POKEY come il DAC del Next (`gs/`, `pokey_frame` del Next e i suoi impulsi, i
   bit del contatore a 17 bit li crea la scheda stessa dalla loro ricorrenza), in mono (gli stessi campioni a tutti e quattro i canali: 1 e 2 sinistro, 3 e 4 destro), a 15 820 campioni al secondo (il suo INT,
@@ -70,7 +70,7 @@ pagina 7, i punti dei tile nella pagina 8, quelli degli sprite dalla 24.
     make palette  riscrive src/palette_ts.inc (i colori del port in C++ ai livelli della scheda)
 
 `build/tools/tscheck` sa anche giocare: `-bot N` (il giocatore inventato di nxcheck), `-stress`,
-`-start N`; TSBRIDGE, TSGHOST, NXGAME come in nxcheck; TSSPEED=1 a 7 MHz; TSGS=neo una NeoGS,
+`-start N`; TSBRIDGE, TSGHOST, NXGAME come in nxcheck; TSSPEED=1 a 7 MHz; TSBORDER=1 T acceso (TSFULL=1 con TSSHOT=k: i fotogrammi col bordo); TSGS=neo una NeoGS,
 TSGS=0 nessuna scheda (si verificano i toni dell'AY); TSWAV=file, TSWAVCPP=file i campioni
 della scheda e il POKEY del port in C++ alla stessa frequenza (WAV da ascoltare).
 

@@ -34,7 +34,7 @@ El código fuente rutina a rutina, qué cambió en el código compartido con el 
   caracteres se dibujan una vez al arrancar y los copia el DMA; el texto desplazable es un anillo
   de 32 caracteres sobre los 512 puntos de la imagen, mostrado desde GXOFFS.
 - La capa de tiles 0 también es el negro por encima del río.
-- Los controles: Q A O P, Espacio o M para disparar, Enter START, G SELECT, H pausa; Kempston.
+- Los controles: Q A O P, Espacio o M para disparar, Enter START, G SELECT, H pausa, T el trabajo del fotograma en el borde (un color por parte, como en la Next); Kempston.
 - El sonido: todo en una General Sound (la tarjeta original o una NeoGS), si la hay: el propio
   Z80 de la tarjeta toca el POKEY como lo hace el DAC del Next (`gs/`, el `pokey_frame` del Next
   y sus pulsos, los bits del contador de 17 bits los genera la propia tarjeta a partir de su
@@ -70,7 +70,7 @@ la página 7, los puntos de los tiles en la página 8, los de los sprites desde 
     make palette  vuelve a escribir src/palette_ts.inc (los colores del port a C++ en los niveles de la placa)
 
 `build/tools/tscheck` también juega: `-bot N` (el jugador inventado de nxcheck), `-stress`,
-`-start N`; TSBRIDGE, TSGHOST, NXGAME como en nxcheck; TSSPEED=1 a 7 MHz; TSGS=neo una NeoGS,
+`-start N`; TSBRIDGE, TSGHOST, NXGAME como en nxcheck; TSSPEED=1 a 7 MHz; TSBORDER=1 T encendido (TSFULL=1 con TSSHOT=k: los fotogramas con el borde); TSGS=neo una NeoGS,
 TSGS=0 sin tarjeta (se comprueban los tonos del AY); TSWAV=archivo, TSWAVCPP=archivo las
 muestras de la tarjeta y el POKEY del port a C++ a esa frecuencia (WAV para escuchar).
 

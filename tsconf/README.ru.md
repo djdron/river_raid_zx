@@ -33,7 +33,7 @@
   копируются DMA; бегущая строка — кольцо из 32 символов на 512 точек картинки, показывается
   с GXOFFS.
 - Тайловый слой 0 ещё и чёрный над рекой.
-- Управление: Q A O P, Space или M — огонь, Enter — START, G — SELECT, H — пауза; Kempston.
+- Управление: Q A O P, Space или M — огонь, Enter — START, G — SELECT, H — пауза, T — работа кадра на бордюре (свой цвет у каждой части, как на Next); Kempston.
 - Звук: весь на General Sound (обычной или NeoGS), если она есть: свой Z80 карты играет POKEY
   так же, как ЦАП на Next (`gs/`: `pokey_frame` с Next и его импульсы, биты 17-битного
   счётчика карта делает сама по их рекуррентной формуле), в моно (одни и те же сэмплы во все четыре канала: 1 и 2 левый, 3 и 4 правый), 15 820 сэмплов в секунду (её прерывание, 37 500 в секунду,
@@ -65,7 +65,7 @@
     make palette  заново пишет src/palette_ts.inc (цвета порта на C++ в уровнях платы)
 
 `build/tools/tscheck` умеет и играть: `-bot N` (придуманный игрок из nxcheck), `-stress`,
-`-start N`; TSBRIDGE, TSGHOST, NXGAME — как у nxcheck; TSSPEED=1 — на 7 МГц; TSGS=neo — NeoGS,
+`-start N`; TSBRIDGE, TSGHOST, NXGAME — как у nxcheck; TSSPEED=1 — на 7 МГц; TSBORDER=1 — T включено (TSFULL=1 с TSSHOT=k — кадры с бордюром); TSGS=neo — NeoGS,
 TSGS=0 — без карты (проверяются тоны AY); TSWAV=файл, TSWAVCPP=файл — сэмплы карты и POKEY
 порта на C++ с той же частотой (WAV, чтобы послушать).
 

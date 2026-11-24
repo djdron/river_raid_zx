@@ -33,19 +33,27 @@
 	undefine SCREEN_MEMORY
 	endif
 
-; T: the work's parts (the Next shows them on the border; none here yet)
-TM_APPLY	equ $F0
-TM_PREPARE	equ $92
-TM_DISPLAY	equ $E0
-TM_SPRITES	equ $FC
-TM_LOGIC	equ $03
-TM_RIVER	equ $E7
-TM_VBI		equ $FF
-TM_SOUND	equ $1F
-TM_IDLE		equ $00
+; T: the border's colour for the part of the frame that follows, while tm_show is on (A and the
+; flags spent): a CRAM entry (BORDER), the needle's group's free ones from 2 (tm_cram; the
+; Next's colours)
+TM_IDLE		equ 0			; black: the work done, waiting for the next frame
+TM_APPLY	equ 11 * 16 + 2		; orange: apply (the frame goes live)
+TM_PREPARE	equ 11 * 16 + 3		; grey: prepare (and clear_layer2_page during a reset)
+TM_DISPLAY	equ 11 * 16 + 4		; red: display (the objects' schedule, the collisions)
+TM_SPRITES	equ 11 * 16 + 5		; yellow: build_sprites, build_events (the sprites, the
+					; bank colour's events)
+TM_LOGIC	equ 11 * 16 + 6		; blue: main_loop (the game logic)
+TM_RIVER	equ 11 * 16 + 7		; magenta: push_line (a new river line, inside main_loop)
+TM_VBI		equ 11 * 16 + 8		; white: vbi
+TM_SOUND	equ 11 * 16 + 9		; cyan: snd_frame (the sound)
+TM_PANEL	equ 11 * 16 + 10	; green: panel_draw (the panel's characters, after apply)
 	macro TM_COLOUR c
+	ld a,(tm_show)			; (off: no call, the frame's time as without it)
+	or a
+	jr z,.tm_off
 	ld a,c
-	call tm_colour			; (game.asm; A, B and the flags spent)
+	call tm_colour			; (game.asm)
+.tm_off
 	endm
 
 ; The board's ports
@@ -209,6 +217,8 @@ start:
 	ld (tv_pal),a
 	xor a
 	ld (tm_show),a
+	ld (tm_keys),a
+	call tm_cram
 	ld a,high int_vectors		; IM 2: the frame INT's vector at int_vectors + $FF
 	ld i,a
 	im 2
@@ -258,12 +268,18 @@ main_frame:
 	ld a,(busy)
 	or a
 	jr nz,.busy
+	TM_COLOUR TM_PREPARE
 	call prepare
+	TM_COLOUR TM_DISPLAY
 	call display
+	TM_COLOUR TM_SPRITES
 	call build_sprites
 	call build_events
+	TM_COLOUR TM_LOGIC
 	call main_loop
+	TM_COLOUR TM_VBI
 	call vbi
+	TM_COLOUR TM_SOUND
 	call snd_frame			; the sound (sound_gs.asm, sound_ay.asm)
 	jr .done
 .busy	dec a				; sub $B0F1 is clearing memory: the main loop is stuck,
@@ -271,20 +287,28 @@ main_frame:
 	cp 1
 	jr nz,.b
 	ld (SCREEN_ON),a		; colours back on
-.b	call display
+.b	TM_COLOUR TM_DISPLAY
+	call display
+	TM_COLOUR TM_SPRITES
 	call build_sprites
 	call build_events
+	TM_COLOUR TM_PREPARE
 	call clear_layer2_page
+	TM_COLOUR TM_LOGIC
 	ld a,(busy)
 	or a
 	call z,finish_reset
+	TM_COLOUR TM_VBI
 	call vbi
+	TM_COLOUR TM_SOUND
 	call snd_frame
-.done
-frame_done:
+.done	TM_COLOUR TM_IDLE		; T: the work done (the border shows the parts in their
+frame_done:				; colours: TM_*)
 	call wait_frame
+	TM_COLOUR TM_APPLY
 	call apply
 apply_done:
+	TM_COLOUR TM_PANEL
 	call panel_draw			; the panel's characters (after the INT's events are set:
 panel_done:				; it may take a while)
 	jp main_frame
@@ -1083,7 +1107,6 @@ init_video:
 	db 1, 1				; 224-239 black
 
 	include "river_gen.asm"
-	include "render.asm"
 	include "play.asm"
 	include "sound.asm"
 	include "sound_ay.asm"
@@ -1104,6 +1127,7 @@ random_columns:
 	include "display_hits.asm"
 	include "sprites.asm"
 	include "panel_ts.asm"
+	include "render.asm"		; (from page $8000: room there)
 
 	display "page $C000 end: ",$
 	assert $ <= $E000
@@ -1210,7 +1234,8 @@ sl_last:	ds 1			; show_lives: the symbols printed
 fp_exploding:	ds 1
 shell_colour:	ds 1
 ms_right:	ds 1
-tm_show:	ds 1
+tm_show:	ds 1			; T: the frame's work shown on the border
+tm_keys:	ds 1			; T last frame
 ; the beam (display.asm)
 bm_line:	ds 1
 bm_drawn:	ds 1

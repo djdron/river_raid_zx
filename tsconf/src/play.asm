@@ -1068,6 +1068,25 @@ read_input:
 	and %00000101
 	jr z,$+4
 	set 0,d
+	ld b,$FB			; T: the frame's work on the border, on and off (when
+	in a,(c)			; pressed)
+	cpl
+	and $10
+	ld h,a
+	ld a,(tm_keys)
+	cpl
+	and h
+	jr z,.tm
+	ld a,(tm_show)
+	xor 1
+	ld (tm_show),a
+	jr nz,.tm
+	push bc
+	ld bc,BORDER			; off: black again
+	out (c),a
+	pop bc
+.tm	ld a,h
+	ld (tm_keys),a
 	ld b,$BF			; Enter: START; H: pause
 	in a,(c)
 	bit 0,a

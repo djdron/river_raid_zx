@@ -17,7 +17,7 @@ TS-Conf（ZX Evolution / Pentevo）への移植：ZX Spectrum Next 版とは別�
 - 物体、飛行機、弾、戦車、ミサイル：スプライト（`sprites.asm`）。画像は起動時にカートリッジの形状から作り、物体ごとに 16、32、64 ドット幅の 3 種類を用意します（スプライトには拡大がありません）。
 - パネルとスクロール文字（`panel_ts.asm`）：184-239 行目は専用の画面から来ます。フレーム割り込みが 184 行目でそれを切り替え（VPAGE、GYOFFS）、256 色モードでビットマップをタイルとスプライトの上に置きます（GFXOVR）。タイルレイヤー 0 は文字の下の灰色です（そこでは川のスプライトも隠します）。燃料計の針とロゴはその上のスプライトです。文字は起動時に一度描き、DMA でコピーします。スクロール文字は画面の 512 ドットにわたる 32 文字のリングで、GXOFFS で表示します。
 - タイルレイヤー 0 は川の上の黒でもあります。
-- 操作：Q A O P、スペースまたは M で発射、Enter で START、G で SELECT、H でポーズ。Kempston。
+- 操作：Q A O P、スペースまたは M で発射、Enter で START、G で SELECT、H でポーズ、T でフレームの処理をボーダーに表示（部分ごとの色、Next と同じ）。Kempston。
 - サウンド：General Sound（オリジナルのカードまたは NeoGS）があれば、すべてそれで鳴らします。カード自身の Z80 が Next の DAC と同じように POKEY を鳴らします（`gs/`：Next の `pokey_frame` とそのパルス。17 ビットカウンターのビットはカードがその漸化式から自分で作ります）。モノラル（同じサンプルを 4 つのチャンネルすべてへ：1 と 2 が左、3 と 4 が右）、毎秒 15 820 サンプル（カードの割り込みは毎秒 37 500 回で、256 回中 108 回でサンプルを取ります）。起動時にファームウェア経由でプログラムをカードに入れ（`gs_load.asm`。もう一度起動すると、プログラムがまだそこにあるのを見つけます）、その後 apply が毎フレーム POKEY のレジスターを送ります（`sound_gs.asm`）。カードがない（または応答しない）場合：純音だけ（エンジン、ビープ音、発射、ボーナス、砲弾の笛の音）を TurboSound の 2 つの AY で、Next と同じように鳴らします（`sound_ay.asm`）：POKEY のチャンネル 1 と 2 は 2 つ目のチップの A と B、3 と 4 は 1 つ目のチップの B と C。Xpeccy では General Sound をオンにしてください（AY には TurboSound NedoPC も）。
 
 14 MHz では、1 フレームの処理はアトラクトモードで平均約 69 000 クロック、橋 80 から全速で撃ち続けると（-stress）約 111 000、最大約 181 000 で、1 フレームは約 287 000 です。7 MHz でもぎりぎり間に合います（-stress で最大約 143 000、1 フレーム約 143 400。遅れるフレームはなし）。3.5 MHz では間に合いません。
@@ -32,7 +32,7 @@ TS-Conf（ZX Evolution / Pentevo）への移植：ZX Spectrum Next 版とは別�
                   （Xpeccy+ のもの、ファームウェア gs105b.rom）があれば、カードが受け取るレジスターも
     make palette  src/palette_ts.inc を作り直す（C++ 移植の色をボードのレベルで）
 
-`build/tools/tscheck` は自分でプレイもできます：`-bot N`（nxcheck の架空のプレイヤー）、`-stress`、`-start N`。TSBRIDGE、TSGHOST、NXGAME は nxcheck と同じ。TSSPEED=1 で 7 MHz。TSGS=neo で NeoGS、TSGS=0 でカードなし（AY の純音を照合）。TSWAV=ファイル、TSWAVCPP=ファイル：カードのサンプルと、同じレートの C++ 移植の POKEY（聴くための WAV）。
+`build/tools/tscheck` は自分でプレイもできます：`-bot N`（nxcheck の架空のプレイヤー）、`-stress`、`-start N`。TSBRIDGE、TSGHOST、NXGAME は nxcheck と同じ。TSSPEED=1 で 7 MHz。TSBORDER=1 で T をオン（TSFULL=1 と TSSHOT=k：ボーダー付きのフレーム）。TSGS=neo で NeoGS、TSGS=0 でカードなし（AY の純音を照合）。TSWAV=ファイル、TSWAVCPP=ファイル：カードのサンプルと、同じレートの C++ 移植の POKEY（聴くための WAV）。
 
 .spg は GitHub でもビルドされます（ワークフロー `tsconf` のアーティファクト）。River_Raid.rom（カートリッジイメージ、8192 バイト）を SD カードのどこかに置いてください。プログラムは起動時にカードを探します（`load_rom.asm`：最初のパーティションまたはカード全体、FAT16 または FAT32、まずルート、次にそのフォルダー、8 階層まで。長い名前は大文字小文字を問わず、または短い名前 RIVER_~1.ROM）。見つからなければボーダーが赤くなります。起動処理の間、画面は黒です（`screen_black`：Wild Commander がどのモードを残していても CRAM 全体を一度に黒にします。その ZX 画面はページ 5 にあり、ちょうど起動処理がバッファーを書く場所です）。
 

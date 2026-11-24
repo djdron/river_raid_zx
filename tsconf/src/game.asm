@@ -313,17 +313,39 @@ draw_logo_and_needle:			; (PAL: B133-B15C, 12 and 7 rows lower)
 	ret
 	endif
 
+; T: the border's colour A (TM_COLOUR, while tm_show is on; A spent)
+tm_colour:
+	push bc
+	ld bc,BORDER
+	out (c),a
+	pop bc
+	ret
+
+; T's colours into CRAM (the FM window): TM_APPLY.. (the Next's RRRGGGBB as 5 bits each)
+tm_cram:
+	ld hl,.c
+	ld de,CRAM_SHADOW + 2 * TM_APPLY
+	ld bc,.end - .c
+	ldir
+	ret
+	assert NEEDLE_PAL == 11
+tm_rgb	macro n				; RRRGGGBB to 0RRRRRGG GGGBBBBB
+	dw ((n >> 5) * 31 / 7) << 10 | (((n >> 2) & 7) * 31 / 7) << 5 | (n & 3) * 31 / 3
+	endm
+.c	tm_rgb $F0			; TM_APPLY orange
+	tm_rgb $92			; TM_PREPARE grey
+	tm_rgb $E0			; TM_DISPLAY red
+	tm_rgb $FC			; TM_SPRITES yellow
+	tm_rgb $03			; TM_LOGIC blue
+	tm_rgb $E7			; TM_RIVER magenta
+	tm_rgb $FF			; TM_VBI white
+	tm_rgb $1F			; TM_SOUND cyan
+	tm_rgb $1C			; TM_PANEL green
+.end
+
 ; ------------------------------------------------------------------------------------------
 ; A new river line at the top of the screen (Game::pushLine): the generator, screen memory
 ; (the address of the top line moves up by one line), and the line on Layer 2.
-; T: the border's colour A (TM_COLOUR) while tm_show is on
-tm_colour:
-	ld b,a
-	ld a,(tm_show)
-	or a
-	ret z
-	ret				; (TS-Conf: none yet)
-
 push_line:
 	TM_COLOUR TM_RIVER
 	call next_line

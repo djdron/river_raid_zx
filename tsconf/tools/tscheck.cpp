@@ -15,7 +15,8 @@
 //   from N), -stress: at full speed, always firing (the bot of seed 1 if no -bot)
 //   TSBRIDGE=n: every game starts at bridge n; TSGHOST=1: the plane cannot crash, the fuel
 //   stays full; NXGAME=n (the made-up player's): game n, started at once; TSSPEED=n: the CPU
-//   at 3.5 (0), 7 (1) or 14 MHz (2, as the program sets it)
+//   at 3.5 (0), 7 (1) or 14 MHz (2, as the program sets it); TSBORDER=1: T's colours on the
+//   border (TSFULL=1: the picture written with it)
 //        tscheck -sna <river_raid.sna> <frames> <frame.ppm>: the snapshot, run for so many frames
 //        tscheck -spg <river_raid.spg> <frames> <frame.ppm> [-sd folder]: the SPG (the folder as
 //                the SD card, a FAT32 volume)
@@ -501,6 +502,8 @@ int main(int argc, char **argv) {
 		if (botSeed) input = bot.next(game);
 		else input.start = f == startAt;
 		putInput(ram + kCodePage * 0x4000 + 12, input);   // in_stick, in_trig, in_console, in_key
+		if (f == 2 && std::getenv("TSBORDER"))   // T's border on (TSFULL: the picture with the border)
+			ram[kHighPage * 0x4000 + (symbol(dir, "tm_show") - 0xC000)] = 1;
 		if (!runTo(frameHook)) { std::printf("frame %d: the program never got to frame_done (PC %04X)\n", f, comp->cpu->regPC); return 1; }
 		if (f == 1) swapsFirst = bufSwaps;   // (the start's frames before it: not counted)
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
@@ -535,16 +538,24 @@ int main(int argc, char **argv) {
 			}
 			if (at && picBad <= 3) std::printf("frame %d: the picture of frame %d differs from (%d, %d) on\n", f, shown + 1, (at - 1) % 1000, (at - 1) / 1000);
 		}
-		{   // TSSHOT=k: the machine's frames from frame k on, to /tmp/tsshot_N.ppm (8 of them)
+		{   // TSSHOT=k: the machine's frames from frame k on, to /tmp/tsshot_N.ppm (8 of them; TSFULL:
+		    // with the border)
 			static const int shotFrom = std::getenv("TSSHOT") ? std::atoi(std::getenv("TSSHOT")) : -1;
 			if (shotFrom > 0 && f >= shotFrom && f < shotFrom + 8) {
 				char fn[64];
 				std::snprintf(fn, sizeof fn, "/tmp/tsshot_%d.ppm", f - shotFrom);
 				FILE *o = std::fopen(fn, "wb");
-				std::fprintf(o, "P6\n320 240\n255\n");
-				for (int y = 0; y < 240; y++)
-					for (int x = 0; x < 320; x++)
-						std::fwrite(bufimg + (comp->vid->tsconf.yPos + y) * bytesPerLine + (comp->vid->tsconf.xPos * 2 + 2 * x) * 4, 1, 3, o);
+				if (std::getenv("TSFULL")) {   // (TSFULL: all of it, the border too)
+					std::fprintf(o, "P6\n%d %d\n255\n", comp->vid->full.x * 2, comp->vid->full.y);
+					for (int y = 0; y < comp->vid->full.y; y++)
+						for (int x = 0; x < comp->vid->full.x * 2; x++)
+							std::fwrite(bufimg + y * bytesPerLine + x * 4, 1, 3, o);
+				} else {
+					std::fprintf(o, "P6\n320 240\n255\n");
+					for (int y = 0; y < 240; y++)
+						for (int x = 0; x < 320; x++)
+							std::fwrite(bufimg + (comp->vid->tsconf.yPos + y) * bytesPerLine + (comp->vid->tsconf.xPos * 2 + 2 * x) * 4, 1, 3, o);
+				}
 				std::fclose(o);
 			}
 		}

@@ -34,7 +34,7 @@ Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert i
   einmal beim Start gezeichnet und vom DMA kopiert; die Laufschrift ist ein Ring aus 32 Zeichen
   über die 512 Punkte des Bildes, gezeigt ab GXOFFS.
 - Tile-Ebene 0 auch schwarz über dem Fluss.
-- Steuerung: Q A O P, Leertaste oder M feuern, Enter START, G SELECT, H Pause; Kempston.
+- Steuerung: Q A O P, Leertaste oder M feuern, Enter START, G SELECT, H Pause, T die Arbeit des Frames am Rand (eine Farbe je Teil, wie auf dem Next); Kempston.
 - Der Ton: alles auf einer General Sound (der ursprünglichen Karte oder einer NeoGS), wenn eine
   da ist: Der eigene Z80 der Karte spielt POKEY wie der DAC des Next (`gs/`, `pokey_frame` des
   Next und seine Impulse, die Bits des 17-Bit-Zählers macht die Karte selbst aus ihrer
@@ -69,7 +69,7 @@ die der Sprites ab 24.
     make palette  schreibt src/palette_ts.inc neu (die Farben des C++-Ports in den Stufen der Platine)
 
 `build/tools/tscheck` spielt auch: `-bot N` (der erfundene Spieler von nxcheck), `-stress`,
-`-start N`; TSBRIDGE, TSGHOST, NXGAME wie bei nxcheck; TSSPEED=1 mit 7 MHz; TSGS=neo eine
+`-start N`; TSBRIDGE, TSGHOST, NXGAME wie bei nxcheck; TSSPEED=1 mit 7 MHz; TSBORDER=1 T an (TSFULL=1 mit TSSHOT=k: die Frames mit Rand); TSGS=neo eine
 NeoGS, TSGS=0 keine Karte (die Töne des AY werden geprüft); TSWAV=Datei, TSWAVCPP=Datei die
 Samples der Karte und der POKEY des C++-Ports mit dieser Rate (WAVs zum Anhören).
 
