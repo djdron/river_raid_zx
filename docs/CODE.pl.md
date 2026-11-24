@@ -22,8 +22,8 @@ Czasy to takty rdzenia Next przy 28 MHz na klatkę, średnio, z histogramu nxche
 klatek), na wersji testowej bez pamięci ekranu, jak w grze (`-DNOSCREEN`, `NXNOSCREEN=1`). Dwa
 przebiegi:
 
-- **A**: PAL, bot 1, 3 000 klatek od startu (zwykły początek gry): średnio ~108 000 na klatkę, najwyżej ~163 000;
-- **B**: `-stress` od mostu 80, PAL, 6 000 klatek (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~166 000, najwyżej ~207 000 (NTSC ~161 000 / ~201 000; przy 14 MHz NTSC ~131 000 / ~165 000 z ~240 000).
+- **A**: PAL, bot 1, 3 000 klatek od startu (zwykły początek gry): średnio ~106 000 na klatkę, najwyżej ~162 000;
+- **B**: `-stress` od mostu 80, PAL, 6 000 klatek (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~164 000, najwyżej ~202 000 (NTSC ~160 000 / ~202 000; przy 14 MHz NTSC ~131 000 / ~165 000 z ~240 000).
 
 Klatka ma ~567 000 taktów w PAL i ~481 000 w NTSC (przy 14 MHz połowę). `apply` (a z nim
 `panel_frame`) działa po mierzonej pracy (pod przewijanym napisem) i nie ma go w tych liczbach:
@@ -34,42 +34,42 @@ Według części (A / B):
 
 | część | A | B |
 |---|---|---|
-| wyświetlanie: rozmieszczanie obiektów i kolizje (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 45 800 | 61 600 |
-| dźwięk (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 500 | 38 900 |
-| nowe linie rzeki (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 16 500 | 39 000 |
-| sprite'y i lista Coppera (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 11 100 | 15 900 |
-| logika gry i reszta (`prepare`, `main_loop`, `move_objects`, `random_step`, wypisywanie panelu, …) | 9 800 | 11 100 |
+| wyświetlanie: rozmieszczanie obiektów i kolizje (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 41 300 | 55 200 |
+| dźwięk (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
+| nowe linie rzeki (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 18 800 | 44 000 |
+| sprite'y i lista Coppera (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 10 900 | 15 900 |
+| logika gry i reszta (`prepare`, `main_loop`, `move_objects`, `random_step`, wypisywanie panelu, …) | 9 400 | 10 500 |
 
 Najdroższe procedury (A / B):
 
 | procedura | A | B | plik |
 |---|---|---|---|
-| `display` (własny kod) | 11 500 | 13 100 | display_simple |
+| `display` (własny kod) | 11 800 | 13 500 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
+| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `dh_pf` | 8 100 | 9 400 | display_hits |
-| `snd_sum` | 8 600 | 8 600 | sound |
 | `render_line` | 3 900 | 9 400 | render |
+| `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `dh_obj` | 5 000 | 6 500 | display_hits |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
+| `dh_obj` | 4 900 | 6 100 | display_hits |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
-| `dh_bits` | 4 200 | 4 400 | display_hits |
 | `move_objects` | 2 000 | 3 900 | game |
-| `hit_setup` | 2 300 | 3 700 | display_hits |
+| `dl_fill` | 1 600 | 3 700 | river_gen |
 | `ay_out` | 3 400 | 3 400 | sound_ay_run |
 | `snd_fill` | 2 800 | 2 800 | sound |
 | `ay_frame` | 2 200 | 2 800 | sound_ay_run |
-| `pk_channel` | 1 200 | 2 800 | sound_pulses |
-| `pokey_frame` (własny kod) | 2 500 | 2 600 | sound |
+| `pk_channel` | 1 200 | 2 700 | sound_pulses |
+| `pokey_frame` (własny kod) | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
-| `dh_lists` | 2 000 | 2 000 | display_hits |
 | `pk_g4` | 0 | 1 400 (~9 000 w klatce, gdy brzmi rakieta) | sound_pulses |
+| `dh_lists` | 1 300 | 1 300 | display_hits |
 | `build_copper` | 1 100 | 1 000 | sprites |
+| `hit_setup` | 500 | 700 | display_hits |
 
-Najcięższa klatka B (~207 000): dźwięk do ~60 000 (szum i rakieta na DAC, ~180 impulsów),
+Najcięższa klatka B (~202 000): dźwięk do ~60 000 (szum i rakieta na DAC, ~180 impulsów),
 rozmieszczanie i testy krawędzi (`display`, `ds_obj`, `ds_edge_test`) ~30 000, kolizje
 (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, nowe linie rzeki ~25 000.
 
@@ -109,7 +109,7 @@ rastra (`wait_frame`), dźwięk DMA, kolory linia po linii Copper.
 4. `wait_frame`: odpytuje aktywną linię obrazu (NR $1E/$1F) do `wait_line` (208 NTSC, 220 PAL), pod przewijanym napisem, gdzie na ekranie nic się nie zmienia.
 5. `apply`: wszystko zbudowane zaczyna działać naraz (przewijanie i kolory Layer 2, atrybuty sprite'ów, kafelki panelu, lista Coppera).
 
-Z włączonym T (`tm_show`) każda z tych części najpierw ustawia kolor ramki (`TM_COLOUR`): pomarańczowy `apply`, szary `prepare` (i `clear_layer2_page` podczas resetu), czerwony `display`, żółty `build_sprites`, niebieski `main_loop`, purpurowy `push_line` (nowa linia rzeki, wewnątrz `main_loop`), biały `vbi`, błękitny `pokey_frame`, czarny pozostały czas. `push_line` ustawia purpurowy i z powrotem niebieski.
+Z włączonym T (`tm_show`) każda z tych części najpierw ustawia kolor ramki (`TM_COLOUR`: wywołuje `tm_colour` tylko przy włączonym T; wyłączone kosztuje ~30 taktów na część): pomarańczowy `apply`, szary `prepare` (i `clear_layer2_page` podczas resetu), czerwony `display`, żółty `build_sprites`, niebieski `main_loop`, purpurowy `push_line` (nowa linia rzeki, wewnątrz `main_loop`), biały `vbi`, błękitny `pokey_frame`, czarny pozostały czas. `push_line` ustawia purpurowy i z powrotem niebieski.
 
 Kolejność ma znaczenie: `display` używa stanu, który zostawił `main_loop` poprzedniej klatki
 (tak jak DLI Atari pokazuje stan poprzedniej klatki), a `build_sprites` tego, co zostawił
@@ -208,7 +208,7 @@ a każde przeniesienie to linia, więc 0–2 linie na klatkę, tym więcej, im s
 
 | procedura | wywołanie | co i jak | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Takty koloru 20–179 (`WINDOW_FIRST`) linii do wiersza A Layer 2, z kawałków `dl_seg` (bez bufora linii). Layer 2 jest zapisany kolumnami (bajt x·256 + y, 32 kolumny na stronę 8K), więc wiersz pisze się w dół kolumn (`inc h` = następna kolumna), 10 stron mapowanych po kolei w slot 2 (`rl_next`). Kawałek jednej wartości: jego kolor raz z `pix_tab`, potem `rl_fill` (8 kolumn na bajt, strona po stronie; `rl_fill`, `rl_next` w stronie 6, spans.asm); bajty krawędzi (z tablicy ROM) i wiersz ozdoby (z jej bitmapy w ROM): na bajt `pix_tab` daje 2 punkty na takt, każdy zapisany dwa razy; bajty przed oknem pominięte w danych. 320 zapisów na linię. | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | Takty koloru 20–179 (`WINDOW_FIRST`) linii do wiersza A Layer 2, z kawałków `dl_seg` (bez bufora linii). Layer 2 jest zapisany kolumnami (bajt x·256 + y, 32 kolumny na stronę 8K), więc wiersz pisze się w dół kolumn (`inc h` = następna kolumna), 10 stron mapowanych po kolei w slot 2 (`rl_next`). Kawałek jednej wartości: jego kolor raz z `pix_tab`, potem `rl_fill` (8 kolumn na bajt, strona po stronie; `rl_fill`, `rl_next` w stronie 6, spans.asm); bajty krawędzi (z tablicy ROM) i wiersz ozdoby (z jej bitmapy w ROM): na bajt `pix_tab` daje 2 punkty na takt, każdy zapisany dwa razy; bajty przed oknem pominięte w danych. 320 zapisów na linię. W stronie 6 (przeniesiona ze strony 4 dla miejsca). | 3 900 + 3 800 / 9 400 + 8 300 |
 
 ## spans.asm: odcinki linii dla kolizji z polem gry
 
@@ -236,10 +236,10 @@ każdego obiektu dla sprite'ów: 8 bajtów, pierwsza linia, liczba wierszy, wska
 koloru, x, rozmiar), `ds_bank_ev` (zmiany koloru brzegu, dla `build_copper`), wyniki kolizji w
 HIT i flagi krawędzi slotów.
 
-`display` (~8 400 / 9 500 własnych):
+`display` (~11 800 / 13 500 własnych):
 
 1. Mapuje SPAN_PAGE, `dh_lists` (deskryptory innych sprite'ów), rejestry wyczyszczone i ustawione jak B527–B55C, `bm_hitclr`, `dh_sprites` (HIT = $FF, potem inne sprite'y z brzegiem i ze sobą).
-2. `.slot`, dla każdego slotu od FIRST_SLOT: IY na rodzaju slotu (strona 5: typ, X, rozmiar pod IY + 11, + 22, + 33, czytane tam, bez kopii), Y i flagi zachowane (`ds_y`, `ds_flags`), `ds_edge_kind`; początek = max(y, $5D); pierwszy wiersz = y + height[type] − początek (≥ $80: zniknął w górę, następny); X = początek + 3 (ponad 255: koniec); wierszy = min(wiersz + 1, 256 − X); `ds_rowp` bajt pierwszego wiersza; `ds_obj` (wiersze do `ds_objs`); most: `.road` (kolor drogi od linii rastra po każdym jej wierszu, X − 69 + 1; kolor brzegu sekcji po ostatnim, o ile X się nie zawinął, przez `ds_bank`; kolor wiersza tylko wtedy, gdy różni się od wiersza wyżej). Pierwsze wiersze kształtu i kolorów wylicza się na miejscu (DE, BC dla `ds_obj`).
+2. `.slot`, dla każdego slotu od FIRST_SLOT: IY na rodzaju slotu (strona 5: typ, X, rozmiar pod IY + 11, + 22, + 33, czytane tam, bez kopii), Y i flagi zachowane (`ds_y`, `ds_flags`), `ds_edge_kind`; początek = max(y, $5D); pierwszy wiersz = y + height[type] − początek (≥ $80: zniknął w górę, następny); X = początek + 3 (ponad 255: koniec); wierszy = min(wiersz + 1, 256 − X); `ds_rowp` bajt pierwszego wiersza; `ds_obj` (wiersze do `ds_objs`); most: `.road` (kolor drogi od linii rastra po każdym jej wierszu, X − 69 + 1; kolor brzegu sekcji po ostatnim, o ile X się nie zawinął, przez `ds_bank`; kolor wiersza tylko wtedy, gdy różni się od wiersza wyżej). Pierwsze wiersze kształtu i kolorów wylicza się na miejscu (DE, BC dla `ds_obj`). Tablice ROM (wysokość, kształt, kolory) czytane są dodawaniem 8-bitowym (`ROM_SHAPES` i `ROM_COLOURS` zaczynają się od początku strony).
 3. Krawędź (P3PF) dla rodzajów 8–$0D (`ds_edge_kind`: helikoptery, balony, statki zawracają przy niej): `ds_edge_test`, potem `ds_set_flags`.
 4. Wobec pocisku, pocisku czołgu (nie most) i samolotu: `dh_obj`; dotknięcie zapisuje slot (HIT_BULLET_OBJECT, HIT_SHELL_OBJECT, HIT_PLANE_OBJECT), więc zostaje ostatni w dół ekranu.
 5. `.end`: `test_ghost` (wersje testowe); `ds_bank_fill` tylko z `-DBEAM`.
@@ -250,35 +250,34 @@ HIT i flagi krawędzi slotów.
 | `ds_set_flags` | `display` | Bit krawędzi obiektu do flag jego slotu (bit 0). | 1 100 / 1 300 |
 | `ds_bank` | `display` | Zmiana koloru brzegu od linii rastra A (droga mostu i z powrotem): do `ds_bank_ev`. | |
 | `ds_bank_fill` | koniec `display`, tylko `-DBEAM` | `scan_bank` dla każdej linii rzeki z `ds_bank_ev` (czyta go wyświetlanie promienia; nxcheck zamiast tego porównuje listę Coppera z portem C++). | |
-| `ds_row_hl`, `ds_edge_only` | `display` | HL += `ds_row`; bit krawędzi tylko dla rodzajów, które go czytają. | |
+| `ds_edge_only` | `display` | Bit krawędzi tylko dla rodzajów, które go czytają. | |
 
 ## display_objs.asm
 
 | procedura | wywołanie | co i jak | A / B |
 |---|---|---|---|
-| `ds_obj` | `display`, dla każdego obiektu z wierszami | Wiersze obiektu dla sprite'ów: pierwsza linia rastra, liczba wierszy, adresy kształtu i koloru pierwszego wiersza (DE, IY), x, rozmiar: 8 bajtów do `ds_objs` (`DS_OBJS` = najwyżej 16). Obiekt, którego pierwsza linia jest na linii 28 lub wyżej (ponad górą rzeki), jest rozszerzany do całego kształtu (k = początek − y wierszy więcej), więc sprite rysuje się w całości, a okno przycinania sprite'ów go obcina. Na końcu strony 4. | 5 400 / 6 300 |
+| `ds_obj` | `display`, dla każdego obiektu z wierszami | Wiersze obiektu dla sprite'ów: pierwsza linia rastra, liczba wierszy, adresy kształtu i koloru pierwszego wiersza (DE, IY), x, rozmiar: 8 bajtów do `ds_objs` (`DS_OBJS` = najwyżej 16). Obiekt, którego pierwsza linia jest na linii 28 lub wyżej (ponad górą rzeki), jest rozszerzany do całego kształtu (k = początek − y wierszy więcej), więc sprite rysuje się w całości, a okno przycinania sprite'ów go obcina. Na końcu strony 4. | 5 300 / 6 100 |
 
 ## display_hits.asm: kolizje jako geometria
 
 Bez rejestrów kolizji i bez odczytów: kolizja się liczy, jeśli zdarza się gdziekolwiek na
 wierszach sprite'ów. Pięć innych sprite'ów opisują 10-bajtowe deskryptory w `dh_desc`
-(kopiowane co klatkę z `dh_template` i wypełniane): baza wierszy (młodsza), maska, obroty, x,
+(to, co stałe, kopiowane z `dh_template` raz na starcie, `dh_init`; resztę co klatkę wypełnia `dh_lists`): baza wierszy (młodsza), maska (już obrócona na miejsca punktów), koniec wierszy (linia po ostatnim; ponad 255 255), x,
 rozmiar, numer sprite'a, pierwsza linia, wiersze, szerokość w taktach, baza (starsza)
 (`DH_SIZE` = 10; `DH_SHELL`, `DH_TANK`, `DH_PLANE`, `DH_MISSILE`, `DH_BULLET`). Wiersz na linii L
 to bajt pod bazą + L: kształt klatki z ROM (baza = jego adres − pierwsza linia, `dh_shape`,
-`dh_base`); wiersze rakiety i pocisku to `dh_ones` (wszystkie ustawione) pod ich maskami ($03;
-pocisk $20). Po resecie (`pm_empty`, do następnego `prepare`) brak wierszy.
+`dh_base`); wiersze rakiety i pocisku to `dh_ones` (wszystkie ustawione) pod ich maskami, obróconymi na miejsca punktów już w szablonie ($03 o 6: $C0; bit 5 pocisku o 2: $80), więc żaden wiersz nie jest obracany. Po resecie (`pm_empty`, do następnego `prepare`) brak wierszy.
 
 | procedura | wywołanie | co i jak | A / B |
 |---|---|---|---|
-| `dh_lists` | początek `display` | Deskryptory. | 2 000 / 2 000 |
+| `dh_lists` | początek `display` | Wiersze, pozycje i bazy deskryptorów; potem koniec każdego (pole 2). | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF, potem HIT 0 tam, gdzie: czołg trafia na krawędź (P1PF), samolot na brzeg (P2PF), rakieta i pocisk na brzeg lub krawędź (M0PF, M2PF): `dh_pf`; samolot i pocisk czołgu (P2PL bit 0), rakieta i samolot (M0PL): `dh_pair`. | |
-| `dh_pf` | `dh_sprites` | NZ: wiersze sprite'a IX trafiają w pole gry (DE: `sp_edge`, `sp_bank`, `sp_under`). Dla każdej linii rzeki z punktami (`dh_bits`): najpierw jego prostokąt (X do X + jego takty) w przerwach linii (A: bit 0 `eg_*` krawędzi, bit 1 `bg_*` brzegu); wewnątrz nic; inaczej końce wiersza wobec odcinków (funkcja `sp_*`). Zatrzymuje się na pierwszym dotknięciu. | 8 100 / 9 400 |
+| `dh_pf` | `dh_sprites` | NZ: wiersze sprite'a IX trafiają w pole gry (DE: `sp_edge`, `sp_bank`, `sp_under`). Dla każdej linii rzeki: najpierw bajt wiersza pod maską (brak punktów: następna linia), potem jego prostokąt (X do X + jego takty) w przerwach linii (A: bit 0 `eg_*` krawędzi, bit 1 `bg_*` brzegu); wewnątrz nic; inaczej końce wiersza wobec odcinków (funkcja `sp_*`). Zatrzymuje się na pierwszym dotknięciu. | 10 200 / 11 200 |
 | `sp_edge`, `sp_bank`, `sp_under` | `dh_pf` | Wiersz sprite'a wobec odcinków linii: krawędzi (brązowej), brzegu (zielonego) lub któregokolwiek, jak `spanTouches` portu C++: jego pierwszy i ostatni punkt (`sp_ends`: `edge_lo`, `edge_hi`, szerokość rozmiaru, plus X) wobec odcinków (`sp_runs`), odcinek między nimi to dotknięcie; rekord linii przez `sp_rec`. | |
 | `dh_pair` | `dh_sprites` | NZ: wiersze dwóch sprite'ów się spotykają: `hit_setup` na ich taktach, potem na każdej linii, którą mają oba, bity każdego (`dh_bits`, `hit_wide` według jego rozmiaru) do `hit_a`, `hit_b` i `hit_line`. | |
-| `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Bity sprite'a IX na linii A, od bitu 7 (Z: brak); linia po jego ostatnim wierszu. | 4 400 / 4 700 |
-| `dh_obj` | `display`, dla każdego obiektu (pocisk, pocisk czołgu, samolot) | NZ: sprite IX dotyka wierszy bieżącego obiektu (`ds_rowp`, od linii X = `ds_counter`, `ds_rows` z nich, przy X i rozmiarze slotu: IY + 22, + 33). `hit_setup` na taktach obiektu (8, 16 lub 32) i sprite'a, potem linie, które mają oba; na każdej linii bajt wiersza obiektu (zero: następna) i bity sprite'a, każde poszerzone (`hit_wide`), `hit_line`. | 5 000 / 6 500 |
-| `hit_setup` | `dh_obj`, `dh_pair` | Z: takty dwóch prostokątów (B od, C szerokość; D od, E szerokość) się nie spotykają; inaczej okno, w którym oba są na taktach pola gry (32–223, najwyżej 8 szerokie): gdzie zaczyna się ono w punktach każdego (`hit_ka`/`hit_sa`, `hit_kb`/`hit_sb`: bajt, bit) i bity jego taktów (`hit_w`). | 2 300 / 3 700 |
+| `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Bity sprite'a IX na linii A: bajt wiersza pod maską, już przy najstarszym bicie (Z: brak); linia po jego ostatnim wierszu (`dh_lists` wpisuje ją raz na klatkę do pola 2). | 400 / 500 |
+| `dh_obj` | `display`, dla każdego obiektu (pocisk, pocisk czołgu, samolot) | NZ: sprite IX dotyka wierszy bieżącego obiektu (`ds_rowp`, od linii X = `ds_counter`, `ds_rows` z nich, przy X i rozmiarze slotu: IY + 22, + 33). Najpierw linie, które mają oba (`ds_l1`, `ds_l2` z `display`, koniec sprite'a: większość obiektów nie ma z nim wspólnych), potem `hit_setup` na taktach obiektu (8, 16 lub 32) i sprite'a; na każdej linii bajt wiersza obiektu (zero: następna) i bity sprite'a, każde poszerzone (`hit_wide`), `hit_line`. | 4 900 / 6 100 |
+| `hit_setup` | `dh_obj`, `dh_pair` | Z: takty dwóch prostokątów (B od, C szerokość; D od, E szerokość) się nie spotykają; inaczej okno, w którym oba są na taktach pola gry (32–223, najwyżej 8 szerokie): gdzie zaczyna się ono w punktach każdego (`hit_ka`/`hit_sa`, `hit_kb`/`hit_sb`: bajt, bit) i bity jego taktów (`hit_w`). | 500 / 700 |
 | `hit_wide` | `dh_obj`, `dh_pair` | Punkty bajtu A po takcie na bit do DE i dalej (rozmiar C: 1, 2 lub 4 takty na punkt, z `ov_exp2`, `ov_exp4`: tablic robionych przez `init_tables`), potem zero. | |
 | `hit_line` | `dh_obj`, `dh_pair` | NZ: punkty `hit_a` i `hit_b` spotykają się w oknie: dwa bajty każdego od jego początku przesunięte przez `bsla de,b` (Z80N, 8 taktów), AND ze sobą i z `hit_w`. | |
 

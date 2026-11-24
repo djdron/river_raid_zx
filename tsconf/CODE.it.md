@@ -40,8 +40,8 @@ memoria dello schermo dell'Atari, che il gioco non ha: `line_done` e `draw_line`
 più pesanti che nel gioco). Con una General Sound, quindi i rumori non costano nulla al
 processore principale. Due esecuzioni:
 
-- **A**: bot 1, 3 000 fotogrammi dall'inizio: il lavoro ~74 000 a fotogramma in media, al massimo ~124 000;
-- **B**: `-stress` dal ponte 80, 6 000 fotogrammi (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: tutti gli slot occupati, tutta velocità, sempre sparando): ~116 000 in media, al massimo ~153 000.
+- **A**: bot 1, 3 000 fotogrammi dall'inizio: il lavoro ~69 000 a fotogramma in media, al massimo ~120 000;
+- **B**: `-stress` dal ponte 80, 6 000 fotogrammi (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: tutti gli slot occupati, tutta velocità, sempre sparando): ~108 000 in media, al massimo ~144 000.
 
 Il lavoro va da `apply_done` a `frame_done` (l'attesa dell'interrupt del fotogramma non contata);
 le parti sotto contano anche `apply` e gli interrupt (~7 000).
@@ -50,43 +50,42 @@ Per parti (A / B):
 
 | parte | A | B |
 |---|---|---|
-| il display: posizionamento degli oggetti e collisioni (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 42 900 | 57 300 |
-| nuove righe del fiume (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 800 |
-| sprite e gli eventi della riva (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`, `build_events`, `pal_get`) | 10 700 | 16 000 |
-| `apply`, il pannello e gli interrupt (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `pal_edges`, `irq`, la stampa del pannello) | 7 300 | 7 000 |
+| il display: posizionamento degli oggetti e collisioni (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
+| nuove righe del fiume (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 13 600 | 32 200 |
+| sprite e gli eventi della riva (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`, `build_events`, `pal_get`) | 10 300 | 14 900 |
+| `apply`, il pannello e gli interrupt (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `pal_edges`, `irq`, la stampa del pannello) | 7 900 | 7 500 |
 | suono (`sound_driver`, `snd_*`, `gs_*`; senza scheda `ay_*`: ~5 800 in A) | 3 400 | 3 500 |
-| la logica del gioco e il resto (`move_objects`, `main_loop`, `random_step`, `vbi`, …) | 7 000 | 9 100 |
+| la logica del gioco e il resto (`move_objects`, `main_loop`, `random_step`, `vbi`, …) | 7 000 | 8 800 |
 
 Le routine più costose (A / B):
 
 | routine | A | B | file |
 |---|---|---|---|
-| `display` (codice proprio) | 11 000 | 12 600 | display_simple |
-| `render_line` | 4 400 | 10 200 | render |
-| `span_line` | 3 900 | 9 400 | spans |
-| `ds_edge_test` | 2 800 | 8 800 | display_simple |
-| `dh_pf` | 7 100 | 8 300 | display_hits |
-| `ds_obj` | 5 500 | 6 400 | display_objs |
-| `dh_obj` | 4 500 | 5 900 | display_hits |
-| `ob_attr` | 2 500 | 5 200 | sprites |
-| `dh_bits` | 3 700 | 3 900 | display_hits |
+| `display` (codice proprio) | 11 200 | 12 900 | display_simple |
+| `dh_pf` | 8 700 | 9 800 | display_hits |
+| `span_line` | 3 900 | 9 500 | spans |
+| `ds_edge_test` | 2 800 | 8 700 | display_simple |
+| `render_line` | 3 500 | 8 400 | render |
+| `ds_obj` | 5 300 | 6 200 | display_objs |
+| `dh_obj` | 4 400 | 5 500 | display_hits |
+| `ob_attr` | 2 500 | 5 100 | sprites |
 | `move_objects` | 1 700 | 3 300 | game |
 | `dl_fill` | 1 500 | 3 300 | river_gen |
-| `hit_setup` | 2 100 | 3 300 | display_hits |
-| `ob_list` | 2 400 | 3 100 | sprites |
-| `line_done` (la copia nella memoria dello schermo, solo build di verifica) | 1 100 | 2 500 | river_raid |
-| `sfile_put` | 1 600 | 2 400 | river_raid |
-| `dh_lists` | 2 000 | 2 000 | display_hits |
+| `ob_list` | 2 400 | 3 200 | sprites |
+| `line_done` (la copia nella memoria dello schermo, solo build di verifica) | 1 100 | 2 500 | game |
+| `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 400 | 2 300 | sound_gs |
 | `pl_keep` | 800 | 1 600 | sprites |
 | `panel_frame` | 1 600 | 1 600 | panel_ts |
 | `irq` | 1 400 | 1 400 | river_raid |
-| `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 400 | 2 400 | sound_gs |
+| `dh_lists` | 1 300 | 1 300 | display_hits |
+| `sfile_put` | 1 200 | 1 300 | river_raid |
 | `apply` (codice proprio) | 1 200 | 1 200 | river_raid |
 | `pal_edges` | 1 100 | 1 100 | river_raid |
 | `build_events` | 1 000 | 1 000 | river_raid |
+| `hit_setup` | 500 | 700 | display_hits |
 
 A 7 MHz (`TSSPEED=1`, ~143 400 cicli a fotogramma) il lavoro sono le stesse istruzioni:
-`-stress` ~96 000 in media, al massimo ~143 000, ci sta appena; a 3,5 MHz non regge. `gs_send`
+`-stress` ~93 000 in media, al massimo ~125 000, ci sta appena; a 3,5 MHz non regge. `gs_send`
 aspetta che la scheda legga ogni byte (~300 cicli per byte a 14 MHz).
 
 (`prof.py` prende il nome di una routine dall'etichetta globale più vicina sotto l'indirizzo. Gli
@@ -100,13 +99,13 @@ Finestre da 16K e le pagine al loro interno (le pagine da 16K della scheda):
 |---|---|---|---|
 | 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): la RAM dell'Atari agli indirizzi dell'originale | all'avvio: 3 (`INIT_PAGE`: lì girano `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): le sequenze delle righe da $4000 (`SPANS`, 32 byte × 256 righe), buffer da $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), il font del sistema a $7D00 | `render_line`: una pagina dell'immagine del fiume (32–47); `panel_draw`/`pc_*`: l'immagine del pannello (64–79); all'avvio la mappa dei tile (7), i tile (8), le immagini degli sprite (24–31); sempre rimessa a 5 |
-| 2 | $8000–$BFFF | 2 (`CODE_PAGE`): codice fino a ~$9F71, la cartuccia da $A000 | — |
-| 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): codice fino a ~$D60E, poi a $E000 la finestra FM (`CRAM_SHADOW`: CRAM $E000–$E1FF, lo SFILE $E200–$E3FF; le scritture vanno anche nella RAM sotto), tabelle e variabili fino a ~$FD47, lo stack, i vettori IM 2 a $FE00 | — |
+| 2 | $8000–$BFFF | 2 (`CODE_PAGE`): codice fino a ~$9FE1, la cartuccia da $A000 | — |
+| 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): codice fino a ~$D75A, poi a $E000 la finestra FM (`CRAM_SHADOW`: CRAM $E000–$E1FF, lo SFILE $E200–$E3FF; le scritture vanno anche nella RAM sotto), tabelle e variabili fino a ~$FD65, lo stack, i vettori IM 2 a $FE00 | — |
 
 Le immagini: il fiume dalla pagina 32 (`VID_PAGE`, 16 pagine: 512 righe da 512 byte, di ognuna
 mostrati 320 punti), il pannello dalla pagina 64 (`VPANEL`), la mappa dei tile nella pagina 7, i
 punti dei tile nella pagina 8, i 512×512 punti degli sprite nelle pagine 24–31 (`SGPAGE`). Il
-codice di INIT_PAGE finisce a ~$11E5, i buffer della pagina di lavoro a $7C00. La finestra FM è
+codice di INIT_PAGE finisce a ~$11DF, i buffer della pagina di lavoro a $7C00. La finestra FM è
 accesa per sempre: niente altro può usare $E000–$E3FF, e $E400–$E4FF sono i suoi registri
 (`palette_lo` sta lì, solo in lettura).
 
@@ -135,8 +134,8 @@ Copiati da `../src`, lo stesso codice:
 - `river_gen.asm`, `display_objs.asm`, `panel.asm`, `vars.inc`, `font.inc`, `random.inc`: invariati.
 - `display.asm`, `display_simple.asm`, `spans.asm`: la pagina SPANS non viene mappata (`nextreg $52,SPAN_PAGE` tolto: la finestra 1 tiene SPANS per tutto il tempo); `spans.asm` senza `rl_fill`/`rl_next` (gli aiutanti di `render_line` sul Next).
 - `display_hits.asm`: `bsla de,b` (Z80N) come `shl_de_b`, un ciclo di 0–7 `sla e / rl d` (in `hit_line`: fino a ~100 cicli in più per verifica, qualche centinaio a fotogramma).
-- `game.asm`: `tm_colour` non fa nulla (ancora nessun T sul bordo); `push_line` muove `scroll` in un anello di 512 righe (9 bit) e disegna nella riga dell'immagine `scroll + RIVER_TOP`.
-- `play.asm`: `clear_layer2_page` è quello di TS-Conf (river_raid.asm, il DMA); `read_input` senza CAPS + 1 (niente 60 Hz), CAPS + 2 (suono spento), CAPS + 3 (velocità), T, il secondo Kempston e il pad Mega Drive.
+- `game.asm`: `tm_colour` scrive BORDER (una voce della CRAM: `TM_*` sono le voci libere del gruppo 11 dalla 2, i loro colori li imposta `tm_cram`), e `TM_COLOUR` lo chiama solo con T acceso; `push_line` muove `scroll` in un anello di 512 righe (9 bit) e disegna nella riga dell'immagine `scroll + RIVER_TOP`.
+- `play.asm`: `clear_layer2_page` è quello di TS-Conf (river_raid.asm, il DMA); `read_input` senza CAPS + 1 (niente 60 Hz), CAPS + 2 (suono spento), CAPS + 3 (velocità), il secondo Kempston e il pad Mega Drive.
 - `sound.asm`: solo `sound_driver` e `sound_random`: `pokey_frame` gira sulla General Sound (`gs/`).
 - `render.asm`, `sprites.asm`, `sound_ay.asm`, `load_rom.asm`, `river_raid.asm`: quelli propri di TS-Conf (sotto), con i nomi del Next dove fanno lo stesso lavoro.
 
@@ -159,7 +158,7 @@ l'interrupt, `apply`, le palette del fiume, variabili e buffer.
 | `apply` | dopo `wait_frame` | GYOFFS = `show_scroll`, VPAGE quella del fiume, VCONFIG $81 (16 colori), GXOFFS 0; `snd_out` (i registri dell'AY o il fotogramma della scheda); `panel_frame`; i colori del colpo e dell'aereo nella CRAM; `sfile_put`; mentre l'immagine si pulisce dopo un reset (dal suo secondo fotogramma): il fiume nero (palette del colore 0, bordo e acqua 0, solo gli eventi del pannello); altrimenti PALSEL la palette in cima (`ev_built`), `pal_edges`, gli eventi del pannello copiati dopo quelli della riva (`ev_tail`); l'interrupt impostato sul primo evento (DI intorno); `ev_show` = la lista appena impostata (`build_events` scrive l'altra). | 1 200 / 1 200 |
 | `pal_get` | `build_events`, `apply` | La palette del fiume (PALSEL 0–7) del colore Atari E: ogni colore della riva ha la sua, fatta la prima volta che compare (`pal_of`, `pal_n`): il suo colore 1 quel colore, nella CRAM. Oltre 8, di nuovo l'ultima (mai successo). | 110 / 110 |
 | `pal_edges` | `apply` | I colori 2 e 3 (bordo, acqua) di tutte le palette fatte finora. | 1 100 / 1 100 |
-| `sfile_put` | `apply` | Lo SFILE (a $E200 attraverso la finestra FM): gli sprite del fiume (`spr_list`, S0), una voce finale (LEAP), i 3 del pannello (lancetta e logo, S1), una fine; le voci dopo di loro fino alla fine del fotogramma precedente (`sf_end`) azzerate. 6 byte per sprite con LDIR. | 1 600 / 2 400 |
+| `sfile_put` | `apply` | Lo SFILE, costruito in `spr_list`: gli sprite del fiume (S0), dietro di loro copiato `sf_tail` (una voce finale con LEAP, i 3 del pannello: lancetta e logo, S1, una fine); le voci dopo fino alla fine del fotogramma precedente (`sf_end`) azzerate lì; poi il DMA lo copia nello SFILE (DMACTRL $85, da RAM a SFILE, un solo burst; la CPU lo programma soltanto). Mentre il DMA è occupato (la pulizia del reset) copia la CPU attraverso la finestra FM a $E200. | 1 200 / 1 300 |
 | `build_events` | `main_frame` | Il colore della riva per riga, come il `build_copper` del Next da `ds_bank_ev`: nel buffer che gli interrupt non leggono (`ev_a`/`ev_b`), la palette alla cima del fiume, poi un evento EV_PAL per ogni cambio, 5 byte (tipo, palette, colore per la verifica, riga VSINT una riga prima); `ev_tail` dove apply mette i due del pannello. | 1 000 / 1 000 |
 | `clear_layer2_page` | `main_frame` durante `busy`, `restart` | Metà dell'immagine del fiume (256 righe × 160 byte, 4 pagine) a fotogramma con il riempimento del DMA (DMACTRL $14, 80 parole × 256 righe da `dma_zero`); niente nel primo fotogramma del reset (`l2_wait`); niente mentre il DMA è occupato. Il processore lo programma soltanto (~150 cicli). | |
 | `dma_wait` | `restart`, `init_video` | Finché il DMA non è libero (DMACTRL bit 7). | |
@@ -175,7 +174,7 @@ l'interrupt, `apply`, le palette del fiume, variabili e buffer.
 
 | routine | chiamata | cosa e come | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | I cicli di colore 20–179 della riga nella riga dell'immagine HL (0–511): la pagina `VID_PAGE` + riga / 64 nella finestra 1, la riga a $4000 + (riga & 63) × 256; dai pezzi di `dl_seg` come sul Next: un pezzo di un valore è il suo byte di `pix_tab` 4 volte per byte (`.fill`: `ld (hl),a / inc l`), i byte di un bordo (la tabella della ROM) e una riga di decorazione attraverso `pix_tab`, 4 byte d'uscita ciascuno. 160 scritture per riga lungo la riga (il Next ne scrive 320 giù per le colonne, 10 pagine). WORK_PAGE rimessa alla fine. | 4 400 / 10 200 |
+| `render_line` | `line_done` | I cicli di colore 20–179 della riga nella riga dell'immagine HL (0–511): la pagina `VID_PAGE` + riga / 64 nella finestra 1, la riga a $4000 + (riga & 63) × 256; dai pezzi di `dl_seg` come sul Next: un pezzo di un valore è il suo byte di `pix_tab` 4 volte per byte (`.fill`: `ld (hl),a / inc l`), i byte di un bordo (la tabella della ROM) e una riga di decorazione attraverso `pix_tab`, 4 byte d'uscita ciascuno. 160 scritture per riga lungo la riga (il Next ne scrive 320 giù per le colonne, 10 pagine). WORK_PAGE rimessa alla fine. Un pezzo di un valore lungo 5 byte o più (`RL_DMA_MIN`) va invece al DMA quando è libero: un riempimento (DMACTRL $04) da `rl_word` (il valore due volte) nella pagina `rl_page`. Nella pagina $C000 (spostata da $8000 per fare spazio). | 3 500 / 8 400 |
 
 ## sprites.asm: gli sprite del fiume
 
@@ -297,6 +296,6 @@ buffer del settore è SPANS (rifatto dopo l'avvio).
 - **La finestra FM** a $E000 è sempre accesa: le scritture su $E000–$E3FF vanno nella CRAM e nello SFILE (e nella RAM sotto, ed è così che `apply` le rilegge); non metterci mai altro.
 - **Gli eventi dell'interrupt** sono in due buffer (`ev_a`, `ev_b`): `build_events` scrive quello che `ev_show` non nomina; `apply` lo imposta sotto DI.
 - **I registri presi a fine riga** (PALSEL, VPAGE, GYOFFS, GXOFFS): impostarli nell'interrupt della riga prima; l'interrupt arriva a HSINT 208 (il bordo destro), quindi a 3,5–14 MHz c'è tempo.
-- **Il DMA** è condiviso dalla pulizia dell'immagine (`clear_layer2_page`) e dai caratteri del pannello (`pc_put`): `pc_put` disegna con il processore mentre il DMA è occupato.
+- **Il DMA** è condiviso dalla pulizia dell'immagine (`clear_layer2_page`) e dai caratteri del pannello (`pc_put`): `pc_put` disegna con il processore mentre il DMA è occupato; lo usano anche la copia dello SFILE (`sfile_put`) e i tratti lunghi di una nuova riga (`render_line`), ognuno col processore al suo posto mentre è occupato.
 - **Le verifiche**: `make check` (3 000 fotogrammi; `FRAMES=`), e con un bot, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo o 0, come in [README.it.md](README.it.md). Dopo ogni modifica: lo stato, il colore della riva per riga (`ev_built`), i registri della General Sound e l'immagine della macchina di ogni fotogramma, pixel per pixel.
-- **Misurare**: `TSHISTALL=file` (il tempo di ogni istruzione su tutta l'esecuzione, avvio, interrupt e attesa compresi), poi `python3 ../tools/prof.py build/test.sym file 60`; media e massimo del lavoro sono nelle ultime righe di tscheck. `TSTIME=N` stampa il lavoro dei fotogrammi N−2..N+2. `TSVOL=1`: le somme dei volumi di POKEY dei fotogrammi e il livello più alto della scheda (deve restare al massimo 255).
+- **Misurare**: `TSHISTALL=file` (il tempo di ogni istruzione su tutta l'esecuzione, avvio, interrupt e attesa compresi), poi `python3 ../tools/prof.py build/test.sym file 60`; media e massimo del lavoro sono nelle ultime righe di tscheck. `TSBORDER=1` accende T; `TSSHOT=k` con `TSFULL=1` scrive i fotogrammi da k col bordo (l'ultima immagine di un'esecuzione mostra un solo colore sul bordo: l'esecuzione si ferma a `apply_done`). `TSTIME=N` stampa il lavoro dei fotogrammi N−2..N+2. `TSVOL=1`: le somme dei volumi di POKEY dei fotogrammi e il livello più alto della scheda (deve restare al massimo 255).

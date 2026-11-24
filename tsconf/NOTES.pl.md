@@ -14,8 +14,8 @@ Jak zrobiony jest port na TS-Conf i co wyszło po drodze, z liczbami. Sama gra (
 - **Sprite'y**: do 85 w SFILE, dowolnego rozmiaru do 64×64 w krokach po 8 punktów, 16 kolorów z palety 16, ich punkty w jednym obrazie 512×512 (SGPAGE, strony 24–31, 4 bity na punkt). Bez skalowania, więc każdy obrazek powstaje przy starcie trzy razy, szeroki na 16, 32 i 64 punkty. S0, sprite'y rzeki, pod warstwą kafelków 0; S1, wskazówka i logo, nad nią.
 - **Warstwa kafelków 0** (mapa w stronie 7, kafelki w stronie 8): czarna w liniach 0–23 (nad rzeką) i 224–239, szara pod panelem (185–223, linia 184 to czarna kreska, potem szarość). Zakrywa to, co sprite'y rzeki mają poza rzeką: okno przycinania niepotrzebne.
 - **Panel**: własny obraz (strony 64–79, 256 kolorów), włączany od linii 184 zdarzeniem EV_PANEL (VPAGE, GYOFFS = 0, VCONFIG $8A: 256 kolorów, bitmapa nad kafelkami i sprite'ami, GFXOVR). Jego punkty o wartości 0 to dziury: pod nimi szarość warstwy kafelków 0 i sprite'y S1. Kolory 4–7 to PF0–PF3 panelu, 8 — przewijanego napisu.
-- **DMA**: czyści obraz rzeki po resecie (wypełnienie, pół obrazu na klatkę) i 128K sprite'ów przy starcie oraz kopiuje znaki panelu stamtąd, gdzie zostały raz narysowane.
-- **Sterowanie**: klawiatura (Q A O P, Space lub M, Enter, G, H) i Kempston pod $1F. Brak 60 Hz (klatka płyty to 50 Hz), brak CAPS + 2/3 i T.
+- **DMA**: czyści obraz rzeki po resecie (wypełnienie, pół obrazu na klatkę) i 128K sprite'ów przy starcie oraz kopiuje znaki panelu stamtąd, gdzie zostały raz narysowane; co klatkę kopiuje listę sprite'ów do SFILE (`sfile_put`) i wypełnia odcinki jednego koloru nowej linii od 5 bajtów (`render_line`), a gdy jest zajęty, robi to procesor.
+- **Sterowanie**: klawiatura (Q A O P, Space lub M, Enter, G, H, T) i Kempston pod $1F. Brak 60 Hz (klatka płyty to 50 Hz), brak CAPS + 2/3. T pokazuje pracę klatki na ramce jak na Next: BORDER bierze wpis CRAM, więc jej kolory są w wolnych wpisach grupy 11 (2–10, `tm_cram`); zielony także dla `panel_draw`.
 
 ## Klatka
 `main_frame`: jak na Next (`prepare`, `display`, `build_sprites`, `main_loop`, `vbi`), z `build_events` po sprite'ach i `snd_frame` na końcu; potem `wait_frame` (HALT do przerwania klatki), `apply`, `panel_draw`. `apply` przychodzi z przerwaniem klatki pod panelem (linia 241 z 240: w dolnej ramce), więc wszystko, co ustawia, jest gotowe na pierwszą linię następnego obrazu: przewijanie i tryb rzeki, dźwięk, kolory, SFILE, paleta u góry i przerwanie ustawione na pierwsze zdarzenie listy. `panel_draw` pisze znaki panelu po nim: panel widać dopiero od linii 184, ponad klatkę pracy później.
@@ -40,11 +40,11 @@ Takty przy 14 MHz, ~286 800 na klatkę. tscheck: praca od `apply_done` do `frame
 
 | przebieg | średnio | najcięższa | spóźnione |
 |---|---|---|---|
-| bot 1, 3 000 klatek od startu | ~74 000 | ~124 000 | 0 |
-| `-stress` od mostu 80 (wszystkie sloty zajęte, pełny gaz, ciągły ogień), 6 000 | ~116 000 | ~153 000 | 0 |
-| to samo przy 7 MHz (~143 400 na klatkę) | ~96 000 | ~143 000 | 0 |
+| bot 1, 3 000 klatek od startu | ~69 000 | ~120 000 | 0 |
+| `-stress` od mostu 80 (wszystkie sloty zajęte, pełny gaz, ciągły ogień), 6 000 | ~108 000 | ~144 000 | 0 |
+| to samo przy 7 MHz (~143 400 na klatkę) | ~93 000 | ~125 000 | 0 |
 
-Przy 3,5 MHz nie nadąża. Według części w najcięższych scenach: wyświetlanie (rozmieszczanie i kolizje) ~57 000, nowe linie rzeki ~34 000, sprite'y i zdarzenia palety ~16 000, apply, panel i przerwania ~7 000, logika gry ~9 000, dźwięk ~3 500 (na karcie).
+Przy 3,5 MHz nie nadąża. Według części w najcięższych scenach: wyświetlanie (rozmieszczanie i kolizje) ~51 000, nowe linie rzeki ~32 000, sprite'y i zdarzenia palety ~15 000, apply, panel i przerwania ~7 000, logika gry ~8 800, dźwięk ~3 500 (na karcie).
 
 Liczby pochodzą z wersji testowej (`-DTEST`: z pamięcią ekranu Atari, której gra nie ma); gra jest lżejsza o ~1 000–2 500.
 
@@ -57,4 +57,6 @@ Rdzeń TSConf z Xpeccy+ (i jego General Sound) jako biblioteka, bez okna, obok p
 - Własny reset firmware'u GS ($F4) trwa sekundy; zamiast tego pytać o jej stan ($F0).
 - Suma poziomów ponad 255 zawija się po cichu: próbki wyglądają normalnie, znajduje to tylko ucho. Sumować głośności (`TSVOL`), a nie oglądać próbki.
 - `make check` nie uruchamia pliku .spg: start (karta SD, ekran, ładowanie do GS) sprawdza się przez `-spg … -sd`.
+- `-stress` bez `-bot` w tscheck nic nie robił (bot nie grał): te przebiegi były trybem attract. Teraz gra bot z ziarnem 1, jak w nxcheck.
+- Ostatni obraz przebiegu (TSFULL) jest robiony na `apply_done`, więc ramka ma na nim jeden kolor; pasy ramki widać w klatkach TSSHOT.
 - Jeszcze nie uruchamiane na prawdziwej płycie: klawiatura, Kempston, karta SD, prawdziwy firmware GS i NeoGS są takie, jak modeluje je Xpeccy+.

@@ -14,8 +14,8 @@ How the TS-Conf port is done and what was found on the way, with numbers. The ga
 - **Sprites**: up to 85 in the SFILE, any size to 64×64 in 8-dot steps, 16 colours from a palette of 16, their dots in one 512×512-dot picture (SGPAGE, pages 24–31, 4 bits a dot). No scale, so each picture is made at the start three times, 16, 32 and 64 dots across. S0, the river's sprites, under tile layer 0; S1, the needle and the logo, over it.
 - **Tile layer 0** (map in page 7, tiles in page 8): black over rows 0–23 (above the river) and 224–239, grey under the panel (185–223, row 184 a black line then grey). It hides what the river's sprites have outside the river: no clip window needed.
 - **The panel**: a picture of its own (pages 64–79, 256 colours), put in at row 184 by EV_PANEL (VPAGE, GYOFFS = 0, VCONFIG $8A: 256 colours with the bitmap over tiles and sprites, GFXOVR). Its dots of 0 are holes: under them tile layer 0's grey and the S1 sprites. Colours 4–7 the panel's PF0–PF3, 8 the scrolling line's.
-- **The DMA**: clears the river's picture after a reset (a fill, half the picture a frame) and the sprites' 128K at the start, and copies the panel's characters from where they were drawn once.
-- **Controls**: keyboard (Q A O P, Space or M, Enter, G, H) and Kempston at $1F. No 60 Hz (the board's frame is 50 Hz), no CAPS + 2/3, no T.
+- **The DMA**: clears the river's picture after a reset (a fill, half the picture a frame) and the sprites' 128K at the start, and copies the panel's characters from where they were drawn once; every frame it copies the sprites' list into the SFILE (`sfile_put`) and fills a new line's runs of one colour of 5 bytes and more (`render_line`), the CPU doing either while it is busy.
+- **Controls**: keyboard (Q A O P, Space or M, Enter, G, H, T) and Kempston at $1F. No 60 Hz (the board's frame is 50 Hz), no CAPS + 2/3. T shows the frame's work on the border as on the Next: BORDER takes a CRAM entry, so its colours are in group 11's free entries (2–10, `tm_cram`); green also for `panel_draw`.
 
 ## The frame
 `main_frame`: as the Next's (`prepare`, `display`, `build_sprites`, `main_loop`, `vbi`), with `build_events` after the sprites and `snd_frame` at the end; then `wait_frame` (HALT until the frame INT), `apply`, `panel_draw`. `apply` comes at the frame INT, below the panel (row 241 of 240: in the bottom border), so everything it sets is there for the next picture's first row: the river's scroll and mode, the sound, the colours, the SFILE, the palette at the top and the INT armed at the list's first event. `panel_draw` writes the panel's characters after it: the panel is shown only from row 184, more than a frame's work later.
@@ -40,11 +40,11 @@ Ticks at 14 MHz, ~286 800 a frame. tscheck: the work from `apply_done` to `frame
 
 | run | average | heaviest | late |
 |---|---|---|---|
-| bot 1, 3 000 frames from the start | ~74 000 | ~124 000 | 0 |
-| `-stress` from bridge 80 (all slots taken, full speed, always firing), 6 000 | ~116 000 | ~153 000 | 0 |
-| the same at 7 MHz (~143 400 a frame) | ~96 000 | ~143 000 | 0 |
+| bot 1, 3 000 frames from the start | ~69 000 | ~120 000 | 0 |
+| `-stress` from bridge 80 (all slots taken, full speed, always firing), 6 000 | ~108 000 | ~144 000 | 0 |
+| the same at 7 MHz (~143 400 a frame) | ~93 000 | ~125 000 | 0 |
 
-At 3.5 MHz it does not keep up. By part in the heaviest scenes: the display (placement and collisions) ~57 000, the river's new lines ~34 000, sprites and the palette's events ~16 000, apply, the panel and the INTs ~7 000, the game's logic ~9 000, the sound ~3 500 (on the card).
+At 3.5 MHz it does not keep up. By part in the heaviest scenes: the display (placement and collisions) ~51 000, the river's new lines ~32 000, sprites and the palette's events ~15 000, apply, the panel and the INTs ~7 000, the game's logic ~8 800, the sound ~3 500 (on the card).
 
 The numbers are from the check's build (`-DTEST`: with the Atari's screen memory, which the game does not have); the game is ~1 000–2 500 lighter.
 
@@ -57,4 +57,6 @@ Xpeccy+'s TSConf core (and its General Sound) as a library, no window, beside th
 - The GS firmware's own reset ($F4) takes seconds; ask its state ($F0) instead.
 - A level sum past 255 wraps silently: the samples look normal, only the ear finds it. Sum the volumes (`TSVOL`) rather than look at samples.
 - `make check` does not run the .spg: the start (SD card, screen, GS upload) is checked with `-spg … -sd`.
+- `-stress` without `-bot` did nothing in tscheck (no bot played): its runs were attract mode. Now it plays the bot of seed 1, as nxcheck.
+- The run's last picture (TSFULL) is taken at `apply_done`, so its border shows one colour; the border's bands are seen in TSSHOT's frames.
 - Not run on a real board yet: the keyboard, Kempston, the SD card, the GS's real firmware and a NeoGS's are as Xpeccy+ models them.

@@ -24,8 +24,8 @@ Zeiten sind Takte des Next-Kerns bei 28 MHz pro Frame, gemittelt, aus dem Histog
 Frames), auf dem Prüf-Build ohne Bildschirmspeicher, wie das Spiel ihn hat (`-DNOSCREEN`,
 `NXNOSCREEN=1`). Zwei Läufe:
 
-- **A**: PAL, Bot 1, 3 000 Frames ab dem Start (der übliche frühe Spielverlauf): im Mittel ~108 000 pro Frame, höchstens ~163 000;
-- **B**: `-stress` ab Brücke 80, PAL, 6 000 Frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~166 000, höchstens ~207 000 (NTSC ~161 000 / ~201 000; bei 14 MHz NTSC ~131 000 / ~165 000 von ~240 000).
+- **A**: PAL, Bot 1, 3 000 Frames ab dem Start (der übliche frühe Spielverlauf): im Mittel ~106 000 pro Frame, höchstens ~162 000;
+- **B**: `-stress` ab Brücke 80, PAL, 6 000 Frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~164 000, höchstens ~202 000 (NTSC ~160 000 / ~202 000; bei 14 MHz NTSC ~131 000 / ~165 000 von ~240 000).
 
 Ein Frame hat ~567 000 Takte bei PAL und ~481 000 bei NTSC (bei 14 MHz die Hälfte). `apply` (und
 damit `panel_frame`) läuft nach der gemessenen Arbeit (unter der Laufschrift) und ist nicht in
@@ -36,42 +36,42 @@ Nach Teilen (A / B):
 
 | Teil | A | B |
 |---|---|---|
-| das Display: Platzieren der Objekte und Kollisionen (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 45 800 | 61 600 |
-| Ton (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 500 | 38 900 |
-| neue Flusszeilen (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 16 500 | 39 000 |
-| Sprites und die Liste des Coppers (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 11 100 | 15 900 |
-| die Spiellogik und der Rest (`prepare`, `main_loop`, `move_objects`, `random_step`, das Drucken des Panels, …) | 9 800 | 11 100 |
+| das Display: Platzieren der Objekte und Kollisionen (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 41 300 | 55 200 |
+| Ton (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
+| neue Flusszeilen (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 18 800 | 44 000 |
+| Sprites und die Liste des Coppers (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 10 900 | 15 900 |
+| die Spiellogik und der Rest (`prepare`, `main_loop`, `move_objects`, `random_step`, das Drucken des Panels, …) | 9 400 | 10 500 |
 
 Die teuersten Routinen (A / B):
 
 | Routine | A | B | Datei |
 |---|---|---|---|
-| `display` (eigener Code) | 11 500 | 13 100 | display_simple |
+| `display` (eigener Code) | 11 800 | 13 500 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
+| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `dh_pf` | 8 100 | 9 400 | display_hits |
-| `snd_sum` | 8 600 | 8 600 | sound |
 | `render_line` | 3 900 | 9 400 | render |
+| `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `dh_obj` | 5 000 | 6 500 | display_hits |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
+| `dh_obj` | 4 900 | 6 100 | display_hits |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
-| `dh_bits` | 4 200 | 4 400 | display_hits |
 | `move_objects` | 2 000 | 3 900 | game |
-| `hit_setup` | 2 300 | 3 700 | display_hits |
+| `dl_fill` | 1 600 | 3 700 | river_gen |
 | `ay_out` | 3 400 | 3 400 | sound_ay_run |
 | `snd_fill` | 2 800 | 2 800 | sound |
 | `ay_frame` | 2 200 | 2 800 | sound_ay_run |
-| `pk_channel` | 1 200 | 2 800 | sound_pulses |
-| `pokey_frame` (eigener Code) | 2 500 | 2 600 | sound |
+| `pk_channel` | 1 200 | 2 700 | sound_pulses |
+| `pokey_frame` (eigener Code) | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
-| `dh_lists` | 2 000 | 2 000 | display_hits |
 | `pk_g4` | 0 | 1 400 (~9 000 in einem Frame, in dem die Rakete klingt) | sound_pulses |
+| `dh_lists` | 1 300 | 1 300 | display_hits |
 | `build_copper` | 1 100 | 1 000 | sprites |
+| `hit_setup` | 500 | 700 | display_hits |
 
-Das schwerste Frame von B (~207 000): der Ton bis ~60 000 (das Rauschen und die Rakete auf dem
+Das schwerste Frame von B (~202 000): der Ton bis ~60 000 (das Rauschen und die Rakete auf dem
 DAC, ~180 Impulse), Platzieren und Kantentests (`display`, `ds_obj`, `ds_edge_test`) ~30 000,
 die Kollisionen (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, die neuen Flusszeilen ~25 000.
 
@@ -112,7 +112,7 @@ Rasterzeile getaktet (`wait_frame`), der Ton durch den DMA, die Farben pro Zeile
 4. `wait_frame`: fragt die aktive Videozeile ab (NR $1E/$1F) bis `wait_line` (208 NTSC, 220 PAL), unter der Laufschrift, wo sich auf dem Bildschirm nichts ändert.
 5. `apply`: Alles Gebaute wird auf einmal wirksam (Scroll und Farben von Layer 2, die Attribute der Sprites, die Kacheln des Panels, die Liste des Coppers).
 
-Mit eingeschaltetem T (`tm_show`) setzt jeder dieser Teile zuerst die Farbe des Rands (`TM_COLOUR`): orange `apply`, grau `prepare` (und `clear_layer2_page` während eines Resets), rot `display`, gelb `build_sprites`, blau `main_loop`, magenta `push_line` (eine neue Flusszeile, innerhalb von `main_loop`), weiß `vbi`, cyan `pokey_frame`, schwarz die übrige Zeit. `push_line` setzt magenta und zurück auf blau.
+Mit eingeschaltetem T (`tm_show`) setzt jeder dieser Teile zuerst die Farbe des Rands (`TM_COLOUR`: es ruft `tm_colour` nur bei eingeschaltetem T; aus kostet es ~30 Takte pro Teil): orange `apply`, grau `prepare` (und `clear_layer2_page` während eines Resets), rot `display`, gelb `build_sprites`, blau `main_loop`, magenta `push_line` (eine neue Flusszeile, innerhalb von `main_loop`), weiß `vbi`, cyan `pokey_frame`, schwarz die übrige Zeit. `push_line` setzt magenta und zurück auf blau.
 
 Die Reihenfolge zählt: `display` nutzt den Zustand, den `main_loop` des vorigen Frames
 hinterließ (so wie der DLI des Atari den Zustand des vorigen Frames zeigt), und `build_sprites`
@@ -213,7 +213,7 @@ schneller das Flugzeug fliegt.
 
 | Routine | aufgerufen | was und wie | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Die Farbtakte 20–179 (`WINDOW_FIRST`) der Zeile in Zeile A von Layer 2, aus den Stücken von `dl_seg` (kein Zeilenpuffer). Layer 2 ist spaltenweise gespeichert (Byte x·256 + y, 32 Spalten pro 8K-Seite), also wird die Zeile die Spalten hinunter geschrieben (`inc h` = die nächste Spalte), 10 Seiten der Reihe nach in Slot 2 gemappt (`rl_next`). Ein Stück eines Werts: seine Farbe einmal aus `pix_tab`, dann `rl_fill` (8 Spalten pro Byte, Seite für Seite; `rl_fill`, `rl_next` in Seite 6, spans.asm); die Bytes einer Kante (aus der Tabelle des ROM) und eine Zeile einer Dekoration (aus ihrem Bitmap im ROM): pro Byte gibt `pix_tab` 2 Punkte pro Takt, jeder zweimal geschrieben; die Bytes vor dem Fenster in den Daten übersprungen. 320 Schreibzugriffe pro Zeile. | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | Die Farbtakte 20–179 (`WINDOW_FIRST`) der Zeile in Zeile A von Layer 2, aus den Stücken von `dl_seg` (kein Zeilenpuffer). Layer 2 ist spaltenweise gespeichert (Byte x·256 + y, 32 Spalten pro 8K-Seite), also wird die Zeile die Spalten hinunter geschrieben (`inc h` = die nächste Spalte), 10 Seiten der Reihe nach in Slot 2 gemappt (`rl_next`). Ein Stück eines Werts: seine Farbe einmal aus `pix_tab`, dann `rl_fill` (8 Spalten pro Byte, Seite für Seite; `rl_fill`, `rl_next` in Seite 6, spans.asm); die Bytes einer Kante (aus der Tabelle des ROM) und eine Zeile einer Dekoration (aus ihrem Bitmap im ROM): pro Byte gibt `pix_tab` 2 Punkte pro Takt, jeder zweimal geschrieben; die Bytes vor dem Fenster in den Daten übersprungen. 320 Schreibzugriffe pro Zeile. In Seite 6 (aus Platzgründen aus Seite 4 verschoben). | 3 900 + 3 800 / 9 400 + 8 300 |
 
 ## spans.asm: die Läufe der Zeilen für die Kollisionen mit dem Playfield
 
@@ -241,10 +241,10 @@ es hinterlässt: `ds_objs` (die Zeilen jedes Objekts für die Sprites: 8 Byte, e
 Zeilenzahl, Zeiger auf Form und Farbe, x, Größe), `ds_bank_ev` (die Wechsel der Uferfarbe, für
 `build_copper`), die Ergebnisse der Kollisionen in HIT und die Kantenflags der Slots.
 
-`display` (~8 400 / 9 500 eigene):
+`display` (~11 800 / 13 500 eigene):
 
 1. Mappt SPAN_PAGE, `dh_lists` (die Deskriptoren der anderen Sprites), die Register gelöscht und gesetzt wie B527–B55C, `bm_hitclr`, `dh_sprites` (HIT = $FF, dann die anderen Sprites mit dem Ufer und untereinander).
-2. `.slot`, pro Slot ab FIRST_SLOT: IY auf der Art des Slots (Seite 5: Typ, X, Größe bei IY + 11, + 22, + 33, dort gelesen, keine Kopien), Y und die Flags behalten (`ds_y`, `ds_flags`), `ds_edge_kind`; der Anfang = max(y, $5D); die erste Zeile = y + height[type] − Anfang (≥ $80: nach oben verschwunden, der nächste); X = Anfang + 3 (über 255: das Ende); Zeilen = min(Zeile + 1, 256 − X); `ds_rowp` das Byte der ersten Zeile; `ds_obj` (die Zeilen in `ds_objs`); eine Brücke: `.road` (die Farbe der Straße ab der Scanline nach jeder ihrer Zeilen, X − 69 + 1; die Uferfarbe des Abschnitts nach der letzten, sofern X nicht umgelaufen ist, über `ds_bank`; die Farbe einer Zeile nur, wenn sie sich von der darüber unterscheidet). Die ersten Zeilen von Form und Farben werden an Ort und Stelle ermittelt (DE, BC für `ds_obj`).
+2. `.slot`, pro Slot ab FIRST_SLOT: IY auf der Art des Slots (Seite 5: Typ, X, Größe bei IY + 11, + 22, + 33, dort gelesen, keine Kopien), Y und die Flags behalten (`ds_y`, `ds_flags`), `ds_edge_kind`; der Anfang = max(y, $5D); die erste Zeile = y + height[type] − Anfang (≥ $80: nach oben verschwunden, der nächste); X = Anfang + 3 (über 255: das Ende); Zeilen = min(Zeile + 1, 256 − X); `ds_rowp` das Byte der ersten Zeile; `ds_obj` (die Zeilen in `ds_objs`); eine Brücke: `.road` (die Farbe der Straße ab der Scanline nach jeder ihrer Zeilen, X − 69 + 1; die Uferfarbe des Abschnitts nach der letzten, sofern X nicht umgelaufen ist, über `ds_bank`; die Farbe einer Zeile nur, wenn sie sich von der darüber unterscheidet). Die ersten Zeilen von Form und Farben werden an Ort und Stelle ermittelt (DE, BC für `ds_obj`). Die Tabellen des ROM (Höhe, Form, Farben) werden mit 8-Bit-Summen gelesen (`ROM_SHAPES` und `ROM_COLOURS` beginnen am Seitenanfang).
 3. Die Kante (P3PF) für die Arten 8–$0D (`ds_edge_kind`: Hubschrauber, Ballons, Schiffe wenden an ihr): `ds_edge_test`, dann `ds_set_flags`.
 4. Gegen die Kugel, die Granate (keine Brücke) und das Flugzeug: `dh_obj`; eine Berührung speichert den Slot (HIT_BULLET_OBJECT, HIT_SHELL_OBJECT, HIT_PLANE_OBJECT), also bleibt der letzte den Bildschirm hinunter.
 5. `.end`: `test_ghost` (Test-Builds); `ds_bank_fill` nur mit `-DBEAM`.
@@ -255,36 +255,35 @@ Zeilenzahl, Zeiger auf Form und Farbe, x, Größe), `ds_bank_ev` (die Wechsel de
 | `ds_set_flags` | `display` | Das Kantenbit des Objekts in die Flags seines Slots (Bit 0). | 1 100 / 1 300 |
 | `ds_bank` | `display` | Ein Wechsel der Uferfarbe ab Scanline A (die Straße einer Brücke und zurück): in `ds_bank_ev`. | |
 | `ds_bank_fill` | Ende von `display`, nur `-DBEAM` | `scan_bank` für jede Flusszeile aus `ds_bank_ev` (das Strahl-Display liest es; nxcheck vergleicht stattdessen die Liste des Coppers mit dem C++-Port). | |
-| `ds_row_hl`, `ds_edge_only` | `display` | HL += `ds_row`; das Kantenbit nur für die Arten, die es lesen. | |
+| `ds_edge_only` | `display` | Das Kantenbit nur für die Arten, die es lesen. | |
 
 ## display_objs.asm
 
 | Routine | aufgerufen | was und wie | A / B |
 |---|---|---|---|
-| `ds_obj` | `display`, pro Objekt mit Zeilen | Die Zeilen des Objekts für die Sprites: erste Scanline, Zeilenzahl, die Adressen von Form und Farbe der ersten Zeile (DE, IY), x, Größe: 8 Byte in `ds_objs` (`DS_OBJS` = höchstens 16). Ein Objekt, dessen erste Zeile auf oder über Zeile 28 (über der Oberkante des Flusses) liegt, wird auf seine ganze Form erweitert (k = Anfang − y Zeilen mehr), also wird das Sprite ganz gezeichnet und das Clip-Fenster der Sprites schneidet es. Am Ende von Seite 4. | 5 400 / 6 300 |
+| `ds_obj` | `display`, pro Objekt mit Zeilen | Die Zeilen des Objekts für die Sprites: erste Scanline, Zeilenzahl, die Adressen von Form und Farbe der ersten Zeile (DE, IY), x, Größe: 8 Byte in `ds_objs` (`DS_OBJS` = höchstens 16). Ein Objekt, dessen erste Zeile auf oder über Zeile 28 (über der Oberkante des Flusses) liegt, wird auf seine ganze Form erweitert (k = Anfang − y Zeilen mehr), also wird das Sprite ganz gezeichnet und das Clip-Fenster der Sprites schneidet es. Am Ende von Seite 4. | 5 300 / 6 100 |
 
 ## display_hits.asm: die Kollisionen als Geometrie
 
 Keine Kollisionsregister und keine Lesezugriffe: Eine Kollision zählt, wenn sie irgendwo auf den
 Zeilen der Sprites geschieht. Fünf andere Sprites werden durch 10-Byte-Deskriptoren in `dh_desc`
-beschrieben (jedes Frame aus `dh_template` kopiert und ausgefüllt): die Basis der Zeilen (low),
-Maske, Rotationen, x, Größe, Spritenummer, erste Zeile, Zeilen, Breite in Takten, die Basis
+beschrieben (was bleibt, einmal beim Start aus `dh_template` kopiert, `dh_init`; den Rest füllt `dh_lists` jedes Frame aus): die Basis der Zeilen (low), Maske (schon auf die Plätze der Punkte gedreht), das Ende der Zeilen (die Zeile nach der letzten; über 255 255), x, Größe, Spritenummer, erste Zeile, Zeilen, Breite in Takten, die Basis
 (high) (`DH_SIZE` = 10; `DH_SHELL`, `DH_TANK`, `DH_PLANE`, `DH_MISSILE`, `DH_BULLET`). Eine Zeile
 auf Zeile L ist das Byte bei Basis + L: die Form des Frames aus dem ROM (Basis = ihre Adresse −
 die erste Zeile, `dh_shape`, `dh_base`); die Zeilen von Rakete und Kugel sind `dh_ones` (alle
-gesetzt) unter ihren Masken ($03; die Kugel $20). Nach einem Reset (`pm_empty`, bis zum nächsten
+gesetzt) unter ihren Masken, schon in der Vorlage auf die Plätze der Punkte gedreht ($03 um 6: $C0; Bit 5 der Kugel um 2: $80), also wird keine Zeile gedreht. Nach einem Reset (`pm_empty`, bis zum nächsten
 `prepare`) keine Zeilen.
 
 | Routine | aufgerufen | was und wie | A / B |
 |---|---|---|---|
-| `dh_lists` | Anfang von `display` | Die Deskriptoren. | 2 000 / 2 000 |
+| `dh_lists` | Anfang von `display` | Zeilen, Positionen und Basen der Deskriptoren; dann das Ende jedes (Feld 2). | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF, dann HIT 0, wo: der Panzer die Kante trifft (P1PF), das Flugzeug das Ufer (P2PF), Rakete und Kugel Ufer oder Kante (M0PF, M2PF): `dh_pf`; das Flugzeug und die Granate (P2PL Bit 0), die Rakete und das Flugzeug (M0PL): `dh_pair`. | |
-| `dh_pf` | `dh_sprites` | NZ: Die Zeilen von Sprite IX treffen das Playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Pro Flusszeile mit Punkten (`dh_bits`): zuerst sein Rechteck (X bis X + seine Takte) in den Lücken der Zeile (A: Bit 0 die `eg_*` der Kante, Bit 1 die `bg_*` des Ufers); darin nichts; sonst die Enden der Zeile gegen die Läufe (die `sp_*`-Funktion). Hält bei der ersten Berührung an. | 8 100 / 9 400 |
+| `dh_pf` | `dh_sprites` | NZ: Die Zeilen von Sprite IX treffen das Playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Pro Flusszeile: zuerst das Byte der Zeile unter der Maske (keine Punkte: die nächste Zeile), dann sein Rechteck (X bis X + seine Takte) in den Lücken der Zeile (A: Bit 0 die `eg_*` der Kante, Bit 1 die `bg_*` des Ufers); darin nichts; sonst die Enden der Zeile gegen die Läufe (die `sp_*`-Funktion). Hält bei der ersten Berührung an. | 10 200 / 11 200 |
 | `sp_edge`, `sp_bank`, `sp_under` | `dh_pf` | Eine Zeile eines Sprites gegen die Läufe der Zeile von Kante (braun), Ufer (grün) oder beidem, wie `spanTouches` des C++-Ports: ihr erster und letzter Punkt (`sp_ends`: `edge_lo`, `edge_hi`, die Breite der Größe, plus X) gegen die Läufe (`sp_runs`), ein Lauf dazwischen eine Berührung; der Datensatz der Zeile über `sp_rec`. | |
 | `dh_pair` | `dh_sprites` | NZ: Die Zeilen zweier Sprites treffen sich: `hit_setup` auf ihren Takten, dann pro Zeile, die beide haben, die Bits jedes (`dh_bits`, `hit_wide` nach seiner Größe) in `hit_a`, `hit_b` und `hit_line`. | |
-| `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Die Bits von Sprite IX auf Zeile A, ab Bit 7 (Z: keine); die Zeile nach seiner letzten. | 4 400 / 4 700 |
-| `dh_obj` | `display`, pro Objekt (Kugel, Granate, Flugzeug) | NZ: Sprite IX berührt die Zeilen des aktuellen Objekts (`ds_rowp`, ab der Zeile von X = `ds_counter`, `ds_rows` davon, bei X und Größe des Slots: IY + 22, + 33). `hit_setup` auf den Takten des Objekts (8, 16 oder 32) und des Sprites, dann die Zeilen, die beide haben; pro Zeile das Zeilenbyte des Objekts (null: die nächste) und die Bits des Sprites, jedes verbreitert (`hit_wide`), `hit_line`. | 5 000 / 6 500 |
-| `hit_setup` | `dh_obj`, `dh_pair` | Z: Die Takte der zwei Rechtecke (B ab, C breit; D ab, E breit) treffen sich nicht; sonst das Fenster, in dem beide auf den Takten des Playfields sind (32–223, höchstens 8 breit): wo es in den Punkten jedes beginnt (`hit_ka`/`hit_sa`, `hit_kb`/`hit_sb`: Byte, Bit) und die Bits seiner Takte (`hit_w`). | 2 300 / 3 700 |
+| `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Die Bits von Sprite IX auf Zeile A: das Byte der Zeile unter der Maske, schon oben (Z: keine); die Zeile nach seiner letzten (`dh_lists` legt sie einmal pro Frame in Feld 2). | 400 / 500 |
+| `dh_obj` | `display`, pro Objekt (Kugel, Granate, Flugzeug) | NZ: Sprite IX berührt die Zeilen des aktuellen Objekts (`ds_rowp`, ab der Zeile von X = `ds_counter`, `ds_rows` davon, bei X und Größe des Slots: IY + 22, + 33). Zuerst die Zeilen, die beide haben (`ds_l1`, `ds_l2` aus `display`, das Ende des Sprites: die meisten Objekte teilen keine mit ihm), dann `hit_setup` auf den Takten des Objekts (8, 16 oder 32) und des Sprites; pro Zeile das Zeilenbyte des Objekts (null: die nächste) und die Bits des Sprites, jedes verbreitert (`hit_wide`), `hit_line`. | 4 900 / 6 100 |
+| `hit_setup` | `dh_obj`, `dh_pair` | Z: Die Takte der zwei Rechtecke (B ab, C breit; D ab, E breit) treffen sich nicht; sonst das Fenster, in dem beide auf den Takten des Playfields sind (32–223, höchstens 8 breit): wo es in den Punkten jedes beginnt (`hit_ka`/`hit_sa`, `hit_kb`/`hit_sb`: Byte, Bit) und die Bits seiner Takte (`hit_w`). | 500 / 700 |
 | `hit_wide` | `dh_obj`, `dh_pair` | Die Punkte von Byte A einen Takt pro Bit in DE und weiter (Größe C: 1, 2 oder 4 Takte pro Punkt, aus `ov_exp2`, `ov_exp4`: Tabellen, die `init_tables` macht), danach eine Null. | |
 | `hit_line` | `dh_obj`, `dh_pair` | NZ: Die Punkte von `hit_a` und `hit_b` treffen sich im Fenster: die zwei Bytes jedes ab seinem Anfang mit `bsla de,b` verschoben (Z80N, 8 Takte), miteinander und mit `hit_w` ver-UND-et. | |
 

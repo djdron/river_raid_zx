@@ -45,9 +45,9 @@ The source routine by routine, what changed in the Next's shared code, and a tab
   second chip's A and B, 3 and 4 the first's B and C. On Xpeccy: turn the General Sound on
   (and TurboSound NedoPC for the AYs).
 
-At 14 MHz a frame's work takes ~69 000 ticks on average in the attract mode, ~111 000 at full
-speed always firing from bridge 80 (-stress), ~181 000 at most, of ~287 000; at 7 MHz it
-still fits, just (~143 000 at most with -stress, of ~143 400; no frame late); at 3.5 MHz it
+At 14 MHz a frame's work takes ~65 000 ticks on average in the attract mode, ~108 000 at full
+speed always firing from bridge 80 (-stress), ~178 000 at most, of ~287 000; at 7 MHz it
+still fits, just (~125 000 at most with -stress, of ~143 400; no frame late); at 3.5 MHz it
 does not keep up.
 
 Memory (16K windows): $0000 the Atari's RAM (page 1; the start's work, page 3, while it runs), $4000 the lines' runs and buffers, the OS

@@ -20,8 +20,8 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 （`NXHISTALL=ファイル`、次に `python3 tools/prof.py build/test.sym ファイル 60`、フレーム数で割る）から取りました。
 ゲームと同じく画面メモリなしの検証ビルド（`-DNOSCREEN`、`NXNOSCREEN=1`）です。2 回の実行：
 
-- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 108 000、最大約 163 000。
-- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 166 000、最大約 207 000（NTSC 約 161 000 / 約 201 000、14 MHz NTSC では約 240 000 のうち約 131 000 / 約 165 000）。
+- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 106 000、最大約 162 000。
+- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 164 000、最大約 202 000（NTSC 約 160 000 / 約 202 000、14 MHz NTSC では約 240 000 のうち約 131 000 / 約 165 000）。
 
 1 フレームは PAL で約 567 000 サイクル、NTSC で約 481 000（14 MHz ではその半分）。`apply`（とその中の
 `panel_frame`）は計測される処理の後（スクロールテキストの下）で動き、この数値には入りません：1 フレーム約 7 400。
@@ -31,42 +31,42 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 45 800 | 61 600 |
-| 音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 500 | 38 900 |
-| 川の新しい行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 16 500 | 39 000 |
-| スプライトと Copper リスト（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 11 100 | 15 900 |
-| ゲームロジックとその他（`prepare`、`main_loop`、`move_objects`、`random_step`、パネル表示など） | 9 800 | 11 100 |
+| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 41 300 | 55 200 |
+| 音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
+| 川の新しい行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 18 800 | 44 000 |
+| スプライトと Copper リスト（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 10 900 | 15 900 |
+| ゲームロジックとその他（`prepare`、`main_loop`、`move_objects`、`random_step`、パネル表示など） | 9 400 | 10 500 |
 
 最も重いルーチン（A / B）：
 
 | ルーチン | A | B | ファイル |
 |---|---|---|---|
-| `display`（自身のコード） | 11 500 | 13 100 | display_simple |
+| `display`（自身のコード） | 11 800 | 13 500 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
+| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `dh_pf` | 8 100 | 9 400 | display_hits |
-| `snd_sum` | 8 600 | 8 600 | sound |
 | `render_line` | 3 900 | 9 400 | render |
+| `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `dh_obj` | 5 000 | 6 500 | display_hits |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
+| `dh_obj` | 4 900 | 6 100 | display_hits |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
-| `dh_bits` | 4 200 | 4 400 | display_hits |
 | `move_objects` | 2 000 | 3 900 | game |
-| `hit_setup` | 2 300 | 3 700 | display_hits |
+| `dl_fill` | 1 600 | 3 700 | river_gen |
 | `ay_out` | 3 400 | 3 400 | sound_ay_run |
 | `snd_fill` | 2 800 | 2 800 | sound |
 | `ay_frame` | 2 200 | 2 800 | sound_ay_run |
-| `pk_channel` | 1 200 | 2 800 | sound_pulses |
-| `pokey_frame`（自身のコード） | 2 500 | 2 600 | sound |
+| `pk_channel` | 1 200 | 2 700 | sound_pulses |
+| `pokey_frame`（自身のコード） | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
-| `dh_lists` | 2 000 | 2 000 | display_hits |
-| `pk_g4` | 0 | 1 400（ミサイルが鳴るフレームでは約 9 000） | sound_pulses |
+| `pk_g4` | 0 | 1 400 （ミサイルが鳴るフレームでは約 9 000） | sound_pulses |
+| `dh_lists` | 1 300 | 1 300 | display_hits |
 | `build_copper` | 1 100 | 1 000 | sprites |
+| `hit_setup` | 500 | 700 | display_hits |
 
-B で最も重いフレーム（約 207 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
+B で最も重いフレーム（約 202 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
 岸の判定（`display`、`ds_obj`、`ds_edge_test`）約 30 000、衝突（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）約
 25 000、川の新しい行約 25 000。
 
@@ -105,7 +105,7 @@ Copper が受け持ちます。
 4. `wait_frame`：現在のビデオ行（NR $1E/$1F）を `wait_line`（NTSC 208、PAL 220）になるまでポーリング。スクロールテキストの下で、画面上は何も変わらない場所です。
 5. `apply`：作ったものをまとめて有効にする（Layer 2 のスクロールと色、スプライト属性、パネルのタイル、Copper リスト）。
 
-T をオン（`tm_show`）にすると、各部分はまずボーダーの色を設定します（`TM_COLOUR`）：オレンジ `apply`、灰 `prepare`（リセット中は `clear_layer2_page` も）、赤 `display`、黄 `build_sprites`、青 `main_loop`、マゼンタ `push_line`（川の新しい 1 行、`main_loop` の中）、白 `vbi`、シアン `pokey_frame`、黒が残り時間。`push_line` はマゼンタにしてから青に戻します。
+T をオン（`tm_show`）にすると、各部分はまずボーダーの色を設定します（`TM_COLOUR`：T がオンのときだけ `tm_colour` を呼ぶ。オフならパートごとに約 30 クロック）：オレンジ `apply`、灰 `prepare`（リセット中は `clear_layer2_page` も）、赤 `display`、黄 `build_sprites`、青 `main_loop`、マゼンタ `push_line`（川の新しい 1 行、`main_loop` の中）、白 `vbi`、シアン `pokey_frame`、黒が残り時間。`push_line` はマゼンタにしてから青に戻します。
 
 順序が大事です。`display` は前のフレームの `main_loop` が残した状態を使い（Atari の DLI が前フレームの状態を映すのと
 同じ）、`build_sprites` は `display` が残したものを使います。
@@ -199,7 +199,7 @@ $B800 のテーブル内での部品のオフセット、1 は同じ値のバイ
 
 | ルーチン | 呼び出し | 何をどうする | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | 行のカラークロック 20–179（`WINDOW_FIRST`）を Layer 2 の A 行目へ、`dl_seg` の部品から（行バッファなし）。Layer 2 は列単位に格納（バイト x·256 + y、8K ページに 32 列）なので、行は列を下りながら書く（`inc h` = 次の列）。10 ページを順にスロット 2 へマップ（`rl_next`）。同じ値の部品：その色を `pix_tab` から一度取り、あとは `rl_fill`（1 バイトにつき 8 列、ページごと。`rl_fill`、`rl_next` はページ 6 の spans.asm）。縁のバイト（ROM のテーブルから）と装飾の 1 行（ROM のビットマップから）：1 バイトごとに `pix_tab` がクロックあたり 2 点を与え、それぞれ 2 回書く。窓より前のバイトはデータ上で飛ばす。1 行 320 回の書き込み。 | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | 行のカラークロック 20–179（`WINDOW_FIRST`）を Layer 2 の A 行目へ、`dl_seg` の部品から（行バッファなし）。Layer 2 は列単位に格納（バイト x·256 + y、8K ページに 32 列）なので、行は列を下りながら書く（`inc h` = 次の列）。10 ページを順にスロット 2 へマップ（`rl_next`）。同じ値の部品：その色を `pix_tab` から一度取り、あとは `rl_fill`（1 バイトにつき 8 列、ページごと。`rl_fill`、`rl_next` はページ 6 の spans.asm）。縁のバイト（ROM のテーブルから）と装飾の 1 行（ROM のビットマップから）：1 バイトごとに `pix_tab` がクロックあたり 2 点を与え、それぞれ 2 回書く。窓より前のバイトはデータ上で飛ばす。1 行 320 回の書き込み。ページ 6 にある（場所のためページ 4 から移した）。 | 3 900 + 3 800 / 9 400 + 8 300 |
 
 ## spans.asm：playfield との衝突に使う行ごとのラン
 
@@ -224,10 +224,10 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 行数、形と色のポインタ、x、サイズ）、`ds_bank_ev`（岸の色の変化、`build_copper` 用）、HIT の衝突結果、
 スロットの岸フラグ。
 
-`display`（自身約 8 400 / 9 500）：
+`display`（自身約 11 800 / 13 500）：
 
 1. SPAN_PAGE をマップ、`dh_lists`（他のスプライトの記述子）、B527–B55C と同じくレジスタをクリアして設定、`bm_hitclr`、`dh_sprites`（HIT = $FF、次に他のスプライトと岸、スプライト同士）。
-2. `.slot`、FIRST_SLOT からの各スロット：IY をスロットの見た目の種類へ（ページ 5：種類、X、サイズは IY + 11、+ 22、+ 33 にあり、その場で読みコピーしない）、Y とフラグを保持（`ds_y`、`ds_flags`）、`ds_edge_kind`。開始 = max(y, $5D)、最初の行 = y + height[type] − 開始（≥ $80：上に消えた、次へ）、X = 開始 + 3（255 を超えたら終わり）、行数 = min(行 + 1, 256 − X)、`ds_rowp` は最初の行のバイト、`ds_obj`（行を `ds_objs` へ）。橋なら `.road`（各行の後の走査線からの道路の色、X − 69 + 1。最後の行の後は X が一周していなければセクションの岸の色、`ds_bank` 経由。行の色は上の行と違うときだけ記録）。形と色の最初の行はその場で計算する（DE、BC を `ds_obj` へ）。
+2. `.slot`、FIRST_SLOT からの各スロット：IY をスロットの見た目の種類へ（ページ 5：種類、X、サイズは IY + 11、+ 22、+ 33 にあり、その場で読みコピーしない）、Y とフラグを保持（`ds_y`、`ds_flags`）、`ds_edge_kind`。開始 = max(y, $5D)、最初の行 = y + height[type] − 開始（≥ $80：上に消えた、次へ）、X = 開始 + 3（255 を超えたら終わり）、行数 = min(行 + 1, 256 − X)、`ds_rowp` は最初の行のバイト、`ds_obj`（行を `ds_objs` へ）。橋なら `.road`（各行の後の走査線からの道路の色、X − 69 + 1。最後の行の後は X が一周していなければセクションの岸の色、`ds_bank` 経由。行の色は上の行と違うときだけ記録）。形と色の最初の行はその場で計算する（DE、BC を `ds_obj` へ）。ROM のテーブル（高さ、形、色）は 8 ビットの加算で読む（`ROM_SHAPES` と `ROM_COLOURS` はページの先頭から始まる）。
 3. 種類 8–$0D について縁（P3PF）を判定（`ds_edge_kind`：ヘリ、気球、船はそこで向きを変える）：`ds_edge_test`、次に `ds_set_flags`。
 4. 弾、戦車の砲弾（橋は除く）、飛行機との判定：`dh_obj`。当たるとスロットを記録（HIT_BULLET_OBJECT、HIT_SHELL_OBJECT、HIT_PLANE_OBJECT）するので、画面を下へ見て最後のものが残る。
 5. `.end`：`test_ghost`（テストビルド）。`ds_bank_fill` は `-DBEAM` のみ。
@@ -238,33 +238,32 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 | `ds_set_flags` | `display` | 物体の岸ビットをスロットのフラグ（ビット 0）へ。 | 1 100 / 1 300 |
 | `ds_bank` | `display` | 走査線 A からの岸の色の変化（橋の道路とその戻り）：`ds_bank_ev` へ。 | |
 | `ds_bank_fill` | `display` の最後、`-DBEAM` のみ | `ds_bank_ev` から川の各行の `scan_bank`（ビームの display が読む。nxcheck は代わりに Copper リストを C++ 版と比べる）。 | |
-| `ds_row_hl`、`ds_edge_only` | `display` | HL += `ds_row`。岸ビットはそれを読む種類だけ。 | |
+| `ds_edge_only` | `display` | 岸ビットはそれを読む種類だけ。 | |
 
 ## display_objs.asm
 
 | ルーチン | 呼び出し | 何をどうする | A / B |
 |---|---|---|---|
-| `ds_obj` | `display`、行を持つ物体ごと | スプライト用の物体の行：最初の走査線、行数、最初の行の形と色のアドレス（DE、IY）、x、サイズ。`ds_objs` に 8 バイト（`DS_OBJS` = 最大 16）。最初の行が 28 行目かそれより上（川の上端より上）の物体は形全体に広げる（k = 開始 − y 行を追加）。スプライトを丸ごと描き、スプライトのクリップ窓で切るため。ページ 4 の末尾。 | 5 400 / 6 300 |
+| `ds_obj` | `display`、行を持つ物体ごと | スプライト用の物体の行：最初の走査線、行数、最初の行の形と色のアドレス（DE、IY）、x、サイズ。`ds_objs` に 8 バイト（`DS_OBJS` = 最大 16）。最初の行が 28 行目かそれより上（川の上端より上）の物体は形全体に広げる（k = 開始 − y 行を追加）。スプライトを丸ごと描き、スプライトのクリップ窓で切るため。ページ 4 の末尾。 | 5 300 / 6 100 |
 
 ## display_hits.asm：幾何としての衝突
 
 衝突レジスタもその読み出しもありません。スプライトの行のどこかで重なれば衝突です。他の 5 つのスプライトは
-`dh_desc` の 10 バイトの記述子で表します（毎フレーム `dh_template` からコピーして埋める）：行のベース（下位）、
-マスク、シフト、x、サイズ、スプライト番号、最初の行、行数、クロック幅、ベース（上位）（`DH_SIZE` = 10、
+`dh_desc` の 10 バイトの記述子で表します（変わらない部分は起動時に `dh_template` から一度コピー、`dh_init`。残りは `dh_lists` が毎フレーム埋める）：行のベース（下位）、マスク（すでに点の位置へ回してある）、行の終わり（最後の行の次の行。255 を超えたら 255）、x、サイズ、スプライト番号、最初の行、行数、クロック幅、ベース（上位）（`DH_SIZE` = 10、
 `DH_SHELL`、`DH_TANK`、`DH_PLANE`、`DH_MISSILE`、`DH_BULLET`）。L 行目の行はベース + L のバイトです：そのフレーム
 の形は ROM から直接（ベース = アドレス − 最初の行、`dh_shape`、`dh_base`）。ミサイルと弾の行は `dh_ones`（すべて
-1）にそれぞれのマスクをかけたもの（$03、弾は $20）。リセット後（`pm_empty`、次の `prepare` まで）は行なし。
+1）にそれぞれのマスクをかけたもの。マスクはテンプレートの時点で点の位置へ回してある（$03 を 6 回して $C0、弾のビット 5 を 2 回して $80）ので、行を回すことはない。リセット後（`pm_empty`、次の `prepare` まで）は行なし。
 
 | ルーチン | 呼び出し | 何をどうする | A / B |
 |---|---|---|---|
-| `dh_lists` | `display` の最初 | 記述子。 | 2 000 / 2 000 |
+| `dh_lists` | `display` の最初 | 記述子の行数、位置、ベース。そのあと各々の終わり（フィールド 2）。 | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF、次に以下で HIT 0：戦車が縁に（P1PF）、飛行機が岸に（P2PF）、ミサイルと弾が岸か縁に（M0PF、M2PF）：`dh_pf`。飛行機と戦車の砲弾（P2PL ビット 0）、ミサイルと飛行機（M0PL）：`dh_pair`。 | |
-| `dh_pf` | `dh_sprites` | NZ：スプライト IX の行が playfield に触れる（DE：`sp_edge`、`sp_bank`、`sp_under`）。点のある川の行ごと（`dh_bits`）に、まずその箱（X から X + クロック数）がその行の隙間に入るか（A：ビット 0 は縁の `eg_*`、ビット 1 は岸の `bg_*`）。入れば何もなし。そうでなければ行の両端をランと比べる（`sp_*` 関数）。最初の接触で止まる。 | 8 100 / 9 400 |
+| `dh_pf` | `dh_sprites` | NZ：スプライト IX の行が playfield に触れる（DE：`sp_edge`、`sp_bank`、`sp_under`）。川の行ごとに、まずマスクをかけた行のバイト（点がなければ次の行）、次にその箱（X から X + クロック数）がその行の隙間に入るか（A：ビット 0 は縁の `eg_*`、ビット 1 は岸の `bg_*`）。入れば何もなし。そうでなければ行の両端をランと比べる（`sp_*` 関数）。最初の接触で止まる。 | 10 200 / 11 200 |
 | `sp_edge`、`sp_bank`、`sp_under` | `dh_pf` | スプライトの 1 行をその走査行の縁（茶）、岸（緑）、または両方のランと比べる。C++ 版の `spanTouches` と同じ：最初と最後の点（`sp_ends`：`edge_lo`、`edge_hi`、サイズの幅、X を足す）をラン（`sp_runs`）と比べ、間にランがあれば接触。行のレコードは `sp_rec` で取る。 | |
 | `dh_pair` | `dh_sprites` | NZ：2 つのスプライトの行が重なる：そのクロックで `hit_setup`、次に両方が持つ各行で、それぞれのビット（`dh_bits`、サイズに応じて `hit_wide`）を `hit_a`、`hit_b` へ入れて `hit_line`。 | |
-| `dh_bits`、`dh_end` | `dh_pf`、`dh_pair`、`dh_obj` | A 行目でのスプライト IX のビット、ビット 7 から（Z：なし）。最後の行の次の行。 | 4 400 / 4 700 |
-| `dh_obj` | `display`、物体ごと（弾、砲弾、飛行機） | NZ：スプライト IX が現在の物体の行に触れる（`ds_rowp`、X = `ds_counter` の行から `ds_rows` 行、スロットの X とサイズ：IY + 22、+ 33）。物体（8、16、32）とスプライトのクロックで `hit_setup`、次に両方が持つ行。行ごとに物体の行のバイト（ゼロなら次）とスプライトのビットを、それぞれ広げて（`hit_wide`）`hit_line`。 | 5 000 / 6 500 |
-| `hit_setup` | `dh_obj`、`dh_pair` | Z：2 つの箱のクロック（B から C 幅、D から E 幅）が重ならない。そうでなければ両方が playfield のクロック（32–223、最大幅 8）にある窓：それぞれの点のどこから始まるか（`hit_ka`/`hit_sa`、`hit_kb`/`hit_sb`：バイト、ビット）とそのクロックのビット（`hit_w`）。 | 2 300 / 3 700 |
+| `dh_bits`、`dh_end` | `dh_pf`、`dh_pair`、`dh_obj` | A 行目でのスプライト IX のビット：マスクをかけた行のバイト、すでに上位にある（Z：なし）。最後の行の次の行（`dh_lists` がフレームに一度フィールド 2 に入れる）。 | 400 / 500 |
+| `dh_obj` | `display`、物体ごと（弾、砲弾、飛行機） | NZ：スプライト IX が現在の物体の行に触れる（`ds_rowp`、X = `ds_counter` の行から `ds_rows` 行、スロットの X とサイズ：IY + 22、+ 33）。まず両方が持つ行（`display` の `ds_l1`、`ds_l2` とスプライトの終わり。たいていの物体は共通の行を持たない）、次に物体（8、16、32）とスプライトのクロックで `hit_setup`。行ごとに物体の行のバイト（ゼロなら次）とスプライトのビットを、それぞれ広げて（`hit_wide`）`hit_line`。 | 4 900 / 6 100 |
+| `hit_setup` | `dh_obj`、`dh_pair` | Z：2 つの箱のクロック（B から C 幅、D から E 幅）が重ならない。そうでなければ両方が playfield のクロック（32–223、最大幅 8）にある窓：それぞれの点のどこから始まるか（`hit_ka`/`hit_sa`、`hit_kb`/`hit_sb`：バイト、ビット）とそのクロックのビット（`hit_w`）。 | 500 / 700 |
 | `hit_wide` | `dh_obj`、`dh_pair` | バイト A の点を 1 ビット 1 クロックで DE 以降へ（サイズ C：1 点 1、2、4 クロック、`init_tables` が作るテーブル `ov_exp2`、`ov_exp4` から）、最後にゼロ。 | |
 | `hit_line` | `dh_obj`、`dh_pair` | NZ：`hit_a` と `hit_b` の点が窓の中で重なる：それぞれの開始から 2 バイトを `bsla de,b`（Z80N、8 サイクル）でシフトし、互いに AND して `hit_w` とも AND。 | |
 

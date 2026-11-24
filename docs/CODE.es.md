@@ -23,8 +23,8 @@ de nxcheck (`NXHISTALL=archivo`, luego `python3 tools/prof.py build/test.sym arc
 dividido entre los fotogramas), sobre la compilación de verificación sin memoria de pantalla,
 como la tiene el juego (`-DNOSCREEN`, `NXNOSCREEN=1`). Dos ejecuciones:
 
-- **A**: PAL, bot 1, 3 000 fotogramas desde el inicio (el comienzo habitual de una partida): ~108 000 por fotograma de media, como máximo ~163 000;
-- **B**: `-stress` desde el puente 80, PAL, 6 000 fotogramas (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: todos los slots ocupados, a toda velocidad, disparando siempre): ~166 000 de media, como máximo ~207 000 (NTSC ~161 000 / ~201 000; a 14 MHz NTSC ~131 000 / ~165 000 de ~240 000).
+- **A**: PAL, bot 1, 3 000 fotogramas desde el inicio (el comienzo habitual de una partida): ~106 000 por fotograma de media, como máximo ~162 000;
+- **B**: `-stress` desde el puente 80, PAL, 6 000 fotogramas (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: todos los slots ocupados, a toda velocidad, disparando siempre): ~164 000 de media, como máximo ~202 000 (NTSC ~160 000 / ~202 000; a 14 MHz NTSC ~131 000 / ~165 000 de ~240 000).
 
 Un fotograma tiene ~567 000 ciclos en PAL y ~481 000 en NTSC (la mitad a 14 MHz). `apply` (y
 con ella `panel_frame`) se ejecuta tras el trabajo medido (debajo del rótulo desplazable) y no
@@ -35,42 +35,42 @@ Por partes (A / B):
 
 | parte | A | B |
 |---|---|---|
-| el display: colocación de objetos y colisiones (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 45 800 | 61 600 |
-| sonido (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 500 | 38 900 |
-| líneas nuevas del río (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 16 500 | 39 000 |
-| sprites y la lista del Copper (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 11 100 | 15 900 |
-| la lógica del juego y el resto (`prepare`, `main_loop`, `move_objects`, `random_step`, la impresión del panel, …) | 9 800 | 11 100 |
+| el display: colocación de objetos y colisiones (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 41 300 | 55 200 |
+| sonido (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
+| líneas nuevas del río (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 18 800 | 44 000 |
+| sprites y la lista del Copper (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 10 900 | 15 900 |
+| la lógica del juego y el resto (`prepare`, `main_loop`, `move_objects`, `random_step`, la impresión del panel, …) | 9 400 | 10 500 |
 
 Las rutinas más costosas (A / B):
 
 | rutina | A | B | archivo |
 |---|---|---|---|
-| `display` (código propio) | 11 500 | 13 100 | display_simple |
+| `display` (código propio) | 11 800 | 13 500 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
+| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `dh_pf` | 8 100 | 9 400 | display_hits |
-| `snd_sum` | 8 600 | 8 600 | sound |
 | `render_line` | 3 900 | 9 400 | render |
+| `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `dh_obj` | 5 000 | 6 500 | display_hits |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
+| `dh_obj` | 4 900 | 6 100 | display_hits |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
-| `dh_bits` | 4 200 | 4 400 | display_hits |
 | `move_objects` | 2 000 | 3 900 | game |
-| `hit_setup` | 2 300 | 3 700 | display_hits |
+| `dl_fill` | 1 600 | 3 700 | river_gen |
 | `ay_out` | 3 400 | 3 400 | sound_ay_run |
 | `snd_fill` | 2 800 | 2 800 | sound |
 | `ay_frame` | 2 200 | 2 800 | sound_ay_run |
-| `pk_channel` | 1 200 | 2 800 | sound_pulses |
-| `pokey_frame` (código propio) | 2 500 | 2 600 | sound |
+| `pk_channel` | 1 200 | 2 700 | sound_pulses |
+| `pokey_frame` (código propio) | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
-| `dh_lists` | 2 000 | 2 000 | display_hits |
 | `pk_g4` | 0 | 1 400 (~9 000 en un fotograma en que suena el misil) | sound_pulses |
+| `dh_lists` | 1 300 | 1 300 | display_hits |
 | `build_copper` | 1 100 | 1 000 | sprites |
+| `hit_setup` | 500 | 700 | display_hits |
 
-El fotograma más pesado de B (~207 000): el sonido hasta ~60 000 (el ruido y el misil por el
+El fotograma más pesado de B (~202 000): el sonido hasta ~60 000 (el ruido y el misil por el
 DAC, ~180 pulsos), la colocación y las pruebas del borde (`display`, `ds_obj`, `ds_edge_test`)
 ~30 000, las colisiones (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, las líneas nuevas del
 río ~25 000.
@@ -113,7 +113,7 @@ el Copper.
 4. `wait_frame`: consulta la línea de vídeo activa (NR $1E/$1F) hasta `wait_line` (208 NTSC, 220 PAL), debajo del rótulo desplazable, donde en pantalla no cambia nada.
 5. `apply`: todo lo construido se activa a la vez (desplazamiento y colores del Layer 2, los atributos de los sprites, los tiles del panel, la lista del Copper).
 
-Con T activado (`tm_show`), cada una de estas partes pone primero el color del borde (`TM_COLOUR`): naranja `apply`, gris `prepare` (y `clear_layer2_page` durante un reinicio), rojo `display`, amarillo `build_sprites`, azul `main_loop`, magenta `push_line` (una línea nueva del río, dentro de `main_loop`), blanco `vbi`, cian `pokey_frame`, negro el tiempo que sobra. `push_line` pone magenta y luego de nuevo azul.
+Con T activado (`tm_show`), cada una de estas partes pone primero el color del borde (`TM_COLOUR`: llama a `tm_colour` solo con T activado; apagado cuesta ~30 ciclos por parte): naranja `apply`, gris `prepare` (y `clear_layer2_page` durante un reinicio), rojo `display`, amarillo `build_sprites`, azul `main_loop`, magenta `push_line` (una línea nueva del río, dentro de `main_loop`), blanco `vbi`, cian `pokey_frame`, negro el tiempo que sobra. `push_line` pone magenta y luego de nuevo azul.
 
 El orden importa: `display` usa el estado que dejó el `main_loop` del fotograma anterior (igual
 que el DLI del Atari muestra el estado del fotograma anterior), y `build_sprites` usa lo que dejó
@@ -215,7 +215,7 @@ vuela el avión.
 
 | rutina | llamada | qué y cómo | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Los ciclos de color 20–179 (`WINDOW_FIRST`) de la línea en la fila A del Layer 2, a partir de las piezas de `dl_seg` (sin búfer de línea). El Layer 2 se guarda por columnas (byte x·256 + y, 32 columnas por página de 8K), así que la fila se escribe columna abajo (`inc h` = la columna siguiente), con 10 páginas mapeadas por turno en el slot 2 (`rl_next`). Una pieza de un solo valor: su color una vez desde `pix_tab`, luego `rl_fill` (8 columnas por byte, página a página; `rl_fill`, `rl_next` en la página 6, spans.asm); los bytes de un borde (de la tabla de la ROM) y una fila de decoración (de su mapa de bits en la ROM): por byte `pix_tab` da 2 puntos por ciclo, cada uno escrito dos veces; los bytes antes de la ventana se saltan en los datos. 320 escrituras por fila. | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | Los ciclos de color 20–179 (`WINDOW_FIRST`) de la línea en la fila A del Layer 2, a partir de las piezas de `dl_seg` (sin búfer de línea). El Layer 2 se guarda por columnas (byte x·256 + y, 32 columnas por página de 8K), así que la fila se escribe columna abajo (`inc h` = la columna siguiente), con 10 páginas mapeadas por turno en el slot 2 (`rl_next`). Una pieza de un solo valor: su color una vez desde `pix_tab`, luego `rl_fill` (8 columnas por byte, página a página; `rl_fill`, `rl_next` en la página 6, spans.asm); los bytes de un borde (de la tabla de la ROM) y una fila de decoración (de su mapa de bits en la ROM): por byte `pix_tab` da 2 puntos por ciclo, cada uno escrito dos veces; los bytes antes de la ventana se saltan en los datos. 320 escrituras por fila. En la página 6 (movida de la página 4 por espacio). | 3 900 + 3 800 / 9 400 + 8 300 |
 
 ## spans.asm: los tramos de las líneas para las colisiones con el playfield
 
@@ -244,10 +244,10 @@ de su slot, recortado al río, y sus colisiones son geometría sencilla. Lo que 
 forma y color, x, tamaño), `ds_bank_ev` (los cambios del color de la orilla, para
 `build_copper`), los resultados de las colisiones en HIT y los indicadores de borde de los slots.
 
-`display` (~8 400 / 9 500 propios):
+`display` (~11 800 / 13 500 propios):
 
 1. Mapea SPAN_PAGE, `dh_lists` (los descriptores de los otros sprites), los registros limpiados y ajustados como B527–B55C, `bm_hitclr`, `dh_sprites` (HIT = $FF, luego los otros sprites contra la orilla y entre sí).
-2. `.slot`, para cada slot desde FIRST_SLOT: IY sobre el tipo de aspecto del slot (página 5: tipo, X, tamaño en IY + 11, + 22, + 33, leídos allí, sin copia), Y e indicadores guardados (`ds_y`, `ds_flags`), `ds_edge_kind`; el inicio = max(y, $5D); la primera fila = y + height[type] − inicio (≥ $80: desaparecido arriba, el siguiente); X = inicio + 3 (pasado 255: el final); filas = min(fila + 1, 256 − X); `ds_rowp` el byte de la primera fila; `ds_obj` (las filas en `ds_objs`); un puente: `.road` (el color de la carretera desde la línea de barrido tras cada una de sus filas, X − 69 + 1; el color de la orilla de la sección tras la última salvo que X haya dado la vuelta, mediante `ds_bank`; el color de una línea solo cuando difiere de la línea de encima). Las primeras filas de forma y colores se calculan en el sitio (DE, BC para `ds_obj`).
+2. `.slot`, para cada slot desde FIRST_SLOT: IY sobre el tipo de aspecto del slot (página 5: tipo, X, tamaño en IY + 11, + 22, + 33, leídos allí, sin copia), Y e indicadores guardados (`ds_y`, `ds_flags`), `ds_edge_kind`; el inicio = max(y, $5D); la primera fila = y + height[type] − inicio (≥ $80: desaparecido arriba, el siguiente); X = inicio + 3 (pasado 255: el final); filas = min(fila + 1, 256 − X); `ds_rowp` el byte de la primera fila; `ds_obj` (las filas en `ds_objs`); un puente: `.road` (el color de la carretera desde la línea de barrido tras cada una de sus filas, X − 69 + 1; el color de la orilla de la sección tras la última salvo que X haya dado la vuelta, mediante `ds_bank`; el color de una línea solo cuando difiere de la línea de encima). Las primeras filas de forma y colores se calculan en el sitio (DE, BC para `ds_obj`). Las tablas de la ROM (altura, forma, colores) se leen con sumas de 8 bits (`ROM_SHAPES` y `ROM_COLOURS` empiezan al principio de página).
 3. El borde (P3PF) para los tipos 8–$0D (`ds_edge_kind`: helicópteros, globos, barcos giran en él): `ds_edge_test`, luego `ds_set_flags`.
 4. Contra la bala, el proyectil del tanque (no un puente) y el avión: `dh_obj`; un contacto guarda el slot (HIT_BULLET_OBJECT, HIT_SHELL_OBJECT, HIT_PLANE_OBJECT), así que queda el último bajando por la pantalla.
 5. `.end`: `test_ghost` (compilaciones de prueba); `ds_bank_fill` solo con `-DBEAM`.
@@ -258,36 +258,35 @@ forma y color, x, tamaño), `ds_bank_ev` (los cambios del color de la orilla, pa
 | `ds_set_flags` | `display` | El bit de borde del objeto en los indicadores de su slot (bit 0). | 1 100 / 1 300 |
 | `ds_bank` | `display` | Un cambio del color de la orilla desde la línea de barrido A (la carretera de un puente y vuelta): en `ds_bank_ev`. | |
 | `ds_bank_fill` | final de `display`, solo `-DBEAM` | `scan_bank` para cada línea del río a partir de `ds_bank_ev` (lo lee el display del haz; nxcheck compara en cambio la lista del Copper con el port en C++). | |
-| `ds_row_hl`, `ds_edge_only` | `display` | HL += `ds_row`; el bit de borde solo para los tipos que lo leen. | |
+| `ds_edge_only` | `display` | El bit de borde solo para los tipos que lo leen. | |
 
 ## display_objs.asm
 
 | rutina | llamada | qué y cómo | A / B |
 |---|---|---|---|
-| `ds_obj` | `display`, por objeto con filas | Las filas del objeto para los sprites: primera línea de barrido, número de filas, las direcciones de forma y color de la primera fila (DE, IY), x, tamaño: 8 bytes en `ds_objs` (`DS_OBJS` = como máximo 16). Un objeto cuya primera fila está en la línea 28 o por encima (encima de lo alto del río) se amplía a toda su forma (k = inicio − y filas más), así el sprite se dibuja entero y la ventana de recorte de los sprites lo corta. Al final de la página 4. | 5 400 / 6 300 |
+| `ds_obj` | `display`, por objeto con filas | Las filas del objeto para los sprites: primera línea de barrido, número de filas, las direcciones de forma y color de la primera fila (DE, IY), x, tamaño: 8 bytes en `ds_objs` (`DS_OBJS` = como máximo 16). Un objeto cuya primera fila está en la línea 28 o por encima (encima de lo alto del río) se amplía a toda su forma (k = inicio − y filas más), así el sprite se dibuja entero y la ventana de recorte de los sprites lo corta. Al final de la página 4. | 5 300 / 6 100 |
 
 ## display_hits.asm: las colisiones como geometría
 
 Ningún registro de colisión ni lectura: una colisión cuenta si ocurre en cualquier punto de las
 filas de los sprites. Cinco sprites más se describen con descriptores de 10 bytes en `dh_desc`
-(copiados de `dh_template` en cada fotograma y rellenados): la base de las filas (baja), máscara,
-rotaciones, x, tamaño, número de sprite, primera línea, filas, ancho en ciclos, la base (alta)
+(lo que no cambia se copia de `dh_template` una vez al arrancar, `dh_init`; el resto lo rellena `dh_lists` en cada fotograma): la base de las filas (baja), máscara (ya girada a los sitios de los puntos), el final de las filas (la línea tras la última; pasado 255, 255), x, tamaño, número de sprite, primera línea, filas, ancho en ciclos, la base (alta)
 (`DH_SIZE` = 10; `DH_SHELL`, `DH_TANK`, `DH_PLANE`, `DH_MISSILE`, `DH_BULLET`). Una fila en la
 línea L es el byte en base + L: la forma del fotograma desde la ROM (base = su dirección − la
 primera línea, `dh_shape`, `dh_base`); las filas del misil y de la bala son `dh_ones` (todo unos)
-bajo sus máscaras ($03; la bala $20). Tras un reinicio (`pm_empty`, hasta el siguiente `prepare`)
+bajo sus máscaras, giradas a los sitios de los puntos ya en la plantilla ($03 en 6: $C0; el bit 5 de la bala en 2: $80), así que ninguna fila se gira. Tras un reinicio (`pm_empty`, hasta el siguiente `prepare`)
 ninguna fila.
 
 | rutina | llamada | qué y cómo | A / B |
 |---|---|---|---|
-| `dh_lists` | inicio de `display` | Los descriptores. | 2 000 / 2 000 |
+| `dh_lists` | inicio de `display` | Filas, posiciones y bases de los descriptores; luego el final de cada uno (campo 2). | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF, luego HIT 0 donde: el tanque toca el borde (P1PF), el avión la orilla (P2PF), el misil y la bala la orilla o el borde (M0PF, M2PF): `dh_pf`; el avión y el proyectil del tanque (P2PL bit 0), el misil y el avión (M0PL): `dh_pair`. | |
-| `dh_pf` | `dh_sprites` | NZ: las filas del sprite IX tocan el playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Por línea del río con puntos (`dh_bits`): primero su caja (de X a X + sus ciclos) en los huecos de la línea (A: bit 0 los `eg_*` del borde, bit 1 los `bg_*` de la orilla); dentro, nada; si no, los extremos de la fila contra los tramos (la función `sp_*`). Se detiene en el primer contacto. | 8 100 / 9 400 |
+| `dh_pf` | `dh_sprites` | NZ: las filas del sprite IX tocan el playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Por línea del río: primero el byte de la fila bajo la máscara (sin puntos: la línea siguiente), luego su caja (de X a X + sus ciclos) en los huecos de la línea (A: bit 0 los `eg_*` del borde, bit 1 los `bg_*` de la orilla); dentro, nada; si no, los extremos de la fila contra los tramos (la función `sp_*`). Se detiene en el primer contacto. | 10 200 / 11 200 |
 | `sp_edge`, `sp_bank`, `sp_under` | `dh_pf` | La fila de un sprite contra los tramos de la línea de borde (marrón), orilla (verde) o ambos, como el `spanTouches` del port en C++: su primer y último punto (`sp_ends`: `edge_lo`, `edge_hi`, el ancho del tamaño, más X) contra los tramos (`sp_runs`), un tramo entre ellos es un contacto; el registro de la línea vía `sp_rec`. | |
 | `dh_pair` | `dh_sprites` | NZ: las filas de dos sprites se encuentran: `hit_setup` sobre sus ciclos, luego por cada línea que tengan ambos los bits de cada uno (`dh_bits`, `hit_wide` según su tamaño) en `hit_a`, `hit_b`, y `hit_line`. | |
-| `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Los bits del sprite IX en la línea A, desde el bit 7 (Z: ninguno); la línea tras la última suya. | 4 400 / 4 700 |
-| `dh_obj` | `display`, por objeto (bala, proyectil, avión) | NZ: el sprite IX toca las filas del objeto actual (`ds_rowp`, desde la línea de X = `ds_counter`, `ds_rows` de ellas, en X y tamaño del slot: IY + 22, + 33). `hit_setup` sobre los ciclos del objeto (8, 16 o 32) y del sprite, luego las líneas que tienen ambos; por línea el byte de la fila del objeto (cero: la siguiente) y los bits del sprite, cada uno ensanchado (`hit_wide`), `hit_line`. | 5 000 / 6 500 |
-| `hit_setup` | `dh_obj`, `dh_pair` | Z: los ciclos de las dos cajas (B desde, C ancho; D desde, E ancho) no se cruzan; si no, la ventana donde ambas están en los ciclos del playfield (32–223, como mucho 8 de ancho): dónde empieza en los puntos de cada una (`hit_ka`/`hit_sa`, `hit_kb`/`hit_sb`: byte, bit) y los bits de sus ciclos (`hit_w`). | 2 300 / 3 700 |
+| `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Los bits del sprite IX en la línea A: el byte de la fila bajo la máscara, ya arriba (Z: ninguno); la línea tras la última suya (`dh_lists` la pone en el campo 2 una vez por fotograma). | 400 / 500 |
+| `dh_obj` | `display`, por objeto (bala, proyectil, avión) | NZ: el sprite IX toca las filas del objeto actual (`ds_rowp`, desde la línea de X = `ds_counter`, `ds_rows` de ellas, en X y tamaño del slot: IY + 22, + 33). Primero las líneas que tienen ambos (`ds_l1`, `ds_l2` de `display`, el final del sprite: la mayoría de los objetos no comparte ninguna), luego `hit_setup` sobre los ciclos del objeto (8, 16 o 32) y del sprite; por línea el byte de la fila del objeto (cero: la siguiente) y los bits del sprite, cada uno ensanchado (`hit_wide`), `hit_line`. | 4 900 / 6 100 |
+| `hit_setup` | `dh_obj`, `dh_pair` | Z: los ciclos de las dos cajas (B desde, C ancho; D desde, E ancho) no se cruzan; si no, la ventana donde ambas están en los ciclos del playfield (32–223, como mucho 8 de ancho): dónde empieza en los puntos de cada una (`hit_ka`/`hit_sa`, `hit_kb`/`hit_sb`: byte, bit) y los bits de sus ciclos (`hit_w`). | 500 / 700 |
 | `hit_wide` | `dh_obj`, `dh_pair` | Los puntos del byte A un ciclo por bit en DE y siguientes (tamaño C: 1, 2 o 4 ciclos por punto, desde `ov_exp2`, `ov_exp4`: tablas hechas por `init_tables`), luego un cero. | |
 | `hit_line` | `dh_obj`, `dh_pair` | NZ: los puntos de `hit_a` y `hit_b` se encuentran en la ventana: los dos bytes de cada uno desde su inicio desplazados con `bsla de,b` (Z80N, 8 ciclos), con AND entre ellos y con `hit_w`. | |
 

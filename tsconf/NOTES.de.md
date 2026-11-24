@@ -14,8 +14,8 @@ Wie der TS-Conf-Port gemacht ist und was sich unterwegs herausstellte, mit Zahle
 - **Sprites**: bis zu 85 im SFILE, jede Größe bis 64×64 in Schritten von 8 Punkten, 16 Farben aus einer Palette zu 16, ihre Punkte in einem 512×512-Bild (SGPAGE, Seiten 24–31, 4 Bit pro Punkt). Keine Skalierung, also wird jedes Bild beim Start dreimal gemacht, 16, 32 und 64 Punkte breit. S0, die Sprites des Flusses, unter Kachelebene 0; S1, Nadel und Logo, darüber.
 - **Kachelebene 0** (Karte in Seite 7, Kacheln in Seite 8): schwarz über den Zeilen 0–23 (über dem Fluss) und 224–239, grau unter dem Panel (185–223, Zeile 184 eine schwarze Linie, dann grau). Sie verdeckt, was die Sprites des Flusses außerhalb des Flusses haben: Kein Clip-Fenster nötig.
 - **Das Panel**: ein eigenes Bild (Seiten 64–79, 256 Farben), ab Zeile 184 per EV_PANEL eingeschaltet (VPAGE, GYOFFS = 0, VCONFIG $8A: 256 Farben, das Bitmap über Kacheln und Sprites, GFXOVR). Seine Punkte mit 0 sind Löcher: darunter das Grau von Kachelebene 0 und die S1-Sprites. Farben 4–7 PF0–PF3 des Panels, 8 die der Laufschrift.
-- **Der DMA**: löscht nach einem Reset das Bild des Flusses (eine Füllung, ein halbes Bild pro Frame) und beim Start die 128K der Sprites und kopiert die Zeichen des Panels von dort, wo sie einmal gezeichnet wurden.
-- **Steuerung**: Tastatur (Q A O P, Space oder M, Enter, G, H) und Kempston bei $1F. Keine 60 Hz (das Frame der Platine ist 50 Hz), kein CAPS + 2/3, kein T.
+- **Der DMA**: löscht nach einem Reset das Bild des Flusses (eine Füllung, ein halbes Bild pro Frame) und beim Start die 128K der Sprites und kopiert die Zeichen des Panels von dort, wo sie einmal gezeichnet wurden; jedes Frame kopiert er die Spriteliste ins SFILE (`sfile_put`) und füllt die Läufe einer Farbe ab 5 Bytes einer neuen Zeile (`render_line`), solange er belegt ist, macht es die CPU.
+- **Steuerung**: Tastatur (Q A O P, Space oder M, Enter, G, H, T) und Kempston bei $1F. Keine 60 Hz (das Frame der Platine ist 50 Hz), kein CAPS + 2/3. T zeigt die Arbeit des Frames am Rand wie auf dem Next: BORDER nimmt einen CRAM-Eintrag, also stehen seine Farben in den freien Einträgen der Gruppe 11 (2–10, `tm_cram`); grün auch für `panel_draw`.
 
 ## Das Frame
 `main_frame`: wie beim Next (`prepare`, `display`, `build_sprites`, `main_loop`, `vbi`), mit `build_events` nach den Sprites und `snd_frame` am Ende; dann `wait_frame` (HALT bis zum Frame-Interrupt), `apply`, `panel_draw`. `apply` kommt mit dem Frame-Interrupt unter dem Panel (Zeile 241 von 240: im unteren Rand), also ist alles, was es setzt, für die erste Zeile des nächsten Bilds da: Scroll und Modus des Flusses, der Ton, die Farben, das SFILE, die Palette oben und der Interrupt, auf das erste Ereignis der Liste gestellt. `panel_draw` schreibt danach die Zeichen des Panels: Das Panel ist erst ab Zeile 184 zu sehen, mehr als ein Frame Arbeit später.
@@ -40,11 +40,11 @@ Takte bei 14 MHz, ~286 800 pro Frame. tscheck: die Arbeit von `apply_done` bis `
 
 | Lauf | Mittel | schwerstes | verspätet |
 |---|---|---|---|
-| Bot 1, 3 000 Frames ab dem Start | ~74 000 | ~124 000 | 0 |
-| `-stress` ab Brücke 80 (alle Slots belegt, Vollgas, Dauerfeuer), 6 000 | ~116 000 | ~153 000 | 0 |
-| dasselbe mit 7 MHz (~143 400 pro Frame) | ~96 000 | ~143 000 | 0 |
+| Bot 1, 3 000 Frames ab dem Start | ~69 000 | ~120 000 | 0 |
+| `-stress` ab Brücke 80 (alle Slots belegt, Vollgas, Dauerfeuer), 6 000 | ~108 000 | ~144 000 | 0 |
+| dasselbe mit 7 MHz (~143 400 pro Frame) | ~93 000 | ~125 000 | 0 |
 
-Mit 3,5 MHz kommt es nicht mit. Nach Teilen in den schwersten Szenen: das Display (Platzieren und Kollisionen) ~57 000, die neuen Zeilen des Flusses ~34 000, Sprites und die Ereignisse der Palette ~16 000, apply, Panel und Interrupts ~7 000, die Logik des Spiels ~9 000, der Ton ~3 500 (auf der Karte).
+Mit 3,5 MHz kommt es nicht mit. Nach Teilen in den schwersten Szenen: das Display (Platzieren und Kollisionen) ~51 000, die neuen Zeilen des Flusses ~32 000, Sprites und die Ereignisse der Palette ~15 000, apply, Panel und Interrupts ~7 000, die Logik des Spiels ~8 800, der Ton ~3 500 (auf der Karte).
 
 Die Zahlen stammen vom Prüf-Build (`-DTEST`: mit dem Bildschirmspeicher des Atari, den das Spiel nicht hat); das Spiel ist ~1 000–2 500 leichter.
 
@@ -57,4 +57,6 @@ Der TSConf-Kern von Xpeccy+ (und seine General Sound) als Bibliothek, ohne Fenst
 - Der eigene Reset der GS-Firmware ($F4) dauert Sekunden; stattdessen ihren Zustand abfragen ($F0).
 - Eine Pegelsumme über 255 läuft stillschweigend um: Die Samples sehen normal aus, nur das Ohr findet es. Die Lautstärken summieren (`TSVOL`), nicht die Samples anschauen.
 - `make check` startet die .spg nicht: Der Start (SD-Karte, Bildschirm, Upload in die GS) wird mit `-spg … -sd` geprüft.
+- `-stress` ohne `-bot` tat in tscheck nichts (kein Bot spielte): diese Läufe waren der Attract-Modus. Jetzt spielt der Bot mit Seed 1, wie bei nxcheck.
+- Das letzte Bild eines Laufs (TSFULL) wird bei `apply_done` genommen, daher zeigt sein Rand eine Farbe; die Bänder des Rands sieht man in den Bildern von TSSHOT.
 - Noch nicht auf einer echten Platine gelaufen: Tastatur, Kempston, SD-Karte, die echte Firmware der GS und die einer NeoGS sind so, wie Xpeccy+ sie nachbildet.

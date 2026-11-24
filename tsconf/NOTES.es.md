@@ -14,8 +14,8 @@ Cómo está hecho el port a TS-Conf y qué se descubrió por el camino, con núm
 - **Sprites**: hasta 85 en el SFILE, de cualquier tamaño hasta 64×64 en pasos de 8 puntos, 16 colores de una paleta de 16, sus puntos en una sola imagen de 512×512 (SGPAGE, páginas 24–31, 4 bits por punto). Sin escalado, así que cada imagen se hace al arrancar tres veces, de 16, 32 y 64 puntos de ancho. S0, los sprites del río, bajo la capa de tiles 0; S1, la aguja y el logotipo, encima.
 - **La capa de tiles 0** (mapa en la página 7, tiles en la 8): negra en las líneas 0–23 (sobre el río) y 224–239, gris bajo el panel (185–223, la línea 184 una raya negra y luego gris). Tapa lo que los sprites del río tienen fuera del río: no hace falta ventana de recorte.
 - **El panel**: una imagen propia (páginas 64–79, 256 colores), activada desde la línea 184 por EV_PANEL (VPAGE, GYOFFS = 0, VCONFIG $8A: 256 colores con el bitmap sobre tiles y sprites, GFXOVR). Sus puntos a 0 son huecos: debajo, el gris de la capa de tiles 0 y los sprites S1. Colores 4–7 los PF0–PF3 del panel, 8 el del rótulo.
-- **El DMA**: borra la imagen del río tras un reset (un relleno, media imagen por fotograma) y los 128K de los sprites al arrancar, y copia los caracteres del panel desde donde se dibujaron una vez.
-- **Controles**: teclado (Q A O P, Espacio o M, Enter, G, H) y Kempston en $1F. Sin 60 Hz (el fotograma de la placa es de 50 Hz), sin CAPS + 2/3, sin T.
+- **El DMA**: borra la imagen del río tras un reset (un relleno, media imagen por fotograma) y los 128K de los sprites al arrancar, y copia los caracteres del panel desde donde se dibujaron una vez; en cada fotograma copia la lista de sprites al SFILE (`sfile_put`) y rellena los tramos de un solo color de 5 bytes o más de una línea nueva (`render_line`), y mientras está ocupado lo hace la CPU.
+- **Controles**: teclado (Q A O P, Espacio o M, Enter, G, H, T) y Kempston en $1F. Sin 60 Hz (el fotograma de la placa es de 50 Hz), sin CAPS + 2/3. T muestra el trabajo del fotograma en el borde como en la Next: BORDER toma una entrada de la CRAM, así que sus colores están en las entradas libres del grupo 11 (2–10, `tm_cram`); verde también para `panel_draw`.
 
 ## El fotograma
 `main_frame`: como el del Next (`prepare`, `display`, `build_sprites`, `main_loop`, `vbi`), con `build_events` después de los sprites y `snd_frame` al final; luego `wait_frame` (HALT hasta la interrupción del fotograma), `apply`, `panel_draw`. `apply` llega con la interrupción del fotograma bajo el panel (línea 241 de 240: en el borde inferior), así que todo lo que fija está listo para la primera línea de la imagen siguiente: el desplazamiento y el modo del río, el sonido, los colores, el SFILE, la paleta de arriba y la interrupción puesta en el primer evento de la lista. `panel_draw` escribe después los caracteres del panel: el panel solo se ve desde la línea 184, más de un fotograma de trabajo después.
@@ -40,11 +40,11 @@ Ciclos a 14 MHz, ~286 800 por fotograma. tscheck: el trabajo de `apply_done` a `
 
 | ejecución | media | más pesado | tardíos |
 |---|---|---|---|
-| bot 1, 3 000 fotogramas desde el inicio | ~74 000 | ~124 000 | 0 |
-| `-stress` desde el puente 80 (todos los slots ocupados, a toda velocidad, disparando sin parar), 6 000 | ~116 000 | ~153 000 | 0 |
-| lo mismo a 7 MHz (~143 400 por fotograma) | ~96 000 | ~143 000 | 0 |
+| bot 1, 3 000 fotogramas desde el inicio | ~69 000 | ~120 000 | 0 |
+| `-stress` desde el puente 80 (todos los slots ocupados, a toda velocidad, disparando sin parar), 6 000 | ~108 000 | ~144 000 | 0 |
+| lo mismo a 7 MHz (~143 400 por fotograma) | ~93 000 | ~125 000 | 0 |
 
-A 3,5 MHz no llega. Por partes en las escenas más pesadas: el display (colocación y colisiones) ~57 000, las líneas nuevas del río ~34 000, los sprites y los eventos de la paleta ~16 000, apply, el panel y las interrupciones ~7 000, la lógica del juego ~9 000, el sonido ~3 500 (en la tarjeta).
+A 3,5 MHz no llega. Por partes en las escenas más pesadas: el display (colocación y colisiones) ~51 000, las líneas nuevas del río ~32 000, los sprites y los eventos de la paleta ~15 000, apply, el panel y las interrupciones ~7 000, la lógica del juego ~8 800, el sonido ~3 500 (en la tarjeta).
 
 Las cifras son de la versión de comprobación (`-DTEST`: con la memoria de pantalla del Atari, que el juego no tiene); el juego es ~1 000–2 500 más ligero.
 
@@ -57,4 +57,6 @@ El núcleo TSConf de Xpeccy+ (y su General Sound) como biblioteca, sin ventana, 
 - El reinicio propio del firmware de la GS ($F4) tarda segundos; en su lugar, preguntar su estado ($F0).
 - Una suma de niveles por encima de 255 da la vuelta sin avisar: las muestras parecen normales, solo el oído lo encuentra. Sumar los volúmenes (`TSVOL`), no mirar las muestras.
 - `make check` no ejecuta el .spg: el arranque (tarjeta SD, pantalla, carga en la GS) se comprueba con `-spg … -sd`.
+- `-stress` sin `-bot` no hacía nada en tscheck (no jugaba ningún bot): esas ejecuciones eran el modo attract. Ahora juega el bot de semilla 1, como en nxcheck.
+- La última imagen de una ejecución (TSFULL) se toma en `apply_done`, así que su borde muestra un solo color; las bandas del borde se ven en los fotogramas de TSSHOT.
 - Aún no se ha ejecutado en una placa real: el teclado, el Kempston, la tarjeta SD, el firmware real de la GS y el de una NeoGS son como los modela Xpeccy+.

@@ -19,8 +19,8 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 `python3 tools/prof.py build/test.sym 文件 60`，再除以帧数），用的是不带屏幕内存的校验构建，与游戏
 本身一致（`-DNOSCREEN`、`NXNOSCREEN=1`）。两次运行：
 
-- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 108 000，最多约 163 000；
-- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 166 000，最多约 207 000（NTSC 约 161 000 / 约 201 000；14 MHz NTSC 约 131 000 / 约 165 000，满额约 240 000）。
+- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 106 000，最多约 162 000；
+- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 164 000，最多约 202 000（NTSC 约 160 000 / 约 202 000；14 MHz NTSC 约 131 000 / 约 165 000，满额约 240 000）。
 
 一帧在 PAL 下约有 567 000 个周期，NTSC 下约 481 000（14 MHz 时减半）。`apply`（以及其中的
 `panel_frame`）在被测量的工作之后运行（在滚动字幕下方），不计入这些数字：每帧约 7 400。一个例程的时间
@@ -30,42 +30,42 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 45 800 | 61 600 |
-| 声音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 500 | 38 900 |
-| 河流的新行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 16 500 | 39 000 |
-| 精灵和 Copper 列表（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 11 100 | 15 900 |
-| 游戏逻辑及其他（`prepare`、`main_loop`、`move_objects`、`random_step`、面板打印……） | 9 800 | 11 100 |
+| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 41 300 | 55 200 |
+| 声音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
+| 河流的新行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 18 800 | 44 000 |
+| 精灵和 Copper 列表（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 10 900 | 15 900 |
+| 游戏逻辑及其他（`prepare`、`main_loop`、`move_objects`、`random_step`、面板打印……） | 9 400 | 10 500 |
 
 最耗时的例程（A / B）：
 
 | 例程 | A | B | 文件 |
 |---|---|---|---|
-| `display`（自身代码） | 11 500 | 13 100 | display_simple |
+| `display`（自身代码） | 11 800 | 13 500 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
+| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `dh_pf` | 8 100 | 9 400 | display_hits |
-| `snd_sum` | 8 600 | 8 600 | sound |
 | `render_line` | 3 900 | 9 400 | render |
+| `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `dh_obj` | 5 000 | 6 500 | display_hits |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
+| `dh_obj` | 4 900 | 6 100 | display_hits |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
-| `dh_bits` | 4 200 | 4 400 | display_hits |
 | `move_objects` | 2 000 | 3 900 | game |
-| `hit_setup` | 2 300 | 3 700 | display_hits |
+| `dl_fill` | 1 600 | 3 700 | river_gen |
 | `ay_out` | 3 400 | 3 400 | sound_ay_run |
 | `snd_fill` | 2 800 | 2 800 | sound |
 | `ay_frame` | 2 200 | 2 800 | sound_ay_run |
-| `pk_channel` | 1 200 | 2 800 | sound_pulses |
-| `pokey_frame`（自身代码） | 2 500 | 2 600 | sound |
+| `pk_channel` | 1 200 | 2 700 | sound_pulses |
+| `pokey_frame`（自身代码） | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
-| `dh_lists` | 2 000 | 2 000 | display_hits |
-| `pk_g4` | 0 | 1 400（导弹发声的那一帧约 9 000） | sound_pulses |
+| `pk_g4` | 0 | 1 400 （导弹发声的那一帧约 9 000） | sound_pulses |
+| `dh_lists` | 1 300 | 1 300 | display_hits |
 | `build_copper` | 1 100 | 1 000 | sprites |
+| `hit_setup` | 500 | 700 | display_hits |
 
-B 中最重的一帧（约 207 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
+B 中最重的一帧（约 202 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
 （`display`、`ds_obj`、`ds_edge_test`）约 30 000，碰撞（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）约
 25 000，河流新行约 25 000。
 
@@ -103,7 +103,7 @@ Copper 负责。
 4. `wait_frame`：轮询当前视频行（NR $1E/$1F）直到 `wait_line`（NTSC 208，PAL 220），在滚动字幕下方，那里屏幕上不会有变化。
 5. `apply`：构建好的所有东西一起生效（Layer 2 的滚动和颜色、精灵属性、面板的 tile、Copper 列表）。
 
-打开 T（`tm_show`）时，每一部分会先设置边框颜色（`TM_COLOUR`）：橙色 `apply`，灰色 `prepare`（重置期间还有 `clear_layer2_page`），红色 `display`，黄色 `build_sprites`，蓝色 `main_loop`，品红 `push_line`（河流的一行新行，在 `main_loop` 之内），白色 `vbi`，青色 `pokey_frame`，黑色为剩余时间。`push_line` 先设品红，再改回蓝色。
+打开 T（`tm_show`）时，每一部分会先设置边框颜色（`TM_COLOUR`：只有 T 打开时才调用 `tm_colour`；关闭时每部分约 30 个周期）：橙色 `apply`，灰色 `prepare`（重置期间还有 `clear_layer2_page`），红色 `display`，黄色 `build_sprites`，蓝色 `main_loop`，品红 `push_line`（河流的一行新行，在 `main_loop` 之内），白色 `vbi`，青色 `pokey_frame`，黑色为剩余时间。`push_line` 先设品红，再改回蓝色。
 
 顺序很重要：`display` 使用上一帧 `main_loop` 留下的状态（正如 Atari 的 DLI 显示的是上一帧的状态），
 `build_sprites` 使用 `display` 留下的结果。
@@ -196,7 +196,7 @@ Copper 负责。
 
 | 例程 | 调用 | 做什么、怎么做 | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | 这一行的色钟 20–179（`WINDOW_FIRST`）写入 Layer 2 的第 A 行，依据 `dl_seg` 中的各段（没有行缓冲）。Layer 2 按列存放（字节 x·256 + y，每个 8K 页 32 列），所以这一行要沿列写下去（`inc h` = 下一列），10 页轮流映射到槽 2（`rl_next`）。同值段：其颜色从 `pix_tab` 取一次，然后 `rl_fill`（每字节 8 列，逐页；`rl_fill`、`rl_next` 在第 6 页的 spans.asm）；边缘的字节（来自 ROM 表）和装饰的一行（来自 ROM 中的位图）：每字节由 `pix_tab` 给出每色钟 2 个点，每个写两次；窗口之前的字节在数据中跳过。每行 320 次写入。 | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | 这一行的色钟 20–179（`WINDOW_FIRST`）写入 Layer 2 的第 A 行，依据 `dl_seg` 中的各段（没有行缓冲）。Layer 2 按列存放（字节 x·256 + y，每个 8K 页 32 列），所以这一行要沿列写下去（`inc h` = 下一列），10 页轮流映射到槽 2（`rl_next`）。同值段：其颜色从 `pix_tab` 取一次，然后 `rl_fill`（每字节 8 列，逐页；`rl_fill`、`rl_next` 在第 6 页的 spans.asm）；边缘的字节（来自 ROM 表）和装饰的一行（来自 ROM 中的位图）：每字节由 `pix_tab` 给出每色钟 2 个点，每个写两次；窗口之前的字节在数据中跳过。每行 320 次写入。在第 6 页（为了腾出空间从第 4 页移来）。 | 3 900 + 3 800 / 9 400 + 8 300 |
 
 ## spans.asm：用于与 playfield 碰撞的行色段
 
@@ -221,10 +221,10 @@ Copper 负责。
 颜色指针、x、尺寸），`ds_bank_ev`（河岸颜色的变化，供 `build_copper` 用），HIT 中的碰撞结果以及各槽位
 的河岸标志。
 
-`display`（自身约 8 400 / 9 500）：
+`display`（自身约 11 800 / 13 500）：
 
 1. 映射 SPAN_PAGE，`dh_lists`（其他精灵的描述符），按 B527–B55C 清除并设置寄存器，`bm_hitclr`，`dh_sprites`（HIT = $FF，然后其他精灵与河岸及彼此之间的检测）。
-2. `.slot`，从 FIRST_SLOT 起的每个槽位：IY 指向槽位的外观类型（第 5 页：类型、X、尺寸分别在 IY + 11、+ 22、+ 33，就地读取，不复制），保存 Y 和标志（`ds_y`、`ds_flags`），`ds_edge_kind`；起点 = max(y, $5D)；第一行 = y + height[type] − 起点（≥ $80：已从顶部消失，下一个）；X = 起点 + 3（超过 255：结束）；行数 = min(行 + 1, 256 − X)；`ds_rowp` 为第一行的字节；`ds_obj`（行写入 `ds_objs`）；若是桥：`.road`（道路颜色从其每一行之后的扫描线起，X − 69 + 1；最后一行之后是该段的河岸颜色，除非 X 已回绕，经 `ds_bank`；一行的颜色只在与上一行不同时才记录）。形状和颜色的首行就地计算（DE、BC 传给 `ds_obj`）。
+2. `.slot`，从 FIRST_SLOT 起的每个槽位：IY 指向槽位的外观类型（第 5 页：类型、X、尺寸分别在 IY + 11、+ 22、+ 33，就地读取，不复制），保存 Y 和标志（`ds_y`、`ds_flags`），`ds_edge_kind`；起点 = max(y, $5D)；第一行 = y + height[type] − 起点（≥ $80：已从顶部消失，下一个）；X = 起点 + 3（超过 255：结束）；行数 = min(行 + 1, 256 − X)；`ds_rowp` 为第一行的字节；`ds_obj`（行写入 `ds_objs`）；若是桥：`.road`（道路颜色从其每一行之后的扫描线起，X − 69 + 1；最后一行之后是该段的河岸颜色，除非 X 已回绕，经 `ds_bank`；一行的颜色只在与上一行不同时才记录）。形状和颜色的首行就地计算（DE、BC 传给 `ds_obj`）。ROM 的表（高度、形状、颜色）用 8 位加法读取（`ROM_SHAPES` 和 `ROM_COLOURS` 从页首开始）。
 3. 对类型 8–$0D 检测边缘（P3PF）（`ds_edge_kind`：直升机、气球、船会在那里掉头）：`ds_edge_test`，然后 `ds_set_flags`。
 4. 与子弹、坦克炮弹（桥除外）和飞机检测：`dh_obj`；碰到时记录槽位（HIT_BULLET_OBJECT、HIT_SHELL_OBJECT、HIT_PLANE_OBJECT），因此保留的是沿屏幕向下的最后一个。
 5. `.end`：`test_ghost`（测试构建）；`ds_bank_fill` 仅在 `-DBEAM` 下。
@@ -235,33 +235,33 @@ Copper 负责。
 | `ds_set_flags` | `display` | 把物体的河岸位写入其槽位的标志（第 0 位）。 | 1 100 / 1 300 |
 | `ds_bank` | `display` | 从扫描线 A 起河岸颜色的一次变化（桥的道路以及恢复）：写入 `ds_bank_ev`。 | |
 | `ds_bank_fill` | `display` 末尾，仅 `-DBEAM` | 根据 `ds_bank_ev` 为河流每一行写 `scan_bank`（光束 display 会读取；nxcheck 则改为把 Copper 列表与 C++ 移植版比较）。 | |
-| `ds_row_hl`、`ds_edge_only` | `display` | HL += `ds_row`；只为会读取河岸位的类型设置它。 | |
+| `ds_edge_only` | `display` | 只为会读取河岸位的类型设置它。 | |
 
 ## display_objs.asm
 
 | 例程 | 调用 | 做什么、怎么做 | A / B |
 |---|---|---|---|
-| `ds_obj` | `display`，每个有行的物体 | 物体供精灵使用的行：第一条扫描线、行数、第一行的形状和颜色地址（DE、IY）、x、尺寸：写入 `ds_objs` 的 8 字节（`DS_OBJS` = 最多 16 个）。第一行在第 28 行或更高（在河流顶部之上）的物体会扩展为完整形状（多出 k = 起点 − y 行），这样精灵画完整，由精灵裁剪窗口来切掉。位于第 4 页末尾。 | 5 400 / 6 300 |
+| `ds_obj` | `display`，每个有行的物体 | 物体供精灵使用的行：第一条扫描线、行数、第一行的形状和颜色地址（DE、IY）、x、尺寸：写入 `ds_objs` 的 8 字节（`DS_OBJS` = 最多 16 个）。第一行在第 28 行或更高（在河流顶部之上）的物体会扩展为完整形状（多出 k = 起点 − y 行），这样精灵画完整，由精灵裁剪窗口来切掉。位于第 4 页末尾。 | 5 300 / 6 100 |
 
 ## display_hits.asm：把碰撞当作几何
 
 没有碰撞寄存器，也不读取它们：只要在精灵的行上任何位置发生碰撞就算数。另外五个精灵由 `dh_desc` 中
-10 字节的描述符描述（每帧从 `dh_template` 复制并填写）：行的基址（低）、掩码、移位、x、尺寸、精灵号、
+10 字节的描述符描述（不变的部分在开始时从 `dh_template` 复制一次，`dh_init`；其余由 `dh_lists` 每帧填写）：行的基址（低）、掩码（已经转到点的位置上）、行的结束（最后一行之后的那一行；超过 255 为 255）、x、尺寸、精灵号、
 第一行、行数、色钟宽度、基址（高）（`DH_SIZE` = 10；`DH_SHELL`、`DH_TANK`、`DH_PLANE`、`DH_MISSILE`、
 `DH_BULLET`）。第 L 行上的一行就是基址 + L 处的字节：本帧形状直接来自 ROM（基址 = 其地址 − 第一行，
-`dh_shape`、`dh_base`）；导弹和子弹的行是 `dh_ones`（全为 1），套上各自的掩码（$03；子弹为 $20）。重置
+`dh_shape`、`dh_base`）；导弹和子弹的行是 `dh_ones`（全为 1），套上各自的掩码，掩码在模板里就已转到点的位置上（$03 转 6 位：$C0；子弹的第 5 位转 2 位：$80），所以不必转动任何一行。重置
 之后（`pm_empty`，直到下一次 `prepare`）没有行。
 
 | 例程 | 调用 | 做什么、怎么做 | A / B |
 |---|---|---|---|
-| `dh_lists` | `display` 开头 | 各描述符。 | 2 000 / 2 000 |
+| `dh_lists` | `display` 开头 | 各描述符的行数、位置和基址；然后各自的结束（字段 2）。 | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF，然后在以下情况置 HIT 0：坦克碰到边缘（P1PF），飞机碰到河岸（P2PF），导弹和子弹碰到河岸或边缘（M0PF、M2PF）：`dh_pf`；飞机与坦克炮弹（P2PL 第 0 位）、导弹与飞机（M0PL）：`dh_pair`。 | |
-| `dh_pf` | `dh_sprites` | NZ：精灵 IX 的行碰到 playfield（DE：`sp_edge`、`sp_bank`、`sp_under`）。对每一条有点的河流行（`dh_bits`）：先看其方框（X 到 X + 其色钟数）是否落在该行的缝隙内（A：第 0 位为边缘的 `eg_*`，第 1 位为河岸的 `bg_*`）；在内则无事；否则用该行两端与色段比较（`sp_*` 函数）。遇到第一次接触即停止。 | 8 100 / 9 400 |
+| `dh_pf` | `dh_sprites` | NZ：精灵 IX 的行碰到 playfield（DE：`sp_edge`、`sp_bank`、`sp_under`）。对每一条河流行：先取掩码下该行的字节（没有点：下一行），再看其方框（X 到 X + 其色钟数）是否落在该行的缝隙内（A：第 0 位为边缘的 `eg_*`，第 1 位为河岸的 `bg_*`）；在内则无事；否则用该行两端与色段比较（`sp_*` 函数）。遇到第一次接触即停止。 | 10 200 / 11 200 |
 | `sp_edge`、`sp_bank`、`sp_under` | `dh_pf` | 精灵的一行与该扫描行的边缘（棕色）、河岸（绿色）或两者的色段比较，与 C++ 移植版的 `spanTouches` 一样：它的第一个和最后一个点（`sp_ends`：`edge_lo`、`edge_hi`、按尺寸的宽度，加 X）与色段比较（`sp_runs`），两点之间有色段即为接触；该行的记录经 `sp_rec` 取得。 | |
 | `dh_pair` | `dh_sprites` | NZ：两个精灵的行相遇：对它们的色钟做 `hit_setup`，然后在两者都有的每一行上，把各自的位（`dh_bits`，按尺寸 `hit_wide`）放入 `hit_a`、`hit_b`，再 `hit_line`。 | |
-| `dh_bits`、`dh_end` | `dh_pf`、`dh_pair`、`dh_obj` | 精灵 IX 在第 A 行上的位，从第 7 位起（Z：没有）；其最后一行之后的那一行。 | 4 400 / 4 700 |
-| `dh_obj` | `display`，每个物体（子弹、炮弹、飞机） | NZ：精灵 IX 碰到当前物体的行（`ds_rowp`，从 X = `ds_counter` 那一行起，共 `ds_rows` 行，位于槽位的 X 和尺寸：IY + 22、+ 33）。对物体（8、16 或 32）和精灵的色钟做 `hit_setup`，然后看两者都有的行；每行取物体行的字节（为零：下一行）和精灵的位，各自展宽（`hit_wide`），`hit_line`。 | 5 000 / 6 500 |
-| `hit_setup` | `dh_obj`、`dh_pair` | Z：两个方框的色钟（B 起、C 宽；D 起、E 宽）不相交；否则求两者都在 playfield 色钟（32–223，最多 8 宽）内的窗口：它在各自点中的起点（`hit_ka`/`hit_sa`、`hit_kb`/`hit_sb`：字节、位）以及其色钟的位（`hit_w`）。 | 2 300 / 3 700 |
+| `dh_bits`、`dh_end` | `dh_pf`、`dh_pair`、`dh_obj` | 精灵 IX 在第 A 行上的位：掩码下该行的字节，已在高位（Z：没有）；其最后一行之后的那一行（由 `dh_lists` 每帧一次写入字段 2）。 | 400 / 500 |
+| `dh_obj` | `display`，每个物体（子弹、炮弹、飞机） | NZ：精灵 IX 碰到当前物体的行（`ds_rowp`，从 X = `ds_counter` 那一行起，共 `ds_rows` 行，位于槽位的 X 和尺寸：IY + 22、+ 33）。先看两者都有的行（`display` 给的 `ds_l1`、`ds_l2` 和精灵的结束：多数物体与它没有共同的行），再对物体（8、16 或 32）和精灵的色钟做 `hit_setup`；每行取物体行的字节（为零：下一行）和精灵的位，各自展宽（`hit_wide`），`hit_line`。 | 4 900 / 6 100 |
+| `hit_setup` | `dh_obj`、`dh_pair` | Z：两个方框的色钟（B 起、C 宽；D 起、E 宽）不相交；否则求两者都在 playfield 色钟（32–223，最多 8 宽）内的窗口：它在各自点中的起点（`hit_ka`/`hit_sa`、`hit_kb`/`hit_sb`：字节、位）以及其色钟的位（`hit_w`）。 | 500 / 700 |
 | `hit_wide` | `dh_obj`、`dh_pair` | 字节 A 的点，每位一个色钟，写入 DE 及之后（尺寸 C：每点 1、2 或 4 个色钟，来自 `ov_exp2`、`ov_exp4`：由 `init_tables` 生成的表），然后一个零。 | |
 | `hit_line` | `dh_obj`、`dh_pair` | NZ：`hit_a` 和 `hit_b` 的点在窗口内相遇：各自从起点取两个字节，用 `bsla de,b`（Z80N，8 周期）移位，相互 AND 并与 `hit_w` AND。 | |
 
