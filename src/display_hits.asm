@@ -279,13 +279,9 @@ dh_pf:
 	jp c,.n
 	push bc
 	ld (bm_line),a
-	call dh_bits			; (no dots on the line: nothing)
-	jr z,.n0
-	ld (.bits + 1),a
-	ld a,(bm_line)
-	sub RIVER_FIRST			; the line's span record (its gaps' index)
-	ld hl,span_top
-	add a,(hl)
+	sub RIVER_FIRST			; the line's span record (its gaps' index); the box against
+	ld hl,span_top			; the gaps first, the dots only if it is not inside one
+	add a,(hl)				; (most lines: the plane over the water)
 	ld l,a
 .mode	ld c,0
 	bit 0,c
@@ -327,8 +323,9 @@ dh_pf:
 .gap	ld a,c				; (mode 0: no gaps, the dots looked at)
 	or a
 	jr nz,.n0
-.look
-.bits	ld a,0
+.look	ld a,(bm_line)
+	call dh_bits			; (no dots on the line: nothing)
+	jr z,.n0
 	ld d,a
 	ld e,(ix + 3)
 	ld a,(ix + 4)
