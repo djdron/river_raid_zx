@@ -563,36 +563,30 @@ pal_edges:
 	djnz 1B
 	ret
 
-; The SFILE (through the FM window): the river's sprites (S0), the end of S0 and of S1 (an
-; entry with LEAP each), the entries after them up to last frame's end cleared
+; The SFILE: the river's sprites (S0), the end of S0 and of S1 (an entry with LEAP each), the
+; entries after them up to last frame's end cleared: made in spr_list, then copied by the DMA
+; (by the CPU through the FM window while the DMA is busy: a reset's clearing)
 sfile_put:
-	ld hl,spr_list
-	ld de,SFILE_SHADOW
-	ld a,(sb_count)
-	or a
-	jr z,1F
-	ld b,a				; x 6
-	add a,a
-	add a,b
-	add a,a
-	ld c,a
-	ld b,0
+	ld a,(sb_count)			; DE: past the river's entries (6 each)
+	ld l,a
+	ld h,0
+	add hl,hl
+	ld e,l
+	ld d,h
+	add hl,hl
+	add hl,de
+	ld de,spr_list
+	add hl,de
+	ex de,hl
+	ld hl,sf_tail			; S0's end, S1 (the panel's sprites), its end
+	ld bc,sf_tail_end - sf_tail
 	ldir
-1:	ld hl,sf_leaps			; S0's end, S1 (the panel's sprites), its end
-	ld bc,SPR_SIZE
-	ldir
-	ld hl,spr_s1
-	ld bc,3 * SPR_SIZE
-	ldir
-	ld hl,sf_leaps
-	ld bc,SPR_SIZE
-	ldir
-	ld hl,(sf_end)			; DE: this frame's end; the rest of last frame's cleared
+	ld hl,(sf_end)			; this frame's end; last frame's entries after it cleared
 	ld (sf_end),de
 	or a
 	sbc hl,de
-	ret c
-	ret z
+	jr c,.put
+	jr z,.put
 	ld b,h
 	ld c,l
 	ex de,hl
@@ -602,9 +596,52 @@ sfile_put:
 	ld a,b
 	or c
 	jr nz,.clr
+	ex de,hl
+.put	ex de,hl			; HL: the end of what is copied
+	ld de,spr_list
+	or a
+	sbc hl,de
+	push hl
+	ld bc,DMACTRL
+	in a,(c)
+	rla
+	jr c,.cpu
+	ld bc,DMASADDRX			; from spr_list
+	ld a,HIGH_PAGE
+	out (c),a
+	dec b
+	ld a,high (spr_list - $C000)
+	out (c),a
+	dec b
+	ld a,low spr_list
+	out (c),a
+	ld bc,DMADADDRX			; to the SFILE's start
+	xor a
+	out (c),a
+	dec b
+	out (c),a
+	dec b
+	out (c),a
+	pop hl
+	srl h				; the words (one burst: at most (SPRITES_MAX + 5) x 3)
+	rr l
+	dec l
+	ld a,l
+	ld bc,DMALEN
+	out (c),a
+	ld bc,DMANUM
+	xor a
+	out (c),a
+	ld bc,DMACTRL			; RAM to the SFILE
+	ld a,$85
+	out (c),a
 	ret
-sf_leaps:
-	db 0, $40, 0, 0, 0, 0		; an end (LEAP)
+.cpu	pop bc
+	ld hl,spr_list
+	ld de,SFILE_SHADOW
+	ldir
+	ret
+	assert (SPRITES_MAX + 5) * SPR_SIZE / 2 <= 256 && (spr_list & 1) == 0
 
 ; The bank's colour by line (as the Next's build_copper: from ds_bank_ev): at ev_built the
 ; palette at the river's top, then the changes (EV_PAL events: the palette of the colour, the
@@ -1019,7 +1056,7 @@ init_video:
 	ld b,1
 	ld e,0
 	call cram_set
-	ld hl,SFILE_SHADOW
+	ld hl,spr_list
 	ld (sf_end),hl
 	ld bc,HSINT
 	ld a,INT_X
@@ -1112,7 +1149,10 @@ pc_src:		ds 1			; pc_put: the source's address, its low byte
 pp_needle:	ds 1			; the needle's picture, the logo's
 pp_logo3:	ds 1
 pp_logo2:	ds 1
-spr_s1:		ds 3 * SPR_SIZE		; the needle and the logo (S1)
+sf_tail:	db 0, $40, 0, 0, 0, 0	; sfile_put: S0's end (LEAP),
+spr_s1:		ds 3 * SPR_SIZE		; the needle and the logo (S1),
+		db 0, $40, 0, 0, 0, 0	; its end
+sf_tail_end:
 ev_ptr:		ds 2			; the INT's next event
 ev_show:	ds 2			; the list the frame shown reads
 ev_built:	ds 2			; the one made this frame
@@ -1296,8 +1336,9 @@ pic_tn32_hi:	ds PIC_MAX
 pic_tn64_lo:	ds PIC_MAX		; 64
 	align 256
 pic_tn64_hi:	ds PIC_MAX
-spr_list:	ds SPR_SIZE * SPRITES_MAX	; the river's SFILE entries for apply
-sf_end:		ds 2			; the SFILE's bytes written last frame
+spr_list:	ds SPR_SIZE * (SPRITES_MAX + 5)	; the SFILE as apply puts it: the river's entries,
+					; then sf_tail
+sf_end:		ds 2			; its end last frame
 ob_line:	ds 1			; ob_attr: the sprite's first line,
 ob_pat:		ds 1			; its picture,
 ob_palv:	ds 1			; its palette,
