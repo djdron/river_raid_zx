@@ -451,6 +451,12 @@ int main(int argc, char **argv) {
 	static long volHist[64];
 	static int levelMax = 0, dacMax = 0;
 	const char *histAllPath = std::getenv("TSHISTALL");
+	// TSHISTMIN=n (with TSHISTALL): only the frames whose work is n ticks or more (the heavy
+	// ones; their number printed), each instruction's time from one frame_done to the next
+	const long long histMin = std::getenv("TSHISTMIN") ? std::atoll(std::getenv("TSHISTMIN")) : -1;
+	static long long histFrame[0x10000];
+	std::vector<uint16_t> histTouched;
+	long histFrames = 0;
 	// TSMSHOT=k: each machine's frame from frame k on (32 of them), to /tmp/tsm_N.ppm (a late
 	// frame's second one too, which TSSHOT does not see)
 	static int mshotFrom = std::getenv("TSMSHOT") ? std::atoi(std::getenv("TSMSHOT")) : -1, mshotN = 0, curFrame = 0;
@@ -471,7 +477,13 @@ int main(int argc, char **argv) {
 					std::fclose(o);
 				}
 			}
-			if (histAllPath) histAll[pc] += comp->tickTotal - t;
+			if (histAllPath) {
+				if (histMin < 0) histAll[pc] += comp->tickTotal - t;
+				else {
+					if (!histFrame[pc]) histTouched.push_back(pc);
+					histFrame[pc] += comp->tickTotal - t;
+				}
+			}
 			if (comp->cpu->regPC == hook) return true;
 		}
 		return false;
@@ -527,6 +539,14 @@ int main(int argc, char **argv) {
 			const long long w = comp->tickTotal - applyTick;
 			workSum += w;
 			if (w > workMax) { workMax = w; workMaxFrame = f; }
+			if (histMin >= 0 && w >= histMin) {
+				for (uint16_t a : histTouched) histAll[a] += histFrame[a];
+				histFrames++;
+			}
+		}
+		if (histMin >= 0) {
+			for (uint16_t a : histTouched) histFrame[a] = 0;
+			histTouched.clear();
 		}
 		// the machine's last whole frame (bufSwaps of them) shows the apply of the frame whose
 		// apply came 2 frames before its end: the one with applySwaps = bufSwaps - 2
@@ -746,6 +766,7 @@ int main(int argc, char **argv) {
 		frames, lateShown, swapsFirst - swaps0);
 	std::printf("a frame's work: %lld ticks on average, %lld at most (frame %d), of %lld a frame\n",
 		frames > 1 ? workSum / (frames - 1) : 0, workMax, workMaxFrame, (comp->tickTotal - tick0) / std::max(1, bufSwaps - swaps0));
+	if (histMin >= 0) std::printf("TSHISTALL: the %ld frames with work of %lld ticks or more\n", histFrames, histMin);
 	if (histAllPath) {
 		FILE *hf = std::fopen(histAllPath, "w");
 		for (int a = 0; a < 0x10000; a++)
