@@ -96,7 +96,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 |---|---|---|---|
 | 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：元のアドレスに置いた Atari の RAM | 起動時：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` がそこで動く） |
 | 1 | $4000–$7FFF | 5（`WORK_PAGE`）：$4000 から各行のラン（`SPANS`、32 バイト × 256 行）、$6000 からバッファ（`scan_*`、`edge_runs`、`ring_*`、`ds_objs`、`ov_exp2/4`、`eg_*`、`bg_*`、`line_*`、`edge_lo/hi`、`rnd_tab`）、$7D00 にシステムフォント | `render_line`：川の画像の 1 ページ（32–47）。`panel_draw`/`pc_*`：パネルの画像（64–79）。起動時にタイルマップ（7）、タイル（8）、スプライトの画像（24–31）。必ず 5 に戻す |
-| 2 | $8000–$BFFF | 2（`CODE_PAGE`）：約 $9F6F までコード、$A000 からカートリッジ | — |
+| 2 | $8000–$BFFF | 2（`CODE_PAGE`）：約 $9FBF までコード、$A000 からカートリッジ | — |
 | 3 | $C000–$FFFF | 6（`HIGH_PAGE`）：約 $D7EC までコード、次に $E000 に FM 窓（`CRAM_SHADOW`：CRAM $E000–$E1FF、SFILE $E200–$E3FF。書き込みは下の RAM にも行く）、約 $FD65 までテーブルと変数、スタック、$FE00 に IM 2 のベクタ | — |
 
 画像：川はページ 32 から（`VID_PAGE`、16 ページ：512 バイトの 512 行、各行 320 点を表示）、パネルはページ 64 から
@@ -145,8 +145,8 @@ EV_PANEL（184 行目からのパネルの画像）、EV_GX（スクロールテ
 | `start` | ロード時 | 14 MHz とキャッシュ（SYSCONFIG $06）、窓 0 を RAM に（MEMCONFIG $0E）、ページ、`screen_black`、`load_rom`（SPG ビルド）、`init_tables`、`init_video`、スプライトの画像（`obj_pics`、`pl_pics`、`panel_pics`）、`gs_load`、次に Atari の RAM を窓 0 に、`panel_init`、`ay_quiet`、RANDOM の種、IM 2（ベクタは $FE00）、`restart`。 | 一度 |
 | `restart` | `start` | `tv_setup`、画面のクリア（両半分とも DMA で、完了を待つ）、フレーム割り込みを `FRAME_LINE` に、`start_attract`、パネル全体を描き、そのまま `main_frame` へ。 | 一度 |
 | `main_frame` | 毎フレーム | *1 フレーム* を参照。 | 340 / 340 |
-| `wait_frame` | `main_frame` | 次のフレーム割り込みまで HALT（先に `frame_flag` をクリア：処理中に来たものは `apply` には遅すぎる）：待ちであって仕事ではない。 | — |
-| `irq` | 割り込み | `ev_ptr` のイベント：EV_PAL は PALSEL。EV_PANEL は VPAGE = `VPANEL`、GYOFFS = 0、VCONFIG $8A（256 色、ビットマップをタイルとスプライトの上に）。EV_GX は GXOFFS。フレームのもの（EV_END）は `frame_flag`。同じ行のイベントはまとめて処理し、次のイベントの行（`vsint_set`）かフレームの行に VSINT を設定。フレームのイベントでは `apply` の画面レジスタとイベントも置き直す（`river_regs`、`ap_pal`、`ap_list` からの `ev_go`）：遅れたフレームは前のフレームをもう一度表示する。 | 1 400 / 1 400 |
+| `wait_frame` | `main_frame` | 次のフレーム割り込みまでループ（先に `frame_flag` をクリア：処理中に来たものは `apply` には遅すぎる。HALT も DI も使わない：NOTES 参照）：待ちであって仕事ではない。 | — |
+| `irq` | 割り込み | `ev_ptr` のイベント：EV_PAL は PALSEL。EV_PANEL は VPAGE = `VPANEL`、GYOFFS = 0、VCONFIG $8A（256 色、ビットマップをタイルとスプライトの上に）。EV_GX は GXOFFS。フレームのもの（EV_END）は `frame_flag`。同じ行のイベントはまとめて処理し、次のイベントの行（`vsint_set`）かフレームの行に VSINT を設定。フレームのイベントでは `apply` の画面レジスタとイベントも置き直す（`river_regs`、`ap_pal`、`ap_list` からの `ev_go`）：遅れたフレームは前のフレームをもう一度表示する。3.5 MHz では（起動時に 1 フレームのループ回数を数える）`.cmp` を JP `.gap` に書き換え、`EV_GAP`（2）行以内の次のイベントはすぐに処理する。 | 1 400 / 1 400 |
 | `vsint_set` | `irq`、`apply`、`restart` | VSINT = HL（9 ビット）、`ev_line` に保持。 | 340 / 330 |
 | `apply` | `wait_frame` の後 | GYOFFS = `show_scroll`、VPAGE は川のもの、VCONFIG $81（16 色）、GXOFFS 0。`snd_out`（AY のレジスタまたはカードへのフレーム）。`panel_frame`。砲弾と飛行機の色を CRAM へ。`sfile_put`。リセット後に画面を消している間（2 フレーム目から）：川を黒に（色 0 のパレット、縁と水も 0、パネルのイベントだけ）。そうでなければ PALSEL に上端のパレット（`ev_built`）、`pal_edges`、パネルのイベントを岸のイベントの後へコピー（`ev_tail`）。割り込みを最初のイベントに設定（前後で DI）。`ev_show` = いま設定したリスト（`build_events` はもう一方に書く）。 | 1 200 / 1 200 |
 | `pal_get` | `build_events`、`apply` | Atari の色 E の川のパレット（PALSEL 0–7）：岸の色ごとに専用のパレットを持ち、初めて現れたとき作る（`pal_of`、`pal_n`）：その色 1 がその色、CRAM へ。8 を超えたら最後のものを再利用（起きたことはない）。 | 110 / 110 |
@@ -286,4 +286,4 @@ Wild Commander は .spg をフォルダも DOS もなしで起動するので、
 - **行末で取り込まれるレジスタ**（PALSEL、VPAGE、GYOFFS、GXOFFS）は、1 行前の割り込みで設定すること。割り込みは HSINT 208（右端）で来るので、3.5–14 MHz で時間は足ります。
 - **DMA** は画面の消去（`clear_layer2_page`）とパネルの文字（`pc_put`）が共有します：DMA が使用中なら `pc_put` はプロセッサで描く。SFILE のコピー（`sfile_put`）と新しい行の長いラン（`render_line`）も使い、使用中ならそれぞれプロセッサで行う。
 - **検証**：`make check`（3 000 フレーム、`FRAMES=`）、さらに bot、`-stress`、TSBRIDGE、TSSPEED=1（7 MHz）、TSGS=neo または 0 で、[README.ja.md](README.ja.md) の通り。変更のたびに毎フレーム：状態、行ごとの岸の色（`ev_built`）、General Sound のレジスタ、マシンの画像をピクセル単位で。
-- **計測**：`TSHISTALL=ファイル`（実行全体の各命令の時間、起動、割り込み、待ちを含む）、次に `python3 ../tools/prof.py build/test.sym ファイル 60`。処理の平均と最大は tscheck の最後の行にあります。`TSBORDER=1` で T をオン。`TSSHOT=k` と `TSFULL=1` で k 以降のフレームをボーダー付きで書き出す（実行の最後の画像はボーダーが 1 色だけ：実行は `apply_done` で止まる）。`TSTIME=N` はフレーム N−2..N+2 の処理を表示。`TSVOL=1`：フレームごとの POKEY の音量の合計とカードの最高レベル（255 以下でなければならない）。
+- **計測**：`TSHISTALL=ファイル`（実行全体の各命令の時間、起動、割り込み、待ちを含む）、次に `python3 ../tools/prof.py build/test.sym ファイル 60`。処理の平均と最大は tscheck の最後の行にあります。`TSMSHOT=k` で k 以降のマシンの各フレームを書き出す（32 枚、遅れたフレームの 2 枚目も）。`TSBORDER=1` で T をオン。`TSSHOT=k` と `TSFULL=1` で k 以降のフレームをボーダー付きで書き出す（実行の最後の画像はボーダーが 1 色だけ：実行は `apply_done` で止まる）。`TSTIME=N` はフレーム N−2..N+2 の処理を表示。`TSVOL=1`：フレームごとの POKEY の音量の合計とカードの最高レベル（255 以下でなければならない）。

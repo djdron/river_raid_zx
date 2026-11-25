@@ -91,7 +91,7 @@
 |---|---|---|---|
 | 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：位于原版地址的 Atari 内存 | 启动时：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` 在那里运行） |
 | 1 | $4000–$7FFF | 5（`WORK_PAGE`）：从 $4000 起是各行的色段（`SPANS`，32 字节 × 256 行），从 $6000 起是缓冲区（`scan_*`、`edge_runs`、`ring_*`、`ds_objs`、`ov_exp2/4`、`eg_*`、`bg_*`、`line_*`、`edge_lo/hi`、`rnd_tab`），$7D00 处是系统字体 | `render_line`：河流图像的一页（32–47）；`panel_draw`/`pc_*`：面板图像（64–79）；启动时 tile 映射（7）、tile（8）、精灵图像（24–31）；之后总是换回 5 |
-| 2 | $8000–$BFFF | 2（`CODE_PAGE`）：代码到约 $9F6F，从 $A000 起是卡带 | — |
+| 2 | $8000–$BFFF | 2（`CODE_PAGE`）：代码到约 $9FBF，从 $A000 起是卡带 | — |
 | 3 | $C000–$FFFF | 6（`HIGH_PAGE`）：代码到约 $D7EC，然后 $E000 处是 FM 窗口（`CRAM_SHADOW`：CRAM $E000–$E1FF，SFILE $E200–$E3FF；写入同时也写到下面的 RAM），表和变量到约 $FD65，栈，$FE00 处的 IM 2 向量 | — |
 
 图像：河流从第 32 页起（`VID_PAGE`，16 页：512 行，每行 512 字节，显示其中 320 点），面板从第 64 页起
@@ -139,8 +139,8 @@ $E400–$E4FF 是它的寄存器（`palette_lo` 在那里，只读）。
 | `start` | 加载时 | 14 MHz 和缓存（SYSCONFIG $06），窗口 0 为 RAM（MEMCONFIG $0E），各页，`screen_black`，`load_rom`（SPG 构建），`init_tables`，`init_video`，精灵图像（`obj_pics`、`pl_pics`、`panel_pics`），`gs_load`，然后把 Atari 内存放到窗口 0，`panel_init`，`ay_quiet`，RANDOM 的种子，IM 2（向量在 $FE00），`restart`。 | 一次 |
 | `restart` | `start` | `tv_setup`，清空画面（两半都用 DMA，并等待完成），帧中断设在 `FRAME_LINE`，`start_attract`，整个面板画好，落入 `main_frame`。 | 一次 |
 | `main_frame` | 每帧 | 见 *一帧*。 | 340 / 340 |
-| `wait_frame` | `main_frame` | HALT 直到下一次帧中断（先清 `frame_flag`：工作期间来的那次对 `apply` 已太晚）：空闲，不是工作。 | — |
-| `irq` | 中断 | 处理 `ev_ptr` 处的事件：EV_PAL 设 PALSEL；EV_PANEL 设 VPAGE = `VPANEL`，GYOFFS = 0，VCONFIG $8A（256 色，位图在 tile 和精灵之上）；EV_GX 设 GXOFFS；帧事件（EV_END）设 `frame_flag`。同一行的事件一起处理；然后把 VSINT 设到下一个事件的行（`vsint_set`），或帧事件的行。在帧事件时还把 `apply` 的画面寄存器和事件重新设好（`river_regs`、`ap_pal`、从 `ap_list` 起的 `ev_go`）：迟到的帧再显示一次上一帧。 | 1 400 / 1 400 |
+| `wait_frame` | `main_frame` | 循环等到下一次帧中断（先清 `frame_flag`：工作期间来的那次对 `apply` 已太晚；不用 HALT 和 DI，见 NOTES）：空闲，不是工作。 | — |
+| `irq` | 中断 | 处理 `ev_ptr` 处的事件：EV_PAL 设 PALSEL；EV_PANEL 设 VPAGE = `VPANEL`，GYOFFS = 0，VCONFIG $8A（256 色，位图在 tile 和精灵之上）；EV_GX 设 GXOFFS；帧事件（EV_END）设 `frame_flag`。同一行的事件一起处理；然后把 VSINT 设到下一个事件的行（`vsint_set`），或帧事件的行。在帧事件时还把 `apply` 的画面寄存器和事件重新设好（`river_regs`、`ap_pal`、从 `ap_list` 起的 `ev_go`）：迟到的帧再显示一次上一帧。在 3.5 MHz 下（开始时数一帧内循环的圈数），`.cmp` 被改成 JP `.gap`：`EV_GAP`（2）行以内的下一个事件立即处理。 | 1 400 / 1 400 |
 | `vsint_set` | `irq`、`apply`、`restart` | VSINT = HL（9 位），保存在 `ev_line`。 | 340 / 330 |
 | `apply` | `wait_frame` 之后 | GYOFFS = `show_scroll`，VPAGE 设为河流的，VCONFIG $81（16 色），GXOFFS 0；`snd_out`（AY 寄存器或发给卡的帧）；`panel_frame`；炮弹和飞机的颜色写入 CRAM；`sfile_put`；重置后清画面期间（从第二帧起）：河流全黑（颜色 0 的调色板，边缘和水为 0，只有面板事件）；否则 PALSEL 设为顶部的调色板（`ev_built`），`pal_edges`，面板事件复制到河岸事件之后（`ev_tail`）；把中断设到第一个事件（前后 DI）；`ev_show` = 刚设好的列表（`build_events` 写另一个）。 | 1 200 / 1 200 |
 | `pal_get` | `build_events`、`apply` | Atari 颜色 E 对应的河流调色板（PALSEL 0–7）：每种河岸颜色都有自己的调色板，首次出现时建立（`pal_of`、`pal_n`）：其颜色 1 为该色，写入 CRAM。超过 8 种时重复用最后一个（从未发生）。 | 110 / 110 |
@@ -280,4 +280,4 @@ Wild Commander 启动 .spg 时既不提供目录也不提供 DOS，所以程序�
 - **在行末采样的寄存器**（PALSEL、VPAGE、GYOFFS、GXOFFS）：在前一行的中断里设置；中断在 HSINT 208（右边缘）到来，所以在 3.5–14 MHz 下都来得及。
 - **DMA** 由清画面（`clear_layer2_page`）和面板字符（`pc_put`）共用：DMA 忙时 `pc_put` 用处理器绘制；SFILE 的复制（`sfile_put`）和新行的长段（`render_line`）也用它，DMA 忙时各自改用处理器。
 - **校验**：`make check`（3 000 帧；`FRAMES=`），以及带 bot、`-stress`、TSBRIDGE、TSSPEED=1（7 MHz）、TSGS=neo 或 0 的运行，见 [README.zh.md](README.zh.md)。每次修改后都逐帧比较：状态、逐行河岸颜色（`ev_built`）、General Sound 的寄存器以及机器每帧的图像（逐像素）。
-- **测量**：`TSHISTALL=文件`（整个运行中每条指令的时间，包括启动、中断和等待），然后 `python3 ../tools/prof.py build/test.sym 文件 60`；工作量的平均和最大值在 tscheck 输出的最后几行。`TSBORDER=1` 打开 T；`TSSHOT=k` 加 `TSFULL=1` 写出从 k 起带边框的帧（一次运行的最后一张图边框只有一种颜色：运行停在 `apply_done`）。`TSTIME=N` 打印第 N−2..N+2 帧的工作量。`TSVOL=1`：各帧 POKEY 音量之和以及卡的最高电平（必须保持在 255 以内）。
+- **测量**：`TSHISTALL=文件`（整个运行中每条指令的时间，包括启动、中断和等待），然后 `python3 ../tools/prof.py build/test.sym 文件 60`；工作量的平均和最大值在 tscheck 输出的最后几行。`TSMSHOT=k` 写出从第 k 帧起机器的每一帧（32 帧，包括迟到帧的第二帧）；`TSBORDER=1` 打开 T；`TSSHOT=k` 加 `TSFULL=1` 写出从 k 起带边框的帧（一次运行的最后一张图边框只有一种颜色：运行停在 `apply_done`）。`TSTIME=N` 打印第 N−2..N+2 帧的工作量。`TSVOL=1`：各帧 POKEY 音量之和以及卡的最高电平（必须保持在 255 以内）。

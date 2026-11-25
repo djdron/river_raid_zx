@@ -44,7 +44,7 @@ Cicli a 14 MHz, ~286 800 a fotogramma. tscheck: il lavoro da `apply_done` a `fra
 | `-stress` dal ponte 80 (tutti gli slot occupati, tutta velocità, sempre sparando), 6 000 | ~108 000 | ~144 000 | 0 |
 | lo stesso a 7 MHz (~143 400 a fotogramma) | ~93 000 | ~125 000 | 0 |
 
-A 3,5 MHz non regge: un fotogramma in ritardo mostra di nuovo l'ultimo (l'INT del fotogramma rimette i registri e gli eventi di `apply`, e `wait_frame` aspetta l'INT successivo, come il Next la sua riga), mai l'immagine del pannello sopra il fiume. Per parti nelle scene più pesanti: il display (posizionamento e collisioni) ~51 000, le nuove righe del fiume ~32 000, gli sprite e gli eventi della palette ~15 000, apply, il pannello e gli interrupt ~7 000, la logica del gioco ~8 800, il suono ~3 500 (sulla scheda).
+A 3,5 MHz non regge: un fotogramma in ritardo mostra di nuovo l'ultimo (l'INT del fotogramma rimette i registri e gli eventi di `apply`, e `wait_frame` aspetta l'INT successivo, come il Next la sua riga), mai l'immagine del pannello sopra il fiume; gli eventi su righe vicine si fanno subito (`irq.gap`), così nemmeno il pannello sfarfalla. Per parti nelle scene più pesanti: il display (posizionamento e collisioni) ~51 000, le nuove righe del fiume ~32 000, gli sprite e gli eventi della palette ~15 000, apply, il pannello e gli interrupt ~7 000, la logica del gioco ~8 800, il suono ~3 500 (sulla scheda).
 
 I numeri sono della build di verifica (`-DTEST`: con la memoria dello schermo dell'Atari, che il gioco non ha); il gioco è più leggero di ~1 000–2 500.
 
@@ -57,6 +57,7 @@ Il core TSConf di Xpeccy+ (e la sua General Sound) come libreria, senza finestra
 - Il reset proprio del firmware della GS ($F4) richiede secondi; chiederne invece lo stato ($F0).
 - Una somma di livelli oltre 255 si riavvolge in silenzio: i campioni sembrano normali, solo l'orecchio lo trova. Sommare i volumi (`TSVOL`), non guardare i campioni.
 - `make check` non esegue il .spg: l'avvio (scheda SD, schermo, caricamento nella GS) si verifica con `-spg … -sd`.
+- L'INT è un impulso di 32 cicli: uno che arriva sotto DI, o mentre il gestore è ancora in corso, va perso. A 3,5 MHz una riga è 224 cicli e il gestore ~430, così gli eventi sulla riga successiva o quella dopo andavano persi (e con loro il resto del fotogramma: il pannello sfarfallava); `wait_frame` con HALT superava un INT arrivato tra il test e l'HALT, e con DI intorno lo perdeva. Da qui il ciclo in `wait_frame` e `irq.gap`.
 - `-stress` senza `-bot` in tscheck non faceva nulla (nessun bot giocava): quelle esecuzioni erano l'attract mode. Ora gioca il bot con seme 1, come in nxcheck.
 - L'ultima immagine di un'esecuzione (TSFULL) è presa a `apply_done`, quindi il suo bordo ha un solo colore; le bande del bordo si vedono nei fotogrammi di TSSHOT.
 - Non ancora eseguito su una scheda reale: la tastiera, il Kempston, la scheda SD, il firmware reale della GS e quello di una NeoGS sono come li modella Xpeccy+.

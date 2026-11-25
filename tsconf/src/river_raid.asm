@@ -112,6 +112,7 @@ RIVER_TOP	equ 24			; the screen's row of the river's top line (of 240)
 ; colour is there before that line's dots.
 INT_X		equ 208			; HSINT: 416 dots from the line's blanking (x 384 + 32)
 ROW_LINE	equ 56 - 1		; VSINT for screen row r: ROW_LINE + r
+EV_GAP		equ 2			; irq.gap: at 3.5 MHz events this many lines apart taken together
 FRAME_LINE	equ ROW_LINE + 241		; the frame's work starts: below the panel (9 bits)
 EV_PAL		equ 0			; the INT's events: the river's palette (0-7: its bank
 					; colour) from the next line,
@@ -251,6 +252,22 @@ restart:
 	ld hl,FRAME_LINE
 	call vsint_set
 	ei
+	call wait_frame			; the CPU's speed: a loop's turns in a frame (35 ticks each:
+	xor a				; ~8 200 at 14 MHz, ~4 100 at 7, ~2 000 at 3.5); at 3.5 MHz
+	ld (frame_flag),a		; the INT takes more than a line, so events up to EV_GAP lines
+	ld hl,0				; apart are taken together (irq.gap)
+1:	inc hl
+	ld a,(frame_flag)
+	or a
+	jr z,1B
+	ld de,-3000
+	add hl,de
+	jr c,2F
+	ld a,$C3			; 3.5 MHz: JP .gap
+	ld (irq.cmp),a
+	ld hl,irq.gap
+	ld (irq.cmp + 1),hl
+2:
 	call start_attract		; frame 0: the attract mode starts, its first line
 	call panel_frame		; its panel, all of it drawn before the first frame
 	call panel_draw
@@ -320,10 +337,9 @@ panel_done:				; it may take a while)
 wait_frame:
 	xor a
 	ld (frame_flag),a
-1:	halt
-	ld a,(frame_flag)
-	or a
-	jr z,1B
+1:	ld a,(frame_flag)		; (a loop, not HALT: an INT between the test and a HALT
+	or a				; would be waited past, to the next one; nor DI around them:
+	jr z,1B				; the INT is a pulse of 32 ticks, lost under DI)
 	ret
 
 ; The frame INT and the events of the frame (ev_ptr): each its kind, its data (2 bytes), its
@@ -346,7 +362,7 @@ irq:
 	jr .next3
 .other	push bc
 	inc a
-	jr z,.frame
+	jp z,.frame
 	dec a
 	dec a
 	jr nz,.gx
@@ -380,14 +396,14 @@ irq:
 	inc hl
 	inc hl
 	inc hl
-	ld a,(ev_line)
+.cmp	ld a,(ev_line)			; (3.5 MHz: JP .gap here, from the start's test)
 	cp (hl)
 	jr nz,1F
 	inc hl
 	ld a,(ev_line + 1)
 	cp (hl)
 	jr nz,2F
-	pop bc				; (the same line: now)
+.now	pop bc				; (the same line: now)
 	pop hl
 	pop af
 	jp irq
@@ -396,6 +412,33 @@ irq:
 	inc hl
 	ld h,(hl)
 	ld l,a
+	jr 3F
+.gap	ld a,(ev_line)			; 3.5 MHz: the INT takes more than a line, so the next
+	ld c,a				; event up to EV_GAP lines on (or before: taken late) is
+	ld a,(hl)			; taken now (its INT would come while this one runs, and be
+	sub c				; lost: a pulse of 32 ticks), ev_line on by EV_GAP (the
+	ld c,a				; time it takes)
+	inc hl
+	ld a,(ev_line + 1)
+	ld b,a
+	ld a,(hl)
+	sbc a,b
+	jr z,1F
+	inc a
+	jr z,4F
+	jr 2F
+1:	ld a,EV_GAP
+	cp c
+	jr c,2F
+4:	ld hl,(ev_line)
+	ld bc,EV_GAP
+	add hl,bc
+	ld (ev_line),hl
+	jr .now
+2:	ld b,(hl)
+	dec hl
+	ld l,(hl)
+	ld h,b
 	jr 3F
 .last	ld hl,FRAME_LINE
 3:	call vsint_set

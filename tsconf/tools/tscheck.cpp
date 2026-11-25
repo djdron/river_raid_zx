@@ -15,7 +15,8 @@
 //   from N), -stress: at full speed, always firing (the bot of seed 1 if no -bot)
 //   TSBRIDGE=n: every game starts at bridge n; TSGHOST=1: the plane cannot crash, the fuel
 //   stays full; NXGAME=n (the made-up player's): game n, started at once; TSSPEED=n: the CPU
-//   at 3.5 (0), 7 (1) or 14 MHz (2, as the program sets it); TSBORDER=1: T's colours on the
+//   at 3.5 (0), 7 (1) or 14 MHz (2, as the program sets it); TSMSHOT=k: the machine's frames
+//   from frame k (32, /tmp/tsm_N.ppm); TSBORDER=1: T's colours on the
 //   border (TSFULL=1: the picture written with it)
 //        tscheck -sna <river_raid.sna> <frames> <frame.ppm>: the snapshot, run for so many frames
 //        tscheck -spg <river_raid.spg> <frames> <frame.ppm> [-sd folder]: the SPG (the folder as
@@ -450,11 +451,26 @@ int main(int argc, char **argv) {
 	static long volHist[64];
 	static int levelMax = 0, dacMax = 0;
 	const char *histAllPath = std::getenv("TSHISTALL");
+	// TSMSHOT=k: each machine's frame from frame k on (32 of them), to /tmp/tsm_N.ppm (a late
+	// frame's second one too, which TSSHOT does not see)
+	static int mshotFrom = std::getenv("TSMSHOT") ? std::atoi(std::getenv("TSMSHOT")) : -1, mshotN = 0, curFrame = 0;
 	auto runTo = [&](uint16_t hook) {
 		for (long n = 0; n < 50000000L; n++) {
 			const uint16_t pc = comp->cpu->regPC;
 			const long long t = comp->tickTotal;
+			const int sw = bufSwaps;
 			compExec(comp);
+			if (bufSwaps != sw && mshotFrom > 0 && curFrame >= mshotFrom && mshotN < 32) {
+				char fn[64];
+				std::snprintf(fn, sizeof fn, "/tmp/tsm_%d.ppm", mshotN++);
+				if (FILE *o = std::fopen(fn, "wb")) {
+					std::fprintf(o, "P6\n320 240\n255\n");
+					for (int y = 0; y < 240; y++)
+						for (int x = 0; x < 320; x++)
+							std::fwrite(bufimg + (comp->vid->tsconf.yPos + y) * bytesPerLine + (comp->vid->tsconf.xPos * 2 + 2 * x) * 4, 1, 3, o);
+					std::fclose(o);
+				}
+			}
 			if (histAllPath) histAll[pc] += comp->tickTotal - t;
 			if (comp->cpu->regPC == hook) return true;
 		}
@@ -498,6 +514,7 @@ int main(int argc, char **argv) {
 	long long workSum = 0, workMax = 0, applyTick = -1;
 	int workMaxFrame = 0;
 	for (int f = 1; f <= frames; f++) {
+		curFrame = f;
 		rr::Input input;
 		if (botSeed) input = bot.next(game);
 		else input.start = f == startAt;
