@@ -126,7 +126,7 @@ Skopiowane z `../src`, ten sam kod:
 - `display.asm`, `display_simple.asm`, `spans.asm`: strona SPANS nie jest mapowana (`nextreg $52,SPAN_PAGE` usunięte: okno 1 trzyma SPANS cały czas); `spans.asm` bez `rl_fill`/`rl_next` (pomocników `render_line` w Next).
 - `display_hits.asm`: `bsla de,b` (Z80N) jako `shl_de_b`, pętla 0–7 `sla e / rl d` (w `hit_line`: do ~100 taktów więcej na test, kilkaset na klatkę).
 - `game.asm`: `tm_colour` zapisuje BORDER (wpis CRAM: `TM_*` to wolne wpisy grupy 11 od 2, ich kolory ustawia `tm_cram`), a `TM_COLOUR` wywołuje go tylko przy włączonym T; `push_line` przesuwa `scroll` w pierścieniu 512 linii (9 bitów) i rysuje do linii obrazu `scroll + RIVER_TOP`.
-- `play.asm`: `clear_layer2_page` jest z TS-Conf (river_raid.asm, DMA); `read_input` bez CAPS + 1 (brak 60 Hz), CAPS + 2 (dźwięk), CAPS + 3 (taktowanie), drugiego Kempstona i pada Mega Drive.
+- `play.asm`: `clear_layer2_page` jest z TS-Conf (river_raid.asm, DMA); `read_input` bez CAPS + 1 (brak 60 Hz), CAPS + 2 (dźwięk), drugiego Kempstona i pada Mega Drive; jego CAPS + 3 zmienia po kolei trzy taktowania (14, 7, 3,5 MHz).
 - `sound.asm`: tylko `sound_driver` i `sound_random`: `pokey_frame` działa na General Sound (`gs/`).
 - `render.asm`, `sprites.asm`, `sound_ay.asm`, `load_rom.asm`, `river_raid.asm`: własne TS-Conf (niżej), z nazwami Next tam, gdzie wykonują tę samą pracę.
 

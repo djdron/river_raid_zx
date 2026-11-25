@@ -129,7 +129,7 @@ Aus `../src` kopiert, derselbe Code:
 - `display.asm`, `display_simple.asm`, `spans.asm`: Die Seite SPANS wird nicht gemappt (`nextreg $52,SPAN_PAGE` weg: Fenster 1 hält SPANS die ganze Zeit); `spans.asm` ohne `rl_fill`/`rl_next` (die Helfer von `render_line` beim Next).
 - `display_hits.asm`: `bsla de,b` (Z80N) als `shl_de_b`, eine Schleife aus 0–7 `sla e / rl d` (in `hit_line`: bis zu ~100 Takte mehr pro Test, ein paar hundert pro Frame).
 - `game.asm`: `tm_colour` schreibt BORDER (einen CRAM-Eintrag: `TM_*` sind die freien Einträge der Gruppe 11 ab 2, ihre Farben setzt `tm_cram`), und `TM_COLOUR` ruft es nur bei eingeschaltetem T; `push_line` bewegt `scroll` in einem Ring von 512 Zeilen (9 Bit) und zeichnet in die Bildzeile `scroll + RIVER_TOP`.
-- `play.asm`: `clear_layer2_page` ist das von TS-Conf (river_raid.asm, der DMA); `read_input` ohne CAPS + 1 (keine 60 Hz), CAPS + 2 (Ton aus), CAPS + 3 (Takt), den zweiten Kempston und das Mega-Drive-Pad.
+- `play.asm`: `clear_layer2_page` ist das von TS-Conf (river_raid.asm, der DMA); `read_input` ohne CAPS + 1 (keine 60 Hz), CAPS + 2 (Ton aus), den zweiten Kempston und das Mega-Drive-Pad; sein CAPS + 3 wechselt drei Takte (14, 7, 3,5 MHz).
 - `sound.asm`: nur `sound_driver` und `sound_random`: `pokey_frame` läuft auf der General Sound (`gs/`).
 - `render.asm`, `sprites.asm`, `sound_ay.asm`, `load_rom.asm`, `river_raid.asm`: die von TS-Conf (unten), mit den Namen des Next, wo sie dieselbe Aufgabe haben.
 

@@ -119,7 +119,7 @@ $E400–$E4FF 是它的寄存器（`palette_lo` 在那里，只读）。
 - `display.asm`、`display_simple.asm`、`spans.asm`：不映射 SPANS 页（删掉 `nextreg $52,SPAN_PAGE`：窗口 1 一直放着 SPANS）；`spans.asm` 去掉 `rl_fill`/`rl_next`（Next 上 `render_line` 的辅助例程）。
 - `display_hits.asm`：`bsla de,b`（Z80N）改为 `shl_de_b`，一个 0–7 次 `sla e / rl d` 的循环（在 `hit_line` 中：每次检测最多多约 100 周期，每帧几百）。
 - `game.asm`：`tm_colour` 写 BORDER（一个 CRAM 项：`TM_*` 是第 11 组从 2 起的空闲项，颜色由 `tm_cram` 设置），`TM_COLOUR` 只在 T 打开时才调用它；`push_line` 让 `scroll` 在 512 行的环中移动（9 位），并画到图像的 `scroll + RIVER_TOP` 行。
-- `play.asm`：`clear_layer2_page` 用 TS-Conf 的（river_raid.asm，DMA）；`read_input` 没有 CAPS + 1（没有 60 Hz）、CAPS + 2（关闭声音）、CAPS + 3（速度）、第二个 Kempston 和 Mega Drive 手柄。
+- `play.asm`：`clear_layer2_page` 用 TS-Conf 的（river_raid.asm，DMA）；`read_input` 没有 CAPS + 1（没有 60 Hz）、CAPS + 2（关闭声音）、第二个 Kempston 和 Mega Drive 手柄；它的 CAPS + 3 在三种频率间轮流（14、7、3.5 MHz）。
 - `sound.asm`：只有 `sound_driver` 和 `sound_random`：`pokey_frame` 在 General Sound 上运行（`gs/`）。
 - `render.asm`、`sprites.asm`、`sound_ay.asm`、`load_rom.asm`、`river_raid.asm`：TS-Conf 自己的（见下），做同样工作的地方沿用 Next 的名字。
 

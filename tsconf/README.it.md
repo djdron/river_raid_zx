@@ -36,7 +36,7 @@ Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Ne
   scritta scorrevole è un anello di 32 caratteri sui 512 punti dell'immagine, mostrato da
   GXOFFS.
 - Il livello di tile 0 è anche il nero sopra il fiume.
-- I comandi: Q A O P, Spazio o M per sparare, Invio START, G SELECT, H pausa, T il lavoro del fotogramma sul bordo (un colore per parte, come sul Next); Kempston.
+- I comandi: Q A O P, Spazio o M per sparare, Invio START, G SELECT, H pausa, T il lavoro del fotogramma sul bordo (un colore per parte, come sul Next), CAPS + 3 la velocità della CPU: 14, 7, 3,5 MHz a turno; Kempston.
 - Il suono: tutto su una General Sound (la scheda originale o una NeoGS), se c'è: lo Z80 della
   scheda suona il POKEY come il DAC del Next (`gs/`, `pokey_frame` del Next e i suoi impulsi, i
   bit del contatore a 17 bit li crea la scheda stessa dalla loro ricorrenza), in mono (gli stessi campioni a tutti e quattro i canali: 1 e 2 sinistro, 3 e 4 destro), a 15 820 campioni al secondo (il suo INT,

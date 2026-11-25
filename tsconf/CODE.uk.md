@@ -127,7 +127,7 @@
 - `display.asm`, `display_simple.asm`, `spans.asm`: сторінка SPANS не мапиться (`nextreg $52,SPAN_PAGE` прибрано: вікно 1 тримає SPANS увесь час); у `spans.asm` немає `rl_fill`/`rl_next` (помічників `render_line` у Next).
 - `display_hits.asm`: `bsla de,b` (Z80N) замінено на `shl_de_b` — цикл з 0–7 `sla e / rl d` (у `hit_line`: до ~100 зайвих тактів на перевірку, кілька сотень за кадр).
 - `game.asm`: `tm_colour` пише BORDER (комірку CRAM: `TM_*` — вільні комірки групи 11 від 2-ї, їхні кольори ставить `tm_cram`), а `TM_COLOUR` викликає його, лише поки T увімкнено; `push_line` рухає `scroll` по кільцю з 512 рядків (9 біт) і малює в рядок картинки `scroll + RIVER_TOP`.
-- `play.asm`: `clear_layer2_page` — власний у TS-Conf (river_raid.asm, DMA); у `read_input` немає CAPS + 1 (немає 60 Гц), CAPS + 2 (звук), CAPS + 3 (частота), другого Kempston і пада Mega Drive.
+- `play.asm`: `clear_layer2_page` — власний у TS-Conf (river_raid.asm, DMA); у `read_input` немає CAPS + 1 (немає 60 Гц), CAPS + 2 (звук), другого Kempston і пада Mega Drive; CAPS + 3 свій: три частоти по колу (14, 7, 3,5 МГц).
 - `sound.asm`: лише `sound_driver` і `sound_random`: `pokey_frame` працює на General Sound (`gs/`).
 - `render.asm`, `sprites.asm`, `sound_ay.asm`, `load_rom.asm`, `river_raid.asm`: власні в TS-Conf (нижче), з іменами Next там, де вони роблять ту саму роботу.
 

@@ -220,6 +220,9 @@ start:
 	xor a
 	ld (tm_show),a
 	ld (tm_keys),a
+	ld (spd_keys),a
+	ld a,2				; 14 MHz (as the SYSCONFIG above)
+	ld (cpu_spd),a
 	call tm_cram
 	ld a,high int_vectors		; IM 2: the frame INT's vector at int_vectors + $FF
 	ld i,a
@@ -320,6 +323,9 @@ panel_done:				; it may take a while)
 ; Next's wait for its line. HALT: other INTs (the events) wake it too; the frame's coming after
 ; the test but before the HALT would leave it waiting past it, so then the frame's INT sends it
 ; back to the test (irq.frame: its return address)
+	if low ($ + 4) > $FA		; (wf_test to its JR in one page: padded past it if not)
+	ds 256 - low $
+	endif
 wait_frame:
 	xor a
 	ld (frame_flag),a
@@ -1096,6 +1102,8 @@ shell_colour:	ds 1
 ms_right:	ds 1
 tm_show:	ds 1			; T: the frame's work shown on the border
 tm_keys:	ds 1			; T last frame
+cpu_spd:	ds 1			; CAPS + 3: the CPU, 2 14 MHz, 1 7, 0 3.5 (SYSCONFIG's bits 0-1)
+spd_keys:	ds 1			; CAPS + 3 last frame
 ; the beam (display.asm)
 bm_line:	ds 1
 bm_drawn:	ds 1

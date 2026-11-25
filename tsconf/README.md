@@ -33,7 +33,7 @@ The source routine by routine, what changed in the Next's shared code, and a tab
   are drawn once at the start and copied by the DMA; the scrolling line is a ring of 32
   characters across the picture's 512 dots, shown from GXOFFS.
 - Tile layer 0 also black above the river.
-- The controls: Q A O P, Space or M to fire, Enter START, G SELECT, H pause, T the frame's work on the border (a colour per part, as on the Next); Kempston.
+- The controls: Q A O P, Space or M to fire, Enter START, G SELECT, H pause, T the frame's work on the border (a colour per part, as on the Next), CAPS + 3 the CPU's speed: 14, 7, 3.5 MHz in turn; Kempston.
 - The sound: all of it on a General Sound (the original card or a NeoGS), when there is one:
   the card's own Z80 plays POKEY as the Next's DAC does (`gs/`, the Next's `pokey_frame` and
   its pulses, the 17-bit counter's bits made by the card from their recurrence), in mono (the same samples to all four channels: 1 and 2 left, 3 and 4 right), at 15 820 samples a second (its INT, 37 500

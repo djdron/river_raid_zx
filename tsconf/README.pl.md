@@ -33,7 +33,7 @@ Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, 
   kopiowane przez DMA; przewijany napis to pierścień 32 znaków na 512 punktach obrazu,
   pokazywany od GXOFFS.
 - Warstwa kafelków 0 jest też czarna nad rzeką.
-- Sterowanie: Q A O P, Spacja lub M ogień, Enter START, G SELECT, H pauza, T praca klatki na ramce (każda część w swoim kolorze, jak na Next); Kempston.
+- Sterowanie: Q A O P, Spacja lub M ogień, Enter START, G SELECT, H pauza, T praca klatki na ramce (każda część w swoim kolorze, jak na Next), CAPS + 3 taktowanie procesora: 14, 7, 3,5 MHz po kolei; Kempston.
 - Dźwięk: cały na General Sound (oryginalnej karcie lub NeoGS), jeśli jest: własny Z80 karty
   gra POKEY tak jak DAC na Next (`gs/`: `pokey_frame` z Next i jego impulsy, bity 17-bitowego
   licznika karta tworzy sama z ich rekurencji), mono (te same próbki do wszystkich czterech kanałów: 1 i 2 lewy, 3 i 4 prawy), 15 820 próbek na sekundę (jej przerwanie, 37 500 na sekundę, bierze 108 z 256).

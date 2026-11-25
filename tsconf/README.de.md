@@ -34,7 +34,7 @@ Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert i
   einmal beim Start gezeichnet und vom DMA kopiert; die Laufschrift ist ein Ring aus 32 Zeichen
   über die 512 Punkte des Bildes, gezeigt ab GXOFFS.
 - Tile-Ebene 0 auch schwarz über dem Fluss.
-- Steuerung: Q A O P, Leertaste oder M feuern, Enter START, G SELECT, H Pause, T die Arbeit des Frames am Rand (eine Farbe je Teil, wie auf dem Next); Kempston.
+- Steuerung: Q A O P, Leertaste oder M feuern, Enter START, G SELECT, H Pause, T die Arbeit des Frames am Rand (eine Farbe je Teil, wie auf dem Next), CAPS + 3 der Takt der CPU: 14, 7, 3,5 MHz im Wechsel; Kempston.
 - Der Ton: alles auf einer General Sound (der ursprünglichen Karte oder einer NeoGS), wenn eine
   da ist: Der eigene Z80 der Karte spielt POKEY wie der DAC des Next (`gs/`, `pokey_frame` des
   Next und seine Impulse, die Bits des 17-Bit-Zählers macht die Karte selbst aus ihrer

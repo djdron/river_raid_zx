@@ -124,7 +124,7 @@ $E000–$E3FF は他に使えず、$E400–$E4FF はそのレジスタです（`
 - `display.asm`、`display_simple.asm`、`spans.asm`：SPANS のページはマップしない（`nextreg $52,SPAN_PAGE` を削除：窓 1 は常に SPANS を持つ）。`spans.asm` には `rl_fill`/`rl_next`（Next での `render_line` の補助）がない。
 - `display_hits.asm`：`bsla de,b`（Z80N）を `shl_de_b` に、0–7 回の `sla e / rl d` のループ（`hit_line` 内：1 回の判定で最大約 100 サイクル増、1 フレーム数百）。
 - `game.asm`：`tm_colour` は BORDER に書く（CRAM の 1 項目：`TM_*` はグループ 11 の 2 以降の空き、色は `tm_cram` が設定）。`TM_COLOUR` は T がオンのときだけそれを呼ぶ。`push_line` は `scroll` を 512 行のリングで動かし（9 ビット）、画像の `scroll + RIVER_TOP` 行目に描く。
-- `play.asm`：`clear_layer2_page` は TS-Conf のもの（river_raid.asm、DMA）。`read_input` には CAPS + 1（60 Hz なし）、CAPS + 2（音オフ）、CAPS + 3（速度）、2 つ目の Kempston、Mega Drive パッドがない。
+- `play.asm`：`clear_layer2_page` は TS-Conf のもの（river_raid.asm、DMA）。`read_input` には CAPS + 1（60 Hz なし）、CAPS + 2（音オフ）、2 つ目の Kempston、Mega Drive パッドがない。CAPS + 3 は独自で、3 つの速さ（14、7、3.5 MHz）を順に切り替える。
 - `sound.asm`：`sound_driver` と `sound_random` のみ：`pokey_frame` は General Sound 上で動く（`gs/`）。
 - `render.asm`、`sprites.asm`、`sound_ay.asm`、`load_rom.asm`、`river_raid.asm`：TS-Conf 独自のもの（下記）。同じ仕事をするところは Next の名前を使う。
 

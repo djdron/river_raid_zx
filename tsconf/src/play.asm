@@ -1035,7 +1035,8 @@ select_game:
 ; (a key of the keyboard: pause).
 ;
 ; Keyboard: Q A O P to fly, Space or M to fire (both players: they take turns); Enter START,
-; G SELECT (the game number), H pause. Kempston joystick (port $1F).
+; G SELECT (the game number), H pause; T the frame's work on the border, CAPS + 3 the CPU (14,
+; 7, 3.5 MHz in turn). Kempston joystick (port $1F).
 	ifndef TEST
 read_input:
 	ld e,$0F			; E: the keyboard as a stick
@@ -1087,6 +1088,33 @@ read_input:
 	pop bc
 .tm	ld a,h
 	ld (tm_keys),a
+	ld b,$FE			; CAPS + 3: 14, 7 and 3.5 MHz in turn (when pressed)
+	in a,(c)
+	ld h,a
+	ld b,$F7
+	in a,(c)
+	rrca
+	rrca
+	or h
+	cpl
+	and 1
+	ld h,a
+	ld a,(spd_keys)
+	cpl
+	and h
+	jr z,.spd
+	ld a,(cpu_spd)
+	dec a
+	jp p,$+5
+	ld a,2
+	ld (cpu_spd),a
+	or 4				; the cache on
+	push bc
+	ld bc,SYSCONFIG
+	out (c),a
+	pop bc
+.spd	ld a,h
+	ld (spd_keys),a
 	ld b,$BF			; Enter: START; H: pause
 	in a,(c)
 	bit 0,a
