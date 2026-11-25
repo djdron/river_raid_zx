@@ -44,7 +44,7 @@ Ticks at 14 MHz, ~286 800 a frame. tscheck: the work from `apply_done` to `frame
 | `-stress` from bridge 80 (all slots taken, full speed, always firing), 6 000 | ~108 000 | ~144 000 | 0 |
 | the same at 7 MHz (~143 400 a frame) | ~93 000 | ~125 000 | 0 |
 
-At 3.5 MHz it does not keep up: a late frame shows the last one again (the frame's INT puts apply's registers and events back, and `wait_frame` waits for the next INT, as the Next's for its line), never the panel's picture over the river; events on lines close together are taken at once (`irq.gap`), so the panel does not flicker either. By part in the heaviest scenes: the display (placement and collisions) ~51 000, the river's new lines ~32 000, sprites and the palette's events ~15 000, apply, the panel and the INTs ~7 000, the game's logic ~8 800, the sound ~3 500 (on the card).
+At 3.5 MHz it does not keep up: a late frame shows the last one again (the frame's INT puts apply's registers and events back, and `wait_frame` waits for the next INT, as the Next's for its line), never the panel's picture over the river; events on lines next to each other are not lost either (the INT puts the next one's VSINT out first and enables INTs before its end), so the panel does not flicker. By part in the heaviest scenes: the display (placement and collisions) ~51 000, the river's new lines ~32 000, sprites and the palette's events ~15 000, apply, the panel and the INTs ~7 000, the game's logic ~8 800, the sound ~3 500 (on the card).
 
 The numbers are from the check's build (`-DTEST`: with the Atari's screen memory, which the game does not have); the game is ~1 000–2 500 lighter.
 
@@ -57,7 +57,7 @@ Xpeccy+'s TSConf core (and its General Sound) as a library, no window, beside th
 - The GS firmware's own reset ($F4) takes seconds; ask its state ($F0) instead.
 - A level sum past 255 wraps silently: the samples look normal, only the ear finds it. Sum the volumes (`TSVOL`) rather than look at samples.
 - `make check` does not run the .spg: the start (SD card, screen, GS upload) is checked with `-spg … -sd`.
-- The INT is a pulse of 32 ticks: one that comes under DI, or while the INT handler still runs, is lost. At 3.5 MHz a line is 224 ticks and the handler ~430, so events on the next line or the one after were lost (and with them the rest of the frame's: the panel flickered); and `wait_frame` with HALT waited past an INT that came between its test and the HALT, with DI around them lost it. Hence the loop in `wait_frame` and `irq.gap`.
+- The INT is a pulse of 32 ticks: one that comes under DI, or while the INT handler still runs, is lost. At 3.5 MHz a line is 224 ticks and the handler ~430, so events on the next line or the one after were lost (and with them the rest of the frame's: the panel flickered); and `wait_frame` with HALT waited past an INT that came between its test and the HALT, with DI around them lost it. Hence each event carries the next one's line (its VSINT goes out first, ~150 ticks in, and EI comes before the INT's end), and the frame's INT sends `wait_frame` back to its test when it came just before the HALT.
 - `-stress` without `-bot` did nothing in tscheck (no bot played): its runs were attract mode. Now it plays the bot of seed 1, as nxcheck.
 - The run's last picture (TSFULL) is taken at `apply_done`, so its border shows one colour; the border's bands are seen in TSSHOT's frames.
 - Not run on a real board yet: the keyboard, Kempston, the SD card, the GS's real firmware and a NeoGS's are as Xpeccy+ models them.

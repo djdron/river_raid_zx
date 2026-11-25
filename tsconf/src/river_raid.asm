@@ -112,7 +112,6 @@ RIVER_TOP	equ 24			; the screen's row of the river's top line (of 240)
 ; colour is there before that line's dots.
 INT_X		equ 208			; HSINT: 416 dots from the line's blanking (x 384 + 32)
 ROW_LINE	equ 56 - 1		; VSINT for screen row r: ROW_LINE + r
-EV_GAP		equ 2			; irq.gap: at 3.5 MHz events this many lines apart taken together
 FRAME_LINE	equ ROW_LINE + 241		; the frame's work starts: below the panel (9 bits)
 EV_PAL		equ 0			; the INT's events: the river's palette (0-7: its bank
 					; colour) from the next line,
@@ -252,22 +251,6 @@ restart:
 	ld hl,FRAME_LINE
 	call vsint_set
 	ei
-	call wait_frame			; the CPU's speed: a loop's turns in a frame (35 ticks each:
-	xor a				; ~8 200 at 14 MHz, ~4 100 at 7, ~2 000 at 3.5); at 3.5 MHz
-	ld (frame_flag),a		; the INT takes more than a line, so events up to EV_GAP lines
-	ld hl,0				; apart are taken together (irq.gap)
-1:	inc hl
-	ld a,(frame_flag)
-	or a
-	jr z,1B
-	ld de,-3000
-	add hl,de
-	jr c,2F
-	ld a,$C3			; 3.5 MHz: JP .gap
-	ld (irq.cmp),a
-	ld hl,irq.gap
-	ld (irq.cmp + 1),hl
-2:
 	call start_attract		; frame 0: the attract mode starts, its first line
 	call panel_frame		; its panel, all of it drawn before the first frame
 	call panel_draw
@@ -333,36 +316,56 @@ panel_done:				; it may take a while)
 
 ; The next frame INT below the river (frame_flag, irq): one that came during the work (a late
 ; frame) is too late for apply (the picture's top already shown), so the one after it, as the
-; Next's wait for its line
+; Next's wait for its line. HALT: other INTs (the events) wake it too; the frame's coming after
+; the test but before the HALT would leave it waiting past it, so then the frame's INT sends it
+; back to the test (irq.frame: its return address)
 wait_frame:
 	xor a
 	ld (frame_flag),a
-1:	ld a,(frame_flag)		; (a loop, not HALT: an INT between the test and a HALT
-	or a				; would be waited past, to the next one; nor DI around them:
-	jr z,1B				; the INT is a pulse of 32 ticks, lost under DI)
-	ret
+wf_test	ld a,(frame_flag)
+	or a
+	ret nz
+	halt
+	jr wf_test
+	assert high wf_test == high (wf_test + 5)
 
-; The frame INT and the events of the frame (ev_ptr): each its kind, its data (2 bytes), its
-; VSINT line (2): EV_PAL the river's palette from the next row, EV_PANEL the panel's picture from it
-; (VPANEL, its line 0, the bitmap over the tiles and sprites), EV_GX GXOFFS; EV_END: the
-; frame's INT (FRAME_LINE). Events on the same line are taken together.
+; The frame INT and the events of the frame (ev_ptr): each event the VSINT line of the next
+; one (2 bytes), its kind, its data (2): EV_PAL the river's palette from the next row, EV_PANEL
+; the panel's picture from it (VPANEL, its line 0, the bitmap over the tiles and sprites),
+; EV_GX GXOFFS; EV_END: the frame's INT (FRAME_LINE). The INT is a pulse of 32 ticks, lost
+; under DI: at 3.5 MHz a line is 224 ticks, so for events on lines next to each other the next
+; one's VSINT goes out first, then this one's port, then EI (the rest may be interrupted). No
+; two events on one line (build_events: the bank's are before the panel's, one a line).
 irq:
 	push af
 	push hl
+	push bc
 	ld hl,(ev_ptr)
+	ld bc,VSINTL			; the next one's line
+	ld a,(hl)
+	out (c),a
+	inc hl
+	inc b
+	ld a,(hl)
+	out (c),a
+	inc hl
 	ld a,(hl)
 	inc hl
 	or a
 	jr nz,.other
-	push bc				; EV_PAL: the river's palette from the next line (PALSEL,
-	ld bc,PALSEL			; latched)
-	ld a,(hl)
+	ld a,(hl)			; EV_PAL: the river's palette from the next line (PALSEL,
+	ld b,high PALSEL		; latched)
 	out (c),a
 	inc hl
-	jr .next3
-.other	push bc
-	inc a
-	jp z,.frame
+.d1	inc hl
+.done	ld (ev_ptr),hl
+	ei
+	pop bc
+	pop hl
+	pop af
+	ret
+.other	inc a
+	jr z,.frame
 	dec a
 	dec a
 	jr nz,.gx
@@ -378,7 +381,7 @@ irq:
 	ld a,$8A
 	out (c),a
 	inc hl
-	jr .next3
+	jr .d1
 .gx	ld bc,GXOFFSL			; EV_GX
 	ld a,(hl)
 	out (c),a
@@ -386,72 +389,25 @@ irq:
 	inc b
 	ld a,(hl)
 	out (c),a
-.next3	inc hl				; (past its line)
 	inc hl
-	inc hl
-	ld (ev_ptr),hl
-	ld a,(hl)			; the next event's line, or the frame's
-	cp EV_END
-	jr z,.last
-	inc hl
-	inc hl
-	inc hl
-.cmp	ld a,(ev_line)			; (3.5 MHz: JP .gap here, from the start's test)
-	cp (hl)
-	jr nz,1F
-	inc hl
-	ld a,(ev_line + 1)
-	cp (hl)
-	jr nz,2F
-.now	pop bc				; (the same line: now)
-	pop hl
-	pop af
-	jp irq
-2:	dec hl
-1:	ld a,(hl)
-	inc hl
-	ld h,(hl)
-	ld l,a
-	jr 3F
-.gap	ld a,(ev_line)			; 3.5 MHz: the INT takes more than a line, so the next
-	ld c,a				; event up to EV_GAP lines on (or before: taken late) is
-	ld a,(hl)			; taken now (its INT would come while this one runs, and be
-	sub c				; lost: a pulse of 32 ticks), ev_line on by EV_GAP (the
-	ld c,a				; time it takes)
-	inc hl
-	ld a,(ev_line + 1)
-	ld b,a
-	ld a,(hl)
-	sbc a,b
-	jr z,1F
-	inc a
-	jr z,4F
-	jr 2F
-1:	ld a,EV_GAP
-	cp c
-	jr c,2F
-4:	ld hl,(ev_line)
-	ld bc,EV_GAP
-	add hl,bc
-	ld (ev_line),hl
-	jr .now
-2:	ld b,(hl)
-	dec hl
-	ld l,(hl)
-	ld h,b
-	jr 3F
-.last	ld hl,FRAME_LINE
-3:	call vsint_set
-	pop bc
-	pop hl
-	pop af
-	ei
-	ret
+	jr .done
 .frame	ld a,1				; EV_END: the frame (wait_frame); the picture's registers and
 	ld (frame_flag),a		; the events as apply left them, again from the top: a frame
-	push de				; late (its apply not yet done) shows the last one again, as
-	ld hl,(ap_scroll)		; the Next's copper (else the panel's picture from the top,
-	call river_regs			; the bank's colours not changed)
+	ld hl,6				; late (its apply not yet done) shows the last one again, as
+	add hl,sp			; the Next's copper (else the panel's picture from the top,
+	ld a,(hl)			; the bank's colours not changed); wait_frame sent back to
+	sub low (wf_test + 3)		; its test if it is past it (OR A, RET NZ or the HALT next)
+	cp 3
+	jr nc,1F
+	inc hl
+	ld a,(hl)
+	cp high wf_test
+	dec hl
+	jr nz,1F
+	ld (hl),low wf_test
+1:	push de
+	ld hl,(ap_scroll)
+	call river_regs
 	ld bc,PALSEL
 	ld a,(ap_pal)
 	out (c),a
@@ -484,24 +440,21 @@ river_regs:
 	out (c),a
 	ret
 
-; The events from list HL: ev_ptr, the INT at the first one's line (or the frame's)
+; The events from list HL (its first: the first event's line, then 3 bytes): ev_ptr, the INT
+; at that line
 ev_go:
-	ld (ev_ptr),hl
-	ld a,(hl)
-	cp EV_END
-	inc hl
-	inc hl
-	inc hl
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
+	inc hl
+	inc hl
+	inc hl
+	inc hl
+	ld (ev_ptr),hl
 	ex de,hl
-	jr nz,vsint_set
-	ld hl,FRAME_LINE
 
-; The frame INT at line HL (9 bits): VSINT, ev_line
+; The frame INT at line HL (9 bits): VSINT
 vsint_set:
-	ld (ev_line),hl
 	ld bc,VSINTL
 	out (c),l
 	inc b
@@ -520,7 +473,7 @@ apply:
 	call snd_out			; the frame's sound: the AY's tones or the General Sound's
 	call panel_frame
 	ld hl,(pf_gx)			; the panel's events: its picture, the scrolling line's X
-	ld (ev_panel + 6),hl
+	ld (ev_panel + 13),hl
 	ld a,(shell_colour)		; the shell's colour (and the helicopter missile's); CRAM
 					; and the SFILE: the FM window, always on
 	ld l,a
@@ -558,6 +511,9 @@ apply:
 	ld hl,ev_panel
 	jr .events
 .shown	ld hl,(ev_built)		; the palette at the top
+	inc hl
+	inc hl
+	inc hl
 	ld a,(hl)
 	ld bc,PALSEL
 	out (c),a
@@ -567,13 +523,11 @@ apply:
 	ld a,(show_edge)
 	ld e,a
 	call pal_edges
-	ld hl,ev_panel			; the panel's events after the bank's changes
+	ld hl,ev_panel + 5		; the panel's events after the bank's changes
 	ld de,(ev_tail)
 	ld bc,EV_PANEL_SIZE
 	ldir
 	ld hl,(ev_built)
-	inc hl
-	inc hl
 .events	di
 	ld (ap_list),hl
 	call ev_go
@@ -758,10 +712,13 @@ build_events:
 	call pal_get
 	pop hl
 	pop de
-	ld (ix + 0),a			; (its palette, and the colour for the check)
-	ld (ix + 1),b
-	inc ix
-	inc ix
+	ld (ix + 3),a			; (its palette, and the colour for the check)
+	ld (ix + 4),b
+	ld bc,5
+	add ix,bc
+	ld a,(ix - 1)			; (B, C: the colour again)
+	ld b,a
+	ld c,a
 	ld e,RIVER_FIRST
 	ld a,(ds_bank_n)
 	ld d,a
@@ -782,19 +739,19 @@ build_events:
 	cp b
 	jr z,.same
 	ld b,a
-	ld (ix + 0),EV_PAL
-	ld (ix + 2),a			; (its colour, for the check)
+	ld (ix + 2),EV_PAL
+	ld (ix + 4),a			; (its colour, for the check)
 	push de
 	push hl
 	ld e,a
 	call pal_get
 	pop hl
 	pop de
-	ld (ix + 1),a			; its palette
-	ld a,e
+	ld (ix + 3),a			; its palette
+	ld a,e				; its line: in the one before it (or the list's first)
 	add a,ROW_LINE - 1 + RIVER_TOP - RIVER_FIRST
-	ld (ix + 3),a
-	ld (ix + 4),0
+	ld (ix - 5),a
+	ld (ix - 4),0
 	ld a,c
 	ld bc,5
 	add ix,bc
@@ -810,8 +767,10 @@ build_events:
 	inc hl
 	dec d
 	jr .seg
-.end	ld (ev_tail),ix			; (apply puts the panel's events there)
-	ld (ix + 0),EV_END
+.end	ld (ix - 5),low (ROW_LINE + PANEL_ROW - 1)	; then the panel's (apply puts
+	ld (ix - 4),high (ROW_LINE + PANEL_ROW - 1)	; them at ev_tail)
+	ld (ev_tail),ix
+	ld (ix + 2),EV_END
 	ret
 
 ; The DMA's work done
@@ -1217,18 +1176,26 @@ span_tmp:	ds 32			; span_line: the edge's runs
 dl_seg:		ds 4 * 19		; draw_line: the line's pieces in order (byte, kind, data 2)
 	assert high dl_seg == high (dl_seg + 4 * 19 - 1)
 rnd_col16:	ds 3			; random_step's bit 16's column
-EV_PANEL_SIZE	equ 11
-ev_a:		ds 2 + 5 * 48 + EV_PANEL_SIZE	; the bank's colour by line (build_events): two
-ev_b:		ds 2 + 5 * 48 + EV_PANEL_SIZE	; buffers
-ev_none:	db EV_END
-ev_panel:	db EV_PANEL			; the panel's events (kind, data, VSINT line): its
-		dw 0, ROW_LINE + PANEL_ROW - 1	; picture from its row (latched: a line before),
-		db EV_GX			; the scrolling line's X
-		dw 0, ROW_LINE + PANEL_ROW + SCROLL_LINE - 1
-		db EV_END
+EV_PANEL_SIZE	equ 15
+ev_a:		ds 5 + 5 * 48 + EV_PANEL_SIZE	; the bank's colour by line (build_events): two
+ev_b:		ds 5 + 5 * 48 + EV_PANEL_SIZE	; buffers. A list: the first event's line, 1
+					; byte, the palette at the top, its colour; then the events
+					; (irq: the next one's line, the kind, the data)
+ev_none:	dw FRAME_LINE
+		db 0, 0, 0
+		dw FRAME_LINE
+		db EV_END, 0, 0
+ev_panel:	dw ROW_LINE + PANEL_ROW - 1	; the panel's events: its picture from its row
+		db 0, 0, 0			; (latched: a line before), the scrolling line's X
+		dw ROW_LINE + PANEL_ROW + SCROLL_LINE - 1
+		db EV_PANEL, 0, 0
+		dw FRAME_LINE
+		db EV_GX
+		dw 0
+		dw FRAME_LINE
+		db EV_END, 0, 0
 ev_tail:	ds 2			; build_events: where its list ends
 pal_n:		ds 1			; the river's palettes made (pal_get)
-ev_line:	ds 2			; the INT's line now
 pf_gx:		ds 2			; panel_frame: the scrolling line's X (GXOFFS)
 pf_ring:	ds 1			; its text's first character in the ring
 pf_pal:		ds 1			; .spr's palette (x 16)
@@ -1388,6 +1355,9 @@ ds_row:		ds 1
 ds_l1:		ds 1
 ds_l2:		ds 1			; display: past the object's last line (dh_obj; 255 past the end)
 ds_rowp:	ds 2
+	if high $ != high ($ + 14)		; (hit_a to hit_b + 4 in one page)
+	align 256
+	endif
 hit_ka:		ds 1
 hit_sa:		ds 1
 hit_kb:		ds 1
