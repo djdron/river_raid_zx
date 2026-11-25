@@ -120,8 +120,8 @@ decisiones, `-stress` a toda velocidad disparando siempre, `-seed N` para otro c
 POKEY, `-attract` sin jugador). Tras cada fotograma compara el estado del generador del río
 (`RiverGen::diffWithRam`), el estado del juego (también el del texto desplazable), los récords
 y los caracteres del panel, la memoria de pantalla (solo existe en la compilación de
-comprobación), los objetos tal como se dibujan (`Game::drawn`), la memoria del Copper y los
-colores de la orilla de su lista con el color de la orilla por línea (`Game::scan`); al final,
+comprobación), los objetos tal como se dibujan (`Game::drawn`), la memoria del Copper con su
+lista, la entrada de los puntos de la orilla de cada línea del río con `lineBank` del port en C++; al final,
 la imagen del último fotograma píxel a píxel: el río, el panel y el texto desplazable
 (`Game::drawRiver` y `drawStatusBar` en los colores del Next). También informa de lo que se
 jugó y de cuánto duran los fotogramas. 4 x 40 000 fotogramas con jugadores distintos (partidas
@@ -161,8 +161,8 @@ Cada fotograma (`src/river_raid.asm`):
    bits hechos una vez al arrancar a partir de las formas de la ROM (`src/obj_pics.asm`), así
    que un fotograma solo elige un patrón y escribe los atributos del sprite (un píxel del
    Atari son dos píxeles del sprite; el ancho doble y cuádruple es la escala del sprite). El
-   color de la orilla cambia junto a un puente: el Copper lo fija por línea en la paleta del
-   Layer 2.
+   color de la orilla cambia junto a un puente: los puntos de la orilla de cada línea nueva se
+   dibujan con la entrada de su color en la paleta del Layer 2.
 4. `src/play.asm`, `main_loop`: el bucle principal (`Game::mainLoop`): los controles (el
    teclado y los joysticks, leídos como los del Atari), la pausa, un enemigo despertado cada
    16 fotogramas por el RANDOM del POKEY, el tanque, los objetos, el avión (combustible, giro,

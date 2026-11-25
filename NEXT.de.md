@@ -119,8 +119,8 @@ Treibstoff über Depots, schießt, pausiert ab und zu (`-bot N` für andere Ents
 POKEY-Zähler, `-attract` ohne Spieler). Nach jedem Bild vergleicht es den Zustand des
 Flussgenerators (`RiverGen::diffWithRam`), den Spielzustand (auch den der Laufschrift), die
 Rekorde und die Zeichen der Anzeige, den Bildschirmspeicher (nur im Build für die Prüfung
-vorhanden), die Objekte wie gezeichnet (`Game::drawn`), den Speicher des Coppers und die
-Uferfarben seiner Liste gegen die Uferfarbe pro Zeile (`Game::scan`); am Ende das Bild des
+vorhanden), die Objekte wie gezeichnet (`Game::drawn`), den Speicher des Coppers gegen
+seine Liste, den Eintrag der Uferpunkte jeder Flusszeile gegen `lineBank` des C++-Ports; am Ende das Bild des
 letzten Bildes Pixel für Pixel: den Fluss, die Anzeige und die Laufschrift (`Game::drawRiver`
 und `drawStatusBar` in den Farben des Next). Es meldet auch, was gespielt wurde und wie lange
 die Bilder dauern. 4 x 40 000 Bilder mit verschiedenen Spielern (Spiele 1-8, etwa 70 Spiele und
@@ -160,7 +160,7 @@ Jedes Bild (`src/river_raid.asm`):
    einmal beim Start aus den Formen im ROM gemacht (`src/obj_pics.asm`), also wählt ein Bild
    nur ein Muster und schreibt die Attribute des Sprites (ein Atari-Pixel sind zwei
    Sprite-Pixel; doppelte und vierfache Breite sind die Skalierung des Sprites). Die Uferfarbe
-   ändert sich neben einer Brücke: Der Copper setzt sie pro Zeile in der Palette von Layer 2.
+   ändert sich neben einer Brücke: Die Uferpunkte jeder neuen Zeile werden im Eintrag ihrer Farbe in der Palette von Layer 2 gezeichnet.
 4. `src/play.asm`, `main_loop`: die Hauptschleife (`Game::mainLoop`): die Steuerung (Tastatur
    und Joysticks, gelesen wie die des Atari), Pause, ein Gegner, der alle 16 Bilder durch das
    RANDOM des POKEY geweckt wird, der Panzer, die Objekte, das Flugzeug (Treibstoff, Lenken,

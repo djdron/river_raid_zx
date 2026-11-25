@@ -19,7 +19,7 @@ run time.
 |---|---|---|
 | File | `river_raid.nex` (opened in the Browser) | `river_raid.spg` (started from Wild Commander) |
 | The ROM | `River_Raid.rom` in the same folder as the .nex | `River_Raid.rom` anywhere on the SD card (FAT16/32) |
-| The river | Layer 2, the bank's colour per line by the Copper | the 16-colour mode scrolled by the hardware, the bank's colour per line by the frame INT (a palette per colour) |
+| The river | Layer 2, each line's bank dots drawn in its colour's entry (one palette) | the 16-colour mode scrolled by the hardware, each line's bank dots drawn in its colour's entry (one palette) |
 | Enemies, plane, missiles | sprites | sprites |
 | The panel, scrolling line | the tilemap | a picture of its own switched in below the river, tiles, sprites |
 | The sound | POKEY emulated by the program into the DAC (zxnDMA), the pure tones on the AY | all of it on a General Sound (POKEY emulated by the card's own Z80, mono); without one the pure tones on TurboSound's AYs |

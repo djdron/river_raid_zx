@@ -111,7 +111,7 @@ dla innych decyzji, `-stress` z pełną prędkością i ciągłym ogniem, `-seed
 licznika POKEY, `-attract` bez gracza). Po każdej klatce porównuje stan generatora rzeki
 (`RiverGen::diffWithRam`), stan gry (także przewijanego napisu), rekordy i znaki panelu,
 pamięć ekranu (jest tylko w wersji do testów), obiekty tak, jak narysowane (`Game::drawn`),
-pamięć Coppera i kolory brzegu na jego liście z kolorem brzegu w każdej linii (`Game::scan`);
+pamięć Coppera z jego listą, wpis punktów brzegu każdej linii rzeki z `lineBank` portu C++;
 na końcu obraz ostatniej klatki piksel w piksel: rzekę, panel i przewijany napis
 (`Game::drawRiver` i `drawStatusBar` w kolorach Next). Podaje też, co zostało rozegrane i ile
 trwają klatki. 4 x 40 000 klatek z różnymi graczami (gry 1-8, około 70 gier i 300 katastrof)
@@ -147,8 +147,8 @@ Każda klatka (`src/river_raid.asm`):
    pozycji, jaką dała im gra. Wszystkie ich obrazy to 4-bitowe wzory zrobione raz przy starcie
    z kształtów w ROM-ie (`src/obj_pics.asm`), więc klatka tylko wybiera wzór i pisze atrybuty
    sprite'a (piksel Atari to dwa piksele sprite'a; podwójna i poczwórna szerokość to skala
-   sprite'a). Kolor brzegu zmienia się przy moście: Copper ustawia go w każdej linii w
-   palecie Layer 2.
+   sprite'a). Kolor brzegu zmienia się przy moście: punkty brzegu każdej nowej linii są
+   rysowane wpisem jej koloru w palecie Layer 2.
 4. `src/play.asm`, `main_loop`: główna pętla (`Game::mainLoop`): sterowanie (klawiatura i
    joysticki, czytane jak na Atari), pauza, wróg budzony co 16 klatek przez RANDOM POKEY,
    czołg, obiekty, samolot (paliwo, skręty, prędkość, pocisk, w co trafił), pocisk

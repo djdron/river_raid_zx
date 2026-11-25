@@ -14,7 +14,7 @@ River Raid（Activision，Atari 8 位机，1983，作者 Carol Shaw）在今天�
 |---|---|---|
 | 文件 | `river_raid.nex`（在 Browser 中打开） | `river_raid.spg`（从 Wild Commander 启动） |
 | ROM | `River_Raid.rom` 与 .nex 放在同一文件夹 | `River_Raid.rom` 放在 SD 卡上任意位置（FAT16/32） |
-| 河流 | Layer 2，河岸颜色由 Copper 逐行设置 | 16 色模式，硬件卷动，河岸颜色由帧中断逐行设置（每种颜色一套调色板） |
+| 河流 | Layer 2，每行的河岸点用其颜色的调色板项绘制（一套调色板） | 16 色模式，硬件卷动，每行的河岸点用其颜色的调色板项绘制（一套调色板） |
 | 敌人、飞机、导弹 | 精灵 | 精灵 |
 | 面板、滚动字幕 | tilemap | 在河流下方切换进来的独立画面、图块、精灵 |
 | 声音 | 程序把 POKEY 仿真到 DAC（zxnDMA），纯音由 AY 播放 | 全部在 General Sound 上（由声卡自己的 Z80 仿真 POKEY，单声道）；没有声卡时由 TurboSound 的 AY 播放纯音 |

@@ -18,7 +18,7 @@ Spiel ist nicht enthalten: Das Programm liest zur Laufzeit dein eigenes Cartridg
 |---|---|---|
 | Datei | `river_raid.nex` (im Browser geöffnet) | `river_raid.spg` (aus dem Wild Commander gestartet) |
 | Das ROM | `River_Raid.rom` im selben Ordner wie die .nex | `River_Raid.rom` irgendwo auf der SD-Karte (FAT16/32) |
-| Der Fluss | Layer 2, die Uferfarbe pro Zeile durch den Copper | der 16-Farben-Modus, per Hardware gescrollt, die Uferfarbe pro Zeile durch den Bild-INT (eine Palette pro Farbe) |
+| Der Fluss | Layer 2, die Uferpunkte jeder Zeile im Eintrag ihrer Farbe gezeichnet (eine Palette) | der 16-Farben-Modus, per Hardware gescrollt, die Uferpunkte jeder Zeile im Eintrag ihrer Farbe gezeichnet (eine Palette) |
 | Gegner, Flugzeug, Raketen | Sprites | Sprites |
 | Anzeige, Laufschrift | die Tilemap | ein eigenes Bild, unter dem Fluss eingeschaltet, Tiles, Sprites |
 | Ton | POKEY vom Programm in den DAC emuliert (zxnDMA), die reinen Töne auf dem AY | alles auf einer General Sound (POKEY vom eigenen Z80 der Karte emuliert, mono); ohne sie die reinen Töne auf den AYs des TurboSound |

@@ -29,7 +29,7 @@ DLI 已经完全没有了，它的时钟周期和它的循环都没有了：每�
 - **精灵**：启动时生成 16、32 和 64 点宽的物体（不能缩放），player 和 missile；S0 在图块层 0 之下，燃料指针和标志（S1）在面板之上。
 - **面板**：自己的 256 色画面，由中断在第 184 行切换进来（VPAGE、GYOFFS、VCONFIG、GFXOVR），字符在启动时画好，变化时由 DMA 复制，滚动字幕是 32 个字符的环，由 GXOFFS 显示。
 - 复位后的**清除**：用 DMA，从复位的第二帧开始，期间河流的颜色为黑色（河流立即变黑，与 C++ 移植一样）。
-- **DMA** 还每帧把精灵列表复制到 SFILE（`sfile_put`，来自 `spr_list`），并填充河流新行中 5 字节及以上的单色段（`render_line`）；它忙时（复位时的清除）由 CPU 来做。**T** 像 Next 一样在边框上显示一帧的工作（BORDER 取一个 CRAM 项：第 11 组从 2 起的空闲项，`tm_cram`；`panel_draw` 另用绿色）。
+- **DMA** 还每帧把精灵列表复制到 SFILE（`sfile_put`，来自 `spr_list`），并填充河流新行中 5 字节及以上的单色段（`render_line`）；它忙时（复位时的清除）由 CPU 来做。**T** 像 Next 一样在边框上显示一帧的工作（BORDER 取一个 CRAM 项：第 11 组从 2 起的空闲项，`tm_cram`；`panel_draw` 另用绿色）。**CAPS + 3** 切换处理器频率：14、7、3.5 MHz 轮流（SYSCONFIG，`cpu_spd`；程序以 14 启动）。
 - **SPG**（给 Wild Commander 用的 SPG 1.0，`tools/mkspg.py`）：常驻部分在 $5B00（为 0 时 WC 不启动它）；程序自己在 SD 卡上任意位置找到 `River_Raid.rom`（Z-controller，FAT16/32，`load_rom.asm`）。GitHub workflow `tsconf` 构建它（构件 `river_raid.spg`）。
 - **声音**：有 General Sound 时全部由它播放：声卡的 Z80 运行 Next 的 `pokey_frame` 和脉冲代码（`tsconf/gs/gs_pokey.asm`，约 1.9K 的程序位于第 2 页的 $8400，环在 $8000，17 位计数器的 16K 在 $C000 按递推公式 q(k) = q(k−9)^q(k−11)^q(k−12)^q(k−17) 生成），它的中断（每秒 37 500 次）在 256 次中取 108 次采样（每秒 15 820 个）送到全部四个声道，1 和 2 左，3 和 4 右，每级音量 4（四个声道都为 15 时电平 0-240；像 Next 那样每级 8 时，爆炸叠加会超过 255 而回绕：嘶嘶声）（单声道，用户的要求：AY 是立体声）。`gs_load`（启动时）询问声卡状态（$F0：程序回答 $5A，所以第二次运行会继续使用它），否则通过固件上传（#12 页，#18/#19/#1B 字节，#13 跳转）——不用 $F4 复位：在 Xpeccy+ 的 2M 声卡上固件启动约需 5 秒。`apply` 每帧发送一个命令和 8 个数据字节（AUDF1-4、AUDC1-4）；声卡不再应答时改用 AY。没有声卡时：纯音由 TurboSound 的两个 AY 播放（NedoPC；POKEY 1、2 用第二块芯片的 A、B；3、4 用第一块的 B、C），与 Next 相同。
 - **速度**（14 MHz，每帧约 287 000）：演示模式平均约 65 000，最多约 178 000；`-stress` 第 80 座桥约 108 000 / 约 144 000；7 MHz 下（每帧约 143 000）`-stress` 约 93 000 / 约 125 000（够用，没有迟到的帧）；3.5 MHz 跟不上。
@@ -82,7 +82,7 @@ DLI 已经完全没有了，它的时钟周期和它的循环都没有了：每�
 7. **游戏结束时的竞争。** 游戏结束时，原版的帧计数器落在其 VBI 之前还是之后取决于该帧的长度；C++ 移植以及本程序取通常情况。`make check-original` 中的两处差异就是这个。
 
 ## 环境限制
-- sjasmplus 1.24.1（提交 5c44bea），Xpeccy+ 提交 0ec06e33，river_raid 提交 1273aba（`dli_removed` 分支）：`tools/get_deps.sh`。程序所跟随的 C++ 移植每有改动，都需要同时更新这个提交。Xpeccy+ 2026.10.1（用户的版本）会画出可见行之下、无窗口内核不画的行（`NXFULL=1` 写出整个帧缓冲）。
+- sjasmplus 1.24.1（提交 5c44bea），Xpeccy+ 提交 0ec06e33，river_raid 提交 f9b51e5（`dli_removed` 分支）：`tools/get_deps.sh`。程序所跟随的 C++ 移植每有改动，都需要同时更新这个提交。Xpeccy+ 2026.10.1（用户的版本）会画出可见行之下、无窗口内核不画的行（`NXFULL=1` 写出整个帧缓冲）。
 - Xpeccy+ 的 Next 内核通过 libxpeccy 无窗口使用：没有固件（调色板从 0 开始），不调用 `comp_power_on`；60 Hz 时画面从 Layer 2 的第 0 行开始，50 Hz 时从第 24 行开始。
 - 检查需要 ROM；CI 只构建 .nex（构件不打成 zip）。
 - 代码用制表符缩进。文档：`X.md` 英文，`X.ru.md` 俄文，以及 `X.uk.md`、`X.de.md`、`X.pl.md`、`X.it.md`、`X.es.md`、`X.zh.md`、`X.ja.md`（与 C++ 移植相同）。`tools/doc_languages.py` 在每个标题下写出语言行（新译文中那里写 LANGUAGES 一词）。文档的改动要进入所有语言。

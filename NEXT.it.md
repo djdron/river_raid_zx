@@ -122,8 +122,8 @@ START, vola verso il centro dell'acqua, schiva i nemici davanti, passa sopra i d
 senza giocatore). Dopo ogni fotogramma confronta lo stato del generatore del fiume
 (`RiverGen::diffWithRam`), lo stato del gioco (anche quello della scritta scorrevole), i
 record e i caratteri del pannello, la memoria dello schermo (presente solo nella build di
-verifica), gli oggetti come disegnati (`Game::drawn`), la memoria del Copper e i colori della
-riva nella sua lista con il colore della riva riga per riga (`Game::scan`); alla fine
+verifica), gli oggetti come disegnati (`Game::drawn`), la memoria del Copper con la sua
+lista, la voce dei punti della riva di ogni riga del fiume con `lineBank` del port C++; alla fine
 l'immagine dell'ultimo fotogramma pixel per pixel: il fiume, il pannello e la scritta
 scorrevole (`Game::drawRiver` e `drawStatusBar` nei colori del Next). Riporta anche cosa è
 stato giocato e quanto durano i fotogrammi. 4 x 40 000 fotogrammi con giocatori diversi
@@ -163,7 +163,7 @@ Ogni fotogramma (`src/river_raid.asm`):
    una volta all'avvio dalle forme della ROM (`src/obj_pics.asm`), quindi un fotogramma sceglie
    solo un pattern e scrive gli attributi dello sprite (un pixel dell'Atari sono due pixel
    dello sprite; la larghezza doppia e quadrupla è la scala dello sprite). Il colore della riva
-   cambia vicino a un ponte: il Copper lo imposta riga per riga nella palette del Layer 2.
+   cambia vicino a un ponte: i punti della riva di ogni nuova riga sono disegnati con la voce del suo colore nella palette del Layer 2.
 4. `src/play.asm`, `main_loop`: il ciclo principale (`Game::mainLoop`): i comandi (tastiera e
    joystick, letti come quelli dell'Atari), la pausa, un nemico svegliato ogni 16 fotogrammi
    dal RANDOM del POKEY, il carro armato, gli oggetti, l'aereo (carburante, sterzata,

@@ -116,8 +116,8 @@ depots when low on fuel, fires, pauses now and then (`-bot N` for other choices,
 at full speed always firing, `-seed N` for another POKEY counter, `-attract` for no player). After every frame it compares the
 river generator's state (`RiverGen::diffWithRam`), the game's state (the scrolling line's
 too), the high scores and the panel's characters, screen memory (kept only in the check's
-build), the objects as drawn (`Game::drawn`), the Copper's memory and its list's bank colours
-against the bank colour per line (`Game::scan`); at the end the
+build), the objects as drawn (`Game::drawn`), the Copper's memory against its list, each
+river line's bank dots' entry against the C++ port's `lineBank`; at the end the
 picture of the last frame, pixel by pixel, the river, the panel and the scrolling line
 (`Game::drawRiver` and `drawStatusBar` in the Next's colours). It also reports what was played and
 how long the frames take. 4 x 40 000 frames with different players (games 1-8, about 70 games
@@ -156,7 +156,7 @@ Each frame (`src/river_raid.asm`):
    the start from the ROM's shapes (`src/obj_pics.asm`), so a frame only picks a pattern and
    writes the sprite's attributes (an Atari pixel is two sprite pixels; double and quadruple
    width are the sprite's scale). The bank's colour changes next to a
-   bridge: the Copper sets it per line in Layer 2's palette.
+   bridge: each new line's bank dots are drawn in its colour's entry of Layer 2's palette.
 4. `src/play.asm`, `main_loop`: the main loop (`Game::mainLoop`): the controls (the keyboard
    and joysticks, read as the Atari's), pause, an enemy woken every 16 frames by POKEY's
    RANDOM, the tank, the objects, the plane (fuel, steering, speed, the bullet, what it hit),

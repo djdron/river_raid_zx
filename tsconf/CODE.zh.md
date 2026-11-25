@@ -18,7 +18,7 @@
 | 内存 | 8K 槽（MMU，NR $50–$57） | 16K 窗口（PAGE0–PAGE3）；窗口 0 是可写 RAM（MEMCONFIG），因此 Atari 内存位于 $0000 |
 | 河流 | Layer 2，320×256，8 位，按列：一行是沿列向下的 320 次写入，10 页轮换 | 16 色，320×240，一行图像 256 字节（每字节 2 点）：一行是沿行的 160 字节，一页 |
 | 滚动 | NR $17，256 行的环 | GYOFFS，512 行的环（`scroll` 9 位） |
-| 逐行河岸颜色 | Copper：WAIT/MOVE 列表，变化时发送 | 每种河岸颜色一个调色板（PALSEL 0–7，CRAM）；帧中断在变化的前一行设置 PALSEL（`build_events`、`irq`） |
+| 逐行河岸颜色 | Layer 2 的 1 和 4–10 项，只设一次；一行的河岸点用其颜色的项（`line_bank`） | 一套调色板（PALSEL 0，CRAM）的 1 和 9–15 项，只设一次；一行的河岸点用其颜色的项（`line_bank`） |
 | 精灵 | 128 个 16×16 图案，4 或 8 位，缩放 ×2 ×4；一个物体每 16 行一个精灵 | 单一的 512×512、4 位图像内存（SGPAGE），任意大小至 64×64，不能缩放：每个图像都保存 16、32 和 64 点宽三种；一个物体就是一个精灵 |
 | 颜色 | NR $41 等，9 位 | 经 $E000 处的 FM 窗口访问 CRAM（`CRAM_SHADOW`）：颜色和 $E200 处的精灵列表（SFILE）就是普通的内存写入 |
 | 面板和滚动字幕 | tilemap 在最上层，其 Y 和 X 滚动由 Copper 设置；滚动字幕是 tile 环 + 接缝处的一个精灵 | 独立的一幅图像（256 色，第 64–79 页），由帧中断从第 184 行起切换上去（VPAGE、GYOFFS、VCONFIG 加 GFXOVR），其字符只画一次再由 DMA 复制；滚动字幕是 512 点上 32 个字符的环，由中断设置 GXOFFS；tile 层 0 提供字符下的灰色以及河流上下方的黑色 |
@@ -275,4 +275,4 @@ Wild Commander 启动 .spg 时既不提供目录也不提供 DOS，所以程序�
 - **在行末采样的寄存器**（VPAGE、GYOFFS、GXOFFS）：在前一行的中断里设置；中断在 HSINT 208（右边缘）到来，所以在 3.5–14 MHz 下都来得及。
 - **DMA** 由清画面（`clear_layer2_page`）和面板字符（`pc_put`）共用：DMA 忙时 `pc_put` 用处理器绘制；SFILE 的复制（`sfile_put`）和新行的长段（`render_line`）也用它，DMA 忙时各自改用处理器。
 - **校验**：`make check`（3 000 帧；`FRAMES=`），以及带 bot、`-stress`、TSBRIDGE、TSSPEED=1（7 MHz）、TSGS=neo 或 0 的运行，见 [README.zh.md](README.zh.md)。每次修改后都逐帧比较：状态、逐行河岸颜色、General Sound 的寄存器以及机器每帧的图像（逐像素）。
-- **测量**：`TSHISTALL=文件`（整个运行中每条指令的时间，包括启动、中断和等待），然后 `python3 ../tools/prof.py build/test.sym 文件 60`；工作量的平均和最大值在 tscheck 输出的最后几行。`TSMSHOT=k` 写出从第 k 帧起机器的每一帧（32 帧，包括迟到帧的第二帧）；`TSBORDER=1` 打开 T；`TSSHOT=k` 加 `TSFULL=1` 写出从 k 起带边框的帧（一次运行的最后一张图边框只有一种颜色：运行停在 `apply_done`）。`TSTIME=N` 打印第 N−2..N+2 帧的工作量。`TSVOL=1`：各帧 POKEY 音量之和以及卡的最高电平（必须保持在 255 以内）。
+- **测量**：`TSHISTALL=文件`（整个运行中每条指令的时间，包括启动、中断和等待），然后 `python3 ../tools/prof.py build/test.sym 文件 60`；工作量的平均和最大值在 tscheck 输出的最后几行。`TSMSHOT=k` 写出从第 k 帧起机器的每一帧（32 帧，包括迟到帧的第二帧）；`TSBORDER=1` 打开 T；`TSSHOT=k` 加 `TSFULL=1` 写出从 k 起带边框的帧（一次运行的最后一张图边框只有一种颜色：运行停在 `apply_done`）。`TSTIME=N` 打印第 N−2..N+2 帧的工作量。`TSVOL=1`：各帧 POKEY 音量之和以及卡的最高电平（必须保持在 255 以内）。`TSHISTMIN=n` 与 `TSHISTALL` 一起用：只统计工作量不少于 n 个时钟周期的帧（重帧；会打印其数量）。

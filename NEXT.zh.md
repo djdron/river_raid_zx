@@ -58,7 +58,7 @@ make profile   # 一帧的时间花在哪里（FRAMES 之后的那一帧）
 
 `make check-original` 把程序与原版卡带本身比较，就像当初比较 C++ 移植那样：`rr_oracle`（来自 C++ 移植的仓库，由该目标构建：在 libatari800 上运行的原版，需要 git、C 编译器、make、autoconf、automake）录制原版的运行（每帧之后的 RAM、游戏逻辑从 RANDOM 读到的值、输入），`nxcheck -oracle DIR` 用同样的输入和同样的 RANDOM 值运行程序，每帧之后把它的 RAM 与原版的比较（`Game::diffWithRam`：河流生成器、物体、游戏状态、碰撞、player-missile 内存、河流的行），出现差异后从原版的状态继续。八次运行，37 000 帧：演示模式、机器人玩到游戏结束再重新开始、双人游戏、飞行、加油、NTSC 和 PAL。结果都相同，只有两次 NTSC 运行中游戏结束的那一帧例外：在那里原版把帧计数器设在其 VBI 之前或之后，取决于那一帧的工作持续多久（C++ 移植以及本程序取更常见的情况）。
 
-`make check` 在 PAL 和 NTSC 下都运行（`-pal`、`-ntsc`；`-switch N`：在第 N 帧之前按 CAPS + 1）。`tools/nxcheck` 在 [Xpeccy+](https://github.com/dotkoval/xpeccy-plus) 的 ZX Spectrum Next 内核上无窗口运行程序，并在旁边运行 C++ 移植（`rr::Game::frame`，POKEY 计数器和操作都相同）。操作来自一个虚构的玩家：它在演示模式中等待，有时选择别的游戏，按 START，飞向水面中央，躲避前方的敌人，燃料不足时飞过补给站，开火，偶尔暂停（`-bot N` 换一组选择，`-stress` 全速并一直开火，`-seed N` 换一个 POKEY 计数器，`-attract` 不要玩家）。每帧之后它比较河流生成器的状态（`RiverGen::diffWithRam`）、游戏状态（包括滚动字幕的状态）、最高分和面板字符、屏幕内存（只在检查用的构建中存在）、画出的物体（`Game::drawn`）、Copper 的内存以及它的列表中的河岸颜色与逐行河岸颜色（`Game::scan`）；最后逐像素比较最后一帧的画面：河流、面板和滚动字幕（用 Next 的颜色绘制的 `Game::drawRiver` 和 `drawStatusBar`）。它还报告玩了什么以及各帧耗时多少。4 x 40 000 帧、不同的玩家（游戏 1-8，约 70 局、300 次坠毁）结果都相同。破坏一致性的改动会显示第一处不同的帧和字段。
+`make check` 在 PAL 和 NTSC 下都运行（`-pal`、`-ntsc`；`-switch N`：在第 N 帧之前按 CAPS + 1）。`tools/nxcheck` 在 [Xpeccy+](https://github.com/dotkoval/xpeccy-plus) 的 ZX Spectrum Next 内核上无窗口运行程序，并在旁边运行 C++ 移植（`rr::Game::frame`，POKEY 计数器和操作都相同）。操作来自一个虚构的玩家：它在演示模式中等待，有时选择别的游戏，按 START，飞向水面中央，躲避前方的敌人，燃料不足时飞过补给站，开火，偶尔暂停（`-bot N` 换一组选择，`-stress` 全速并一直开火，`-seed N` 换一个 POKEY 计数器，`-attract` 不要玩家）。每帧之后它比较河流生成器的状态（`RiverGen::diffWithRam`）、游戏状态（包括滚动字幕的状态）、最高分和面板字符、屏幕内存（只在检查用的构建中存在）、画出的物体（`Game::drawn`）、Copper 的内存与它的列表，河流每行河岸点的调色板项与 C++ 移植的 `lineBank`；最后逐像素比较最后一帧的画面：河流、面板和滚动字幕（用 Next 的颜色绘制的 `Game::drawRiver` 和 `drawStatusBar`）。它还报告玩了什么以及各帧耗时多少。4 x 40 000 帧、不同的玩家（游戏 1-8，约 70 局、300 次坠毁）结果都相同。破坏一致性的改动会显示第一处不同的帧和字段。
 
 ## 工作原理
 
@@ -77,7 +77,7 @@ make profile   # 一帧的时间花在哪里（FRAMES 之后的那一帧）
 
 1. `src/game.asm`，`prepare`：移出屏幕下方的坦克和它的炮弹，炮弹的颜色，把生命、桥和得分写进面板字符（`Game::prepare`）。Next 不写 player-missile 内存：精灵的图像和碰撞的行都来自 ROM 中的形状。
 2. `src/display_simple.asm`、`src/display_hits.asm`：DLI 的工作，但不用 DLI（C++ 移植 `dli_removed` 分支中的 `Game::displayGeometry`）。每个物体位于其位置（slot）的高度，被裁剪到河流范围内；它的行进入 `ds_objs`。游戏读取的碰撞是简单的几何：先比较矩形框（与每一行的水域空隙比较、彼此比较），再比较点，无论在哪里接触。原版按窗口、逐个物体读取：0.01–0.25% 的帧会判定不同，即早一帧的接触。
-3. `src/sprites.asm`：Atari 显示的内容变成 Next 的硬件。每个物体（player 3，颜色每行都变）是一个现成的精灵，各行带着各自的颜色，放在物体的位置。其他 player 和 missile 也各是一个精灵，放在游戏给出的位置。它们所有的图像都是启动时根据 ROM 中的形状一次性生成的 4 位图案（`src/obj_pics.asm`），所以每帧只需选一个图案并写入精灵属性（Atari 的一个像素是精灵的两个像素；两倍和四倍宽度用精灵的缩放实现）。桥附近河岸颜色会变化：Copper 在 Layer 2 的调色板中逐行设置它。
+3. `src/sprites.asm`：Atari 显示的内容变成 Next 的硬件。每个物体（player 3，颜色每行都变）是一个现成的精灵，各行带着各自的颜色，放在物体的位置。其他 player 和 missile 也各是一个精灵，放在游戏给出的位置。它们所有的图像都是启动时根据 ROM 中的形状一次性生成的 4 位图案（`src/obj_pics.asm`），所以每帧只需选一个图案并写入精灵属性（Atari 的一个像素是精灵的两个像素；两倍和四倍宽度用精灵的缩放实现）。桥附近河岸颜色会变化：每条新行的河岸点用其颜色在 Layer 2 调色板中的项绘制。
 4. `src/play.asm`，`main_loop`：主循环（`Game::mainLoop`）：操作（键盘和摇杆，按 Atari 的方式读取）、暂停、每 16 帧由 POKEY 的 RANDOM 唤醒一个敌人、坦克、物体、飞机（燃料、转向、速度、子弹、撞到了什么）、导弹、炮弹、START 和 SELECT、新游戏、坠毁和新飞机，以及按速度生成并写入 Layer 2 的河流行（`src/river_gen.asm`，逐行对应 `river_gen.cpp`）。原版在坠毁或 START 后清理内存（13 帧）期间，只运行显示和 VBI，Layer 2 每帧清理两页，从复位的第二帧开始，清理期间被隐藏（它的裁剪窗口只保留面板的行）：河流立刻变黑，与 C++ 移植一样，没有横扫屏幕的条带。
 5. `src/game.asm`，`vbi`：声音驱动（`src/sound.asm`：POKEY 的寄存器）、帧计数器、下一帧的颜色（桥被击中时水面闪红）、POKEY 计数器前进一帧（一个矩阵，`src/random.inc`）。然后 `pokey_frame`（`src/sound.asm`）为 DMA 生成这一帧 POKEY 输出的采样。
 6. 在滚动字幕下方（光栅行 208）新画面生效：Layer 2 的卷动和颜色、精灵属性、面板和滚动字幕、Copper 的列表。

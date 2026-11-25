@@ -18,7 +18,7 @@ Gry w nim nie ma: program w czasie działania czyta twój własny obraz kartrid�
 |---|---|---|
 | Plik | `river_raid.nex` (otwierany w Browserze) | `river_raid.spg` (uruchamiany z Wild Commandera) |
 | ROM | `River_Raid.rom` w tym samym folderze co .nex | `River_Raid.rom` gdziekolwiek na karcie SD (FAT16/32) |
-| Rzeka | Layer 2, kolor brzegu w każdej linii przez Copper | tryb 16 kolorów przewijany sprzętowo, kolor brzegu w każdej linii przez przerwanie ramki (paleta na każdy kolor) |
+| Rzeka | Layer 2, punkty brzegu każdej linii rysowane wpisem jej koloru (jedna paleta) | tryb 16 kolorów przewijany sprzętowo, punkty brzegu każdej linii rysowane wpisem jej koloru (jedna paleta) |
 | Wrogowie, samolot, pociski | sprite'y | sprite'y |
 | Panel, przewijany napis | tilemap | osobny obraz włączany pod rzeką, kafelki, sprite'y |
 | Dźwięk | POKEY emulowany przez program do DAC (zxnDMA), czyste tony na AY | cały na General Sound (POKEY emulowany przez własny Z80 karty, mono); bez niej czyste tony na AY TurboSound |

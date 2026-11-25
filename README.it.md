@@ -19,7 +19,7 @@ della cartuccia.
 |---|---|---|
 | File | `river_raid.nex` (aperto dal Browser) | `river_raid.spg` (avviato da Wild Commander) |
 | La ROM | `River_Raid.rom` nella stessa cartella del .nex | `River_Raid.rom` ovunque sulla scheda SD (FAT16/32) |
-| Il fiume | Layer 2, il colore della riva riga per riga dal Copper | la modalità a 16 colori con scorrimento hardware, il colore della riva riga per riga dall'INT di quadro (una palette per colore) |
+| Il fiume | Layer 2, i punti della riva di ogni riga disegnati con la voce del loro colore (una palette) | la modalità a 16 colori con scorrimento hardware, i punti della riva di ogni riga disegnati con la voce del loro colore (una palette) |
 | Nemici, aereo, missili | sprite | sprite |
 | Pannello, scritta scorrevole | la tilemap | un'immagine propria attivata sotto il fiume, tile, sprite |
 | Il suono | POKEY emulato dal programma nel DAC (zxnDMA), i toni puri sull'AY | tutto su una General Sound (POKEY emulato dallo Z80 della scheda, mono); senza, i toni puri sugli AY del TurboSound |

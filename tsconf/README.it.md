@@ -48,9 +48,9 @@ Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Ne
   POKEY su A e B del secondo chip, 3 e 4 su B e C del primo. In Xpeccy: attiva la General Sound
   (e il TurboSound NedoPC per gli AY).
 
-A 14 MHz il lavoro di un fotogramma richiede in media ~65 000 cicli nella modalità attract,
-~108 000 a tutta velocità sparando sempre dal ponte 80 (-stress), al massimo ~178 000, su
-~287 000; a 7 MHz ci sta ancora, di poco (al massimo ~125 000 con -stress, su ~143 400; nessun
+A 14 MHz il lavoro di un fotogramma richiede in media ~64 000 cicli nella modalità attract,
+~106 000 a tutta velocità sparando sempre dal ponte 80 (-stress), al massimo ~167 000, su
+~287 000; a 7 MHz ci sta ancora, di poco (al massimo ~122 000 con -stress, su ~143 400; nessun
 fotogramma in ritardo); a 3,5 MHz non ce la fa.
 
 Memoria (finestre da 16K): $0000 la RAM dell'Atari (pagina 1; durante l'avvio la pagina 3 con
