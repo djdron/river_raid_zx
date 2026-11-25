@@ -57,6 +57,7 @@ Rdzeń TSConf z Xpeccy+ (i jego General Sound) jako biblioteka, bez okna, obok p
 - Własny reset firmware'u GS ($F4) trwa sekundy; zamiast tego pytać o jej stan ($F0).
 - Suma poziomów ponad 255 zawija się po cichu: próbki wyglądają normalnie, znajduje to tylko ucho. Sumować głośności (`TSVOL`), a nie oglądać próbki.
 - `make check` nie uruchamia pliku .spg: start (karta SD, ekran, ładowanie do GS) sprawdza się przez `-spg … -sd`.
+- Porty panelu (VPAGE, GYOFFS, VCONFIG) i GXOFFS działają od linii po następnej: przy 3,5 MHz, zapisane po VSINT następnego zdarzenia, spóźniały się o linię (panel o piksel niżej). Dlatego EV_PANEL i EV_GX zapisują najpierw swoje porty, a EV_PAL najpierw VSINT.
 - Przerwanie to impuls 32 taktów: przychodzące pod DI albo gdy obsługa jeszcze trwa ginie. Przy 3,5 MHz linia ma 224 takty, a obsługa ~430, więc zdarzenia na następnej linii lub o jedną dalej ginęły (a z nimi reszta zdarzeń klatki: panel migotał); `wait_frame` z HALT przeczekiwał przerwanie, które przyszło między testem a HALT, a z DI wokół nich je gubił. Dlatego każde zdarzenie niesie linię następnego (jego VSINT wychodzi pierwszy, ~150 taktów od wejścia, a EI jest przed końcem przerwania), a przerwanie klatki odsyła `wait_frame` do testu, gdy przyszło tuż przed HALT.
 - `-stress` bez `-bot` w tscheck nic nie robił (bot nie grał): te przebiegi były trybem attract. Teraz gra bot z ziarnem 1, jak w nxcheck.
 - Ostatni obraz przebiegu (TSFULL) jest robiony na `apply_done`, więc ramka ma na nim jeden kolor; pasy ramki widać w klatkach TSSHOT.

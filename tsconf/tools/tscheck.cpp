@@ -622,13 +622,13 @@ int main(int argc, char **argv) {
 			if ((addr >> 8) == 0x3F) addr = 0x2000;
 		}
 		{   // the bank's colour by line, as the INTs will set it: the top's, then the changes
-			// (the list's first 5 bytes: the first event's VSINT line, 1 byte, the palette, the
-			// colour; then each event: the next one's VSINT line, its kind (EV_PAL 0), the palette,
+			// (the list's first 5 bytes: 1 byte, the first event's VSINT line, the palette, the
+			// colour; then each event: its kind (EV_PAL 0), the next one's VSINT line, the palette,
 			// the colour; a VSINT line is a line before the change)
 			const uint16_t list = uint16_t(readZ80(comp, evShow) | readZ80(comp, uint16_t(evShow + 1)) << 8);
-			uint16_t p = uint16_t(list + 5);   // the event, its line in the 5 bytes before it
+			uint16_t p = uint16_t(list + 5);   // the event, its line 4 bytes before it
 			uint8_t colour = readZ80(comp, uint16_t(list + 4));
-			auto next = [&] { return readZ80(comp, uint16_t(p + 2)) == 0 ? readZ80(comp, uint16_t(p - 5)) | readZ80(comp, uint16_t(p - 4)) << 8 : 0; };
+			auto next = [&] { return readZ80(comp, p) == 0 ? readZ80(comp, uint16_t(p - 4)) | readZ80(comp, uint16_t(p - 3)) << 8 : 0; };
 			int line = next();
 			for (int k = 0; k < kRiverLines; k++) {
 				while (line && line - (kRowLine - 1) <= kRiverTop + k) {

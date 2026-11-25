@@ -57,6 +57,7 @@ Xpeccy+'s TSConf core (and its General Sound) as a library, no window, beside th
 - The GS firmware's own reset ($F4) takes seconds; ask its state ($F0) instead.
 - A level sum past 255 wraps silently: the samples look normal, only the ear finds it. Sum the volumes (`TSVOL`) rather than look at samples.
 - `make check` does not run the .spg: the start (SD card, screen, GS upload) is checked with `-spg … -sd`.
+- The panel's ports (VPAGE, GYOFFS, VCONFIG) and GXOFFS take effect from the line after the next one: at 3.5 MHz, written after the next event's VSINT, they came a line late (the panel a pixel lower). So EV_PANEL and EV_GX write their ports first, EV_PAL its VSINT first.
 - The INT is a pulse of 32 ticks: one that comes under DI, or while the INT handler still runs, is lost. At 3.5 MHz a line is 224 ticks and the handler ~430, so events on the next line or the one after were lost (and with them the rest of the frame's: the panel flickered); and `wait_frame` with HALT waited past an INT that came between its test and the HALT, with DI around them lost it. Hence each event carries the next one's line (its VSINT goes out first, ~150 ticks in, and EI comes before the INT's end), and the frame's INT sends `wait_frame` back to its test when it came just before the HALT.
 - `-stress` without `-bot` did nothing in tscheck (no bot played): its runs were attract mode. Now it plays the bot of seed 1, as nxcheck.
 - The run's last picture (TSFULL) is taken at `apply_done`, so its border shows one colour; the border's bands are seen in TSSHOT's frames.

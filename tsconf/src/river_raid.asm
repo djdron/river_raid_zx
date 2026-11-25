@@ -329,60 +329,55 @@ wf_test	ld a,(frame_flag)
 	jr wf_test
 	assert high wf_test == high (wf_test + 5)
 
-; The frame INT and the events of the frame (ev_ptr): each event the VSINT line of the next
-; one (2 bytes), its kind, its data (2): EV_PAL the river's palette from the next row, EV_PANEL
+; The frame INT and the events of the frame (ev_ptr): each event its kind, the VSINT line of
+; the next one (2 bytes), its data (2): EV_PAL the river's palette from the next row, EV_PANEL
 ; the panel's picture from it (VPANEL, its line 0, the bitmap over the tiles and sprites),
 ; EV_GX GXOFFS; EV_END: the frame's INT (FRAME_LINE). The INT is a pulse of 32 ticks, lost
-; under DI: at 3.5 MHz a line is 224 ticks, so for events on lines next to each other the next
-; one's VSINT goes out first, then this one's port, then EI (the rest may be interrupted). No
+; under DI: at 3.5 MHz a line is 224 ticks, so for EV_PAL (on lines next to each other) the next
+; one's VSINT goes out first, then its port, then EI (the rest may be interrupted). No
 ; two events on one line (build_events: the bank's are before the panel's, one a line).
 irq:
 	push af
 	push hl
 	push bc
 	ld hl,(ev_ptr)
-	ld bc,VSINTL			; the next one's line
 	ld a,(hl)
-	out (c),a
+	inc hl
+	or a
+	jr nz,.other
+	ld bc,VSINTL			; EV_PAL: the next one's line first (it may be the next line),
+	ld a,(hl)			; then the river's palette from the next line (PALSEL,
+	out (c),a			; latched)
 	inc hl
 	inc b
 	ld a,(hl)
 	out (c),a
 	inc hl
 	ld a,(hl)
-	inc hl
-	or a
-	jr nz,.other
-	ld a,(hl)			; EV_PAL: the river's palette from the next line (PALSEL,
-	ld b,high PALSEL		; latched)
+	ld b,high PALSEL
 	out (c),a
 	inc hl
-.d1	inc hl
+	inc hl
 .done	ld (ev_ptr),hl
 	ei
 	pop bc
 	pop hl
 	pop af
 	ret
-.other	inc a
-	jr z,.frame
-	dec a
-	dec a
-	jr nz,.gx
+.other	dec a				; (the others: theirs first, latched for the line after the
+	jr nz,.gx			; next: at 3.5 MHz just in time; the next event is far)
 	ld bc,VPAGE			; EV_PANEL
 	ld a,VPANEL
 	out (c),a
-	ld bc,GYOFFSL
+	ld b,high GYOFFSL
 	xor a
 	out (c),a
 	inc b
 	out (c),a
-	ld bc,VCONFIG
+	ld b,high VCONFIG
 	ld a,$8A
 	out (c),a
-	inc hl
-	jr .d1
-.gx	ld bc,GXOFFSL			; EV_GX
+.vs	ld bc,VSINTL			; the next one's line
 	ld a,(hl)
 	out (c),a
 	inc hl
@@ -390,7 +385,23 @@ irq:
 	ld a,(hl)
 	out (c),a
 	inc hl
+	inc hl
+	inc hl
 	jr .done
+.gx	dec a
+	jp nz,.frame
+	push hl				; EV_GX
+	inc hl
+	inc hl
+	ld a,(hl)
+	ld bc,GXOFFSL
+	out (c),a
+	inc hl
+	inc b
+	ld a,(hl)
+	out (c),a
+	pop hl
+	jr .vs
 .frame	ld a,1				; EV_END: the frame (wait_frame); the picture's registers and
 	ld (frame_flag),a		; the events as apply left them, again from the top: a frame
 	ld hl,6				; late (its apply not yet done) shows the last one again, as
@@ -440,13 +451,13 @@ river_regs:
 	out (c),a
 	ret
 
-; The events from list HL (its first: the first event's line, then 3 bytes): ev_ptr, the INT
+; The events from list HL (its first 5 bytes: 1, the first event's line, 2): ev_ptr, the INT
 ; at that line
 ev_go:
+	inc hl
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
-	inc hl
 	inc hl
 	inc hl
 	inc hl
@@ -739,7 +750,7 @@ build_events:
 	cp b
 	jr z,.same
 	ld b,a
-	ld (ix + 2),EV_PAL
+	ld (ix + 0),EV_PAL
 	ld (ix + 4),a			; (its colour, for the check)
 	push de
 	push hl
@@ -750,8 +761,8 @@ build_events:
 	ld (ix + 3),a			; its palette
 	ld a,e				; its line: in the one before it (or the list's first)
 	add a,ROW_LINE - 1 + RIVER_TOP - RIVER_FIRST
-	ld (ix - 5),a
-	ld (ix - 4),0
+	ld (ix - 4),a
+	ld (ix - 3),0
 	ld a,c
 	ld bc,5
 	add ix,bc
@@ -767,10 +778,10 @@ build_events:
 	inc hl
 	dec d
 	jr .seg
-.end	ld (ix - 5),low (ROW_LINE + PANEL_ROW - 1)	; then the panel's (apply puts
-	ld (ix - 4),high (ROW_LINE + PANEL_ROW - 1)	; them at ev_tail)
+.end	ld (ix - 4),low (ROW_LINE + PANEL_ROW - 1)	; then the panel's (apply puts
+	ld (ix - 3),high (ROW_LINE + PANEL_ROW - 1)	; them at ev_tail)
 	ld (ev_tail),ix
-	ld (ix + 2),EV_END
+	ld (ix + 0),EV_END
 	ret
 
 ; The DMA's work done
@@ -1178,22 +1189,27 @@ dl_seg:		ds 4 * 19		; draw_line: the line's pieces in order (byte, kind, data 2)
 rnd_col16:	ds 3			; random_step's bit 16's column
 EV_PANEL_SIZE	equ 15
 ev_a:		ds 5 + 5 * 48 + EV_PANEL_SIZE	; the bank's colour by line (build_events): two
-ev_b:		ds 5 + 5 * 48 + EV_PANEL_SIZE	; buffers. A list: the first event's line, 1
-					; byte, the palette at the top, its colour; then the events
-					; (irq: the next one's line, the kind, the data)
-ev_none:	dw FRAME_LINE
-		db 0, 0, 0
+ev_b:		ds 5 + 5 * 48 + EV_PANEL_SIZE	; buffers. A list: 1 byte, the first event's
+					; line, the palette at the top, its colour; then the events
+					; (irq: the kind, the next one's line, the data)
+ev_none:	db 0
 		dw FRAME_LINE
-		db EV_END, 0, 0
-ev_panel:	dw ROW_LINE + PANEL_ROW - 1	; the panel's events: its picture from its row
-		db 0, 0, 0			; (latched: a line before), the scrolling line's X
+		db 0, 0
+		db EV_END
+		dw FRAME_LINE
+		db 0, 0
+ev_panel:	db 0				; the panel's events: its picture from its row
+		dw ROW_LINE + PANEL_ROW - 1	; (latched: a line before), the scrolling line's X
+		db 0, 0
+		db EV_PANEL
 		dw ROW_LINE + PANEL_ROW + SCROLL_LINE - 1
-		db EV_PANEL, 0, 0
-		dw FRAME_LINE
+		db 0, 0
 		db EV_GX
-		dw 0
 		dw FRAME_LINE
-		db EV_END, 0, 0
+		dw 0
+		db EV_END
+		dw FRAME_LINE
+		db 0, 0
 ev_tail:	ds 2			; build_events: where its list ends
 pal_n:		ds 1			; the river's palettes made (pal_get)
 pf_gx:		ds 2			; panel_frame: the scrolling line's X (GXOFFS)
