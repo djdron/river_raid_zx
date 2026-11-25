@@ -770,7 +770,7 @@ bank_cols:	ds BANK_COLS		; bank_init: the bank's Atari colours, in their entries
 bank_n:		ds 1			; how many
 rl_set:		ds 1			; line_bank: the line's set of tables (pix_sets: high byte),
 rl_colour:	ds 1			; and its bank colour
-road_row:	ds 1			; the bridge's road row on the newest line (bit 7: none yet; $7F: past)
+road_row:	ds 1			; the bridge's road row on the newest line (bit 7: none yet; $7E, $7F: past)
 ap_shown:	ds 1
 	align 256
 line_start:	ds 256			; per scanline: ANTIC's cycles at its start

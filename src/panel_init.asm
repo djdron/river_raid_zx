@@ -323,7 +323,7 @@ panel_init:
 bank_init:
 	ld a,$FF			; (line_bank: no colour yet)
 	ld (rl_colour),a
-	ld a,$7F			; (no bridge yet)
+	ld a,$7E			; (no bridge yet: the green on the first line)
 	ld (road_row),a
 	xor a
 	ld (bank_n),a

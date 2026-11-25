@@ -940,16 +940,18 @@ scroll_objects:
 	or a
 	jr z,.moved
 	dec (hl)
-.moved	ld hl,road_row			; the bridge's road row a line on ($7F: past it)
-	ld a,(hl)
-	cp $7F
-	jr z,.road
-	inc (hl)
+.moved	ld hl,road_row			; the bridge's road row a line on ($7E: just past it,
+	ld a,(hl)			; $7F: past it, line_bank)
+	cp $7E
+	jr c,1F
+	cp $80
+	jr c,.road
+1:	inc (hl)
 	jp m,.road
 	ld a,(ROM_OBJECT_HEIGHT + $0E)
 	cp (hl)
 	jr nc,.road
-	ld (hl),$7F
+	ld (hl),$7E
 .road	ld hl,TANK_Y
 	inc (hl)
 	ld hl,SHELL_Y

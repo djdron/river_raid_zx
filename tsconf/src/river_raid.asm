@@ -1015,7 +1015,7 @@ bank_cols:	ds BANK_COLS		; bank_init: the bank's Atari colours, in their entries
 bank_n:		ds 1			; how many
 rl_set:		ds 1			; line_bank: the line's set of tables (pix_sets: high byte), and
 rl_colour:	ds 1			; its bank colour
-road_row:	ds 1			; the bridge's road row on the newest line (bit 7: none yet; $7F: past)
+road_row:	ds 1			; the bridge's road row on the newest line (bit 7: none yet; $7E, $7F: past)
 pf_gx:		ds 2			; panel_frame: the scrolling line's X (GXOFFS)
 pf_ring:	ds 1			; its text's first character in the ring
 pf_pal:		ds 1			; .spr's palette (x 16)

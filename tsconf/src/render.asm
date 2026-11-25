@@ -170,13 +170,15 @@ render_line:
 ; The bank's colour of the line just generated (the C++ port's lineBankColour): the bridge's
 ; road colour by the row the line shows (road_row: set when the bridge is placed or put back,
 ; a line on with each line, scroll_objects), else the frame's (bank_colour); rl_set its set
-; of tables (pix_sets)
+; of tables (pix_sets). It changes only by a bridge: past one, the same set as the line before
 line_bank:
 	ld a,(road_row)
+	cp $7F
+	ret z
+	cp $7E				; the first line past the road: the new green, then no more
+	jr z,.past
 	or a
 	jp m,.green
-	cp $7F
-	jr z,.green
 	add a,low ROM_ROAD_COLOURS
 	ld l,a
 	ld a,high ROM_ROAD_COLOURS
@@ -185,6 +187,10 @@ line_bank:
 	ld a,(hl)
 	jr .entry
 .green	call bank_colour
+	jr .entry
+.past	ld a,$7F
+	ld (road_row),a
+	call bank_colour
 .entry	ld hl,rl_colour			; the same colour as the line before: the same set
 	cp (hl)
 	ret z
@@ -210,7 +216,7 @@ line_bank:
 bank_init:
 	ld a,$FF			; (line_bank: no colour yet)
 	ld (rl_colour),a
-	ld a,$7F			; (no bridge yet)
+	ld a,$7E			; (no bridge yet: the green on the first line)
 	ld (road_row),a
 	xor a
 	ld (bank_n),a
