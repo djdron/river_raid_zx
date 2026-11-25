@@ -9,13 +9,13 @@ TS-Conf 移植自己的笔记（主板、代替 Copper 的中断、General Sound
 ## 内存
 | Z80 | 8K 页 | 内容 |
 |---|---|---|
-| $0000–$3FFF | 30, 31 | Atari 的 RAM，位于原版的地址（状态、槽位 $0500、字符集 $0600–$09FF、player-missile 内存 $0B00–$0FFF、面板 $1000、屏幕内存 $2000–$2EFF 和 $3000–$3EFF、$3F04 顶行地址、$3FB3 滚动字幕文本） |
+| $0000–$3FFF | 30, 31 | Atari 的 RAM，位于原版的地址（状态、槽位 $0500、字符集 $0600–$09FF、player-missile 内存 $0B00–$0FFF、面板 $1000、屏幕内存 $2000–$2EFF 和 $3000–$3EFF、$3F04 顶行地址、$3FB3 滚动字幕文本）；`render_line` 绘制时：第 29 页在 $0000，它的点表（`pix_sets`） |
 | $4000–$5FFF | 18–27 / 10, 11 / 7 | 一个窗口：Layer 2（render_line、清除）、bank 5（tilemap、panel_frame） |
 | $6000–$7FFF | 12 | scan_bank（只有 `-DBEAM` 填充）、ring_lo/hi（屏幕内存的行：检查构建）、edge_runs（每段边缘的连续段：span_line）、sprite_list、ds_objs、copper_list（2K）、ov_exp2/ov_exp4（加宽后的一个字节的点：hit_wide）、eg_*（每行边缘的空隙：ds_edge_test、dh_pf）、$7C00 的 DAC 环形缓冲 |
 | $8000–$9FFF | 4 | 头部和帧循环、河流生成器、渲染、调色板、随机映射、play.asm（约 1.6K 空闲） |
 | $A000–$BFFF | 5 | 卡带（从 SD 卡加载；esxDOS F_OPEN/F_READ，先长文件名再 RIVER_~1.ROM；已检查：8192 字节，$BFFA = $A000） |
-| $C000–$DFFF | 6 | game.asm、display.asm、sprites.asm（约 350 字节空闲） |
-| $E000–$FFFF | 1 | 变量（line_buf 仅在有屏幕内存时）、pix_tab（4 页）、edge_lo/hi、span_class、span_masks、obj_head/obj_e、rnd_tab、bg_*（每行河岸的空隙：dh_pf，4 页）、栈 |
+| $C000–$DFFF | 6 | game.asm、display.asm、sprites.asm、render.asm、bank_colours.asm（约 10 字节空闲） |
+| $E000–$FFFF | 1 | 变量（line_buf 仅在有屏幕内存时）、edge_lo/hi、span_class、span_masks、obj_head/obj_e、rnd_tab、bg_*（每行河岸的空隙：dh_pf，4 页）、栈 |
 
 页 7 只在启动时 `load_rom` 和 `panel_init` 运行期间映射到 $6000；`obj_pics` 紧随其后放在那里。NEX 包含 16K bank 2 和 3（页 4–7）。
 
@@ -25,7 +25,7 @@ $8000 处的头部（供检查用，`tools/nxcheck.cpp`）：`jp start`，`line_
 `main_frame`（river_raid.asm）：显示内容的快照（滚动、边缘和水的颜色、玩家）、控制输入、CAPS + 1；然后 `prepare`、`display`（DLI）、`build_sprites`（精灵和 Copper 列表）、`main_loop`、`vbi`；或在复位期间（sub $B0F1 清除内存：NTSC 13 帧，PAL 8 帧）只做 display、精灵、清除两页 Layer 2 和 VBI，最后一帧做 `finish_reset`。清除从复位的第二帧开始（`l2_wait`：第一帧的图像是复位前做的，仍在显示），从那时到结束 `apply` 把 Layer 2 的裁剪窗口缩到面板的行（`l2_hidden`）：河流一下子变黑，就像 C++ 移植的屏幕，而不是在河岸仍是绿色的情况下被条带擦除好几帧。然后 `wait_frame`（扫描线 NTSC 208、PAL 220：在滚动字幕之下，所以绘制时屏幕上什么都不变）和 `apply`：Layer 2 的滚动和颜色、精灵属性、面板和滚动字幕、Copper 列表。
 
 ## Next 硬件的用法
-- **Layer 2** 320x256，8 位，按列存储（字节 x·256 + y，每个 8K 页 32 列）：一行河流就是 320 字节的按列写入（`render_line`，通过 `pix_tab`）。垂直滚动 NR $17；256 行的河流环每出一行新行前进一行。裁剪窗口第 40–199 行。索引 0 黑色，1 河岸（每行由 Copper 设置），2 边缘，3 水（apply：桥闪烁时为红色，清屏时为黑色）。
+- **Layer 2** 320x256，8 位，按列存储（字节 x·256 + y，每个 8K 页 32 列）：一行河流就是 320 字节的按列写入（`render_line`，通过该行的一组点表 `pix_sets`）。垂直滚动 NR $17；256 行的河流环每出一行新行前进一行。裁剪窗口第 40–199 行。索引 0 黑色，1 和 4–10 是河岸颜色（每行的点用自己的颜色，`line_bank`），2 边缘，3 水（apply：桥闪烁时为红色，清屏时为黑色）。
 - **调色板写入**用 NR $41：8 位；第九位（蓝色的最低位）变为 (b1 | b0)。颜色是 C++ 移植的 PAL 颜色（Altirra 的模型），经过 `tools/next_palette.h`（8 位，绝不用 $E3，全局透明色）。后备色 NR $4A 同样扩展。
 - **精灵**：图案 RAM 是 64 个 256 字节的槽（$303B）。物体（player 3）用 8 位图案，每字节是一个点的颜色索引：128 + Atari 颜色 / 2，精灵调色板 128–255 一次性设为 Atari 的颜色（`init_video`），0 透明；槽 12–61。其他 player 和 missile 用 4 位图案（128 字节；图案 p = 槽 p/2，$303B 的第 7 位选后半，属性 4 的第 6 位（N6）选半，第 7 位 = 4 位），用调色板偏移表示颜色：两组各 12 个轮流使用（0–11、12–23：槽 0–11）；124–127 固定：油量指针和标志。X 是 9 位，在 512 处回绕，所以精灵可以部分伸出左边缘。缩放位用于两倍和四倍宽。
 - **Copper**：模式 %11（每帧重启）。在要改变的行的前一行 WAIT h = 40（超过 320 个点）；Layer 2 的第 L 行是 v = L − 32。MOVE NR $43/$40/$41 改调色板项，$31/$30 改 tilemap 滚动。
@@ -45,7 +45,7 @@ $8000 处的头部（供检查用，`tools/nxcheck.cpp`）：`jp start`，`line_
 
 **其他 player 和 missile 的图像在启动时生成**（`pl_pics`，在 `obj_pics` 之前）：飞机的每一帧（`ROM_PLANE_SHAPE`，0–9：7/8/9 倾斜和直行，6–0 爆炸；14 行）、坦克（`ROM_TANK_SHAPE`，类型 0–7，第 7 位即摧毁标记被排除；11 行）和坦克炮弹（`ROM_SHELL_SHAPE`，0–6；16 行）作为 4 位图案，就像 `prepare` 把它们复制到 player-missile 内存中那样（形状的第 i 行放在行 + i）；地址相同的帧共享一个，全空的不分配（$FF）。子弹（8 行一个点）和直升机导弹（一行 4 个点）各一个图案。一个点是精灵调色板偏移中的值 1（`SHELL_`、`TANK_`、`PLANE_OFFSET`：`apply` 设置它们的颜色）。20 个图案，从 0 开始（物体的从 24 开始）。`build_sprites` 只查找帧（`pl_plane`、`pl_tank`、`pl_shell`、`pl_bullet`、`pl_missile`）并写 5 字节属性（`pl_sprite`）：不读行、无哈希、游戏中不写图案（比旧的 `pm_channel` + `emit_sprite` 每帧少约 4 500 周期，旧的是由 player-missile 内存生成的 2 × 12 图案哈希缓存）。在复位帧期间（`busy`）保留上一帧的 player 精灵（`pl_keep`、`pl_again`），正如 player-missile 内存保持上一次 `prepare` 留下的样子。碰撞读取同样的形状（`dh_lists`：第 L 行的行在帧的形状地址 − 首行 + L），所以 Next 不再写 player-missile 内存（`prepare`、`draw_bullet`、复位清除以及标志和指针的行只在 `-DBEAM` 构建中）；一个测试构建在整套检查上把每一行与 player-missile 内存比较：没有一行不同。每帧少约 1 000 周期（158.4k → 157.4k）。
 
-**Copper 列表**：对河流的每一行，河岸颜色在变化处（Layer 2 的第 1 项），在前一行设置，来自 display 的变化（`ds_bank_ev`）。只在它们变化时重建（`cp_colour`：整个长度一种颜色，列表里已经是这样：无事可做）；此时 `apply` 把它整个发给 Copper（`cp_full`），否则只发滚动字幕的 X 滚动（列表最后一个 MOVE 的值，一个字节）。`nxcheck` 在每次 apply 后检查 Copper 内存就是该列表，并检查列表的颜色就是 C++ 移植按河流行的河岸颜色变化（scan_bank 不再填充：只有光束显示读取它）。桥的路面（`.road`）只在一行的颜色与上一行不同时才记录。然后是面板部分（来自 `copper_panel_ntsc` 或 `_pal`）：Layer 2 颜色 0–3 在第 200 行为黑色，从 201 行起为灰色，每个字符行的 tilemap Y，滚动字幕的 X 滚动（由 `panel_frame` 带着本帧的精细滚动插入）。
+**Copper 列表**：不再逐行改颜色：`copper_start`，然后是面板部分（来自第 7 页的 `copper_panel_ntsc` 或 `_pal`：`tv_setup` 经槽 2 复制）：第 200 行把 Layer 2 的颜色 0–10 设为黑色，从 201 行起设为灰色（河岸的第 4–10 项也要：面板下面的行显示的是旧的河流行），每个字符行的 tilemap Y，滚动字幕的 X 卷动（由 `panel_frame` 用这一帧的细卷动值填入），灰色之后把颜色 0–10 恢复（边缘和水由 `apply` 写入，河岸由 `build_copper` 写入）。只在制式改变（`cp_built`）或颜色关闭/打开时（`cp_bank_on`：颜色关闭时河岸的各项为黑色，B101）重建；这时 `apply` 把整个列表发给 Copper（`cp_full`），否则只发从边缘颜色到 X 卷动的那些字节。`nxcheck` 在每次 apply 之后检查 Copper 的内存就是这个列表，每帧之后检查每条河流行的河岸点在 Layer 2 中的项对比 C++ 移植的 `lineBank`（scan_bank 和 `ds_bank_ev` 只在 `-DBEAM` 下填写）。
 
 ## 面板和滚动字幕
 字符集在启动时建在游戏建立它们的地方（A0FB–A143）：操作系统字体的 $E000/$E100/$E300 页（AltirraOS 的字体，`src/font.inc`，由 `tools/mkfont` 从 C++ 移植连同其说明生成）和卡带的符号（$BEEE 标志字母、$BF2E 面板符号、$BF9E 玩家标签、$BFB6 年份数字）。它们留在 $0600–$09FF（start_attract 不碰那个范围）。每个字符是两个图块（左右各 4 个色彩周期，每个两个点）：图块 0–127 是面板的字符集，128–255 是滚动字幕的。
@@ -82,7 +82,7 @@ $8000 处的头部（供检查用，`tools/nxcheck.cpp`）：`jp start`，`line_
 一行的屏幕内存：屏幕内存是 160 行的环（每块 80 行：+48，$2Fxx → $30xx，$3Fxx → $20xx）；`ring_lo/hi`（只建一次）给出每个位置的地址，河流顶部的位置每帧从 $3F04 找一次。
 
 ### 去掉 DLI（display_simple.asm、display_hits.asm：现在）
-`display` 跟随 C++ 移植的 `Game::displayGeometry`（`dli_removed` 分支）：没有 DLI，没有它的周期，也没有它的工作循环。每个物体的行从 X = max(y, $5D) + 3 开始（扫描线 X − 69，先是第 height[type] − (start − y) 行），直到 X 回绕（河流末端）之前有多少就多少：正是 DLI 循环放置它们的地方，而 DLI 循环从未落后于任何物体（C++ 移植在 120 000 帧中把自己的计数器路径与此比较：每帧相同）。它们的行放在 `ds_objs` 中供精灵使用，桥路面的颜色在变化处（`ds_bank_ev`，供 Copper 列表）。槽的字段从游戏保存它们的地方读取：IY 指向页 5 中槽的外观类型，其类型、X 和尺寸为 IY + 11、+ 22、+ 33（只保存 Y 和标志，在零页：`ds_y`、`ds_flags`）。
+`display` 跟随 C++ 移植的 `Game::displayGeometry`（`dli_removed` 分支）：没有 DLI，没有它的周期，也没有它的工作循环。每个物体的行从 X = max(y, $5D) + 3 开始（扫描线 X − 69，先是第 height[type] − (start − y) 行），直到 X 回绕（河流末端）之前有多少就多少：正是 DLI 循环放置它们的地方，而 DLI 循环从未落后于任何物体（C++ 移植在 120 000 帧中把自己的计数器路径与此比较：每帧相同）。它们的行放在 `ds_objs` 中供精灵使用。槽的字段从游戏保存它们的地方读取：IY 指向页 5 中槽的外观类型，其类型、X 和尺寸为 IY + 11、+ 22、+ 33（只保存 Y 和标志，在零页：`ds_y`、`ds_flags`）。
 
 碰撞是纯几何，每个都在行真正相碰的地方（没有 HITCLR、没有读取、没有窗口）：其他精灵的行在游戏放置它们的地方，它们的位就是 ROM 的形状（`dh_desc`）；与河岸以及彼此之间每帧一次（`dh_sprites`：P1PF 坦克和边缘，P2PF 飞机和河岸，M0PF 和 M2PF 导弹和子弹与两者之一，通过 `dh_pf`；P2PL 飞机和坦克炮弹，M0PL 导弹和飞机，通过 `dh_pair`），每个是或否；每个物体对子弹、坦克炮弹（非桥）和飞机（`dh_obj`：先是它们的周期，然后两者共有的行，然后是点），保留沿屏幕向下最后一个被击中的；直升机、气球和船的所有行的边缘（P3PF）（`ds_edge_test`：每行的两端对该行边缘的连续段，如同 C++ 移植的 `edgeTouches`）。
 

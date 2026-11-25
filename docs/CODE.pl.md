@@ -22,8 +22,8 @@ Czasy to takty rdzenia Next przy 28 MHz na klatkę, średnio, z histogramu nxche
 klatek), na wersji testowej bez pamięci ekranu, jak w grze (`-DNOSCREEN`, `NXNOSCREEN=1`). Dwa
 przebiegi:
 
-- **A**: PAL, bot 1, 3 000 klatek od startu (zwykły początek gry): średnio ~106 000 na klatkę, najwyżej ~162 000;
-- **B**: `-stress` od mostu 80, PAL, 6 000 klatek (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~164 000, najwyżej ~202 000 (NTSC ~160 000 / ~202 000; przy 14 MHz NTSC ~131 000 / ~165 000 z ~240 000).
+- **A**: PAL, bot 1, 3 000 klatek od startu (zwykły początek gry): średnio ~102 000 na klatkę, najwyżej ~158 000;
+- **B**: `-stress` od mostu 80, PAL, 6 000 klatek (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~159 000, najwyżej ~198 000 (NTSC ~160 000 / ~202 000; przy 14 MHz NTSC ~131 000 / ~165 000 z ~240 000).
 
 Klatka ma ~567 000 taktów w PAL i ~481 000 w NTSC (przy 14 MHz połowę). `apply` (a z nim
 `panel_frame`) działa po mierzonej pracy (pod przewijanym napisem) i nie ma go w tych liczbach:
@@ -34,22 +34,22 @@ Według części (A / B):
 
 | część | A | B |
 |---|---|---|
-| wyświetlanie: rozmieszczanie obiektów i kolizje (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 41 300 | 55 200 |
+| wyświetlanie: rozmieszczanie obiektów i kolizje (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 40 400 | 54 300 |
 | dźwięk (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
-| nowe linie rzeki (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 18 800 | 44 000 |
-| sprite'y i lista Coppera (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 10 900 | 15 900 |
+| nowe linie rzeki (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
+| sprite'y i lista Coppera (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
 | logika gry i reszta (`prepare`, `main_loop`, `move_objects`, `random_step`, wypisywanie panelu, …) | 9 400 | 10 500 |
 
 Najdroższe procedury (A / B):
 
 | procedura | A | B | plik |
 |---|---|---|---|
-| `display` (własny kod) | 11 800 | 13 500 | display_simple |
+| `display` (własny kod) | 10 900 | 12 600 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
 | `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `render_line` | 3 900 | 9 400 | render |
+| `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
@@ -66,10 +66,9 @@ Najdroższe procedury (A / B):
 | `draw_line` | 900 | 2 300 | river_gen |
 | `pk_g4` | 0 | 1 400 (~9 000 w klatce, gdy brzmi rakieta) | sound_pulses |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
-| `build_copper` | 1 100 | 1 000 | sprites |
 | `hit_setup` | 500 | 700 | display_hits |
 
-Najcięższa klatka B (~202 000): dźwięk do ~60 000 (szum i rakieta na DAC, ~180 impulsów),
+Najcięższa klatka B (~198 000): dźwięk do ~60 000 (szum i rakieta na DAC, ~180 impulsów),
 rozmieszczanie i testy krawędzi (`display`, `ds_obj`, `ds_edge_test`) ~30 000, kolizje
 (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, nowe linie rzeki ~25 000.
 
@@ -128,7 +127,7 @@ strony 12, zaczepy wersji testowych.
 | `restart` | `start`; CAPS + 1 | Maszyna „włączona” w standardzie `tv_pal`: `tv_setup`, Layer 2 wyczyszczony (wszystkie 10 stron naraz), `sound_init`, `start_attract`, przechodzi do `main_frame`. |
 | `main_frame` | co klatkę | Zob. *Klatka*. ~340 własnych taktów. |
 | `wait_frame` | `main_frame` | Aktywnie czeka na NR $1F wobec `wait_line`. Jego czas to bezczynność, nie praca. |
-| `init_tables` | `start` | Raz: tablice: `pix_tab` (`render_line`), `ring_lo`/`ring_hi` (160 linii pamięci ekranu po kolei), `span_class` (kolor bajtu, jeśli jego 4 piksele są jednakowe), `span_init` (maski), pusta lista Coppera. |
+| `init_tables` | `start` | Raz: tablice: `ring_lo`/`ring_hi` (160 linii pamięci ekranu po kolei), `span_class` (kolor bajtu, jeśli jego 4 piksele są jednakowe), `span_init` (maski), pusta lista Coppera. |
 | `tv_setup` | `restart` | Ustawienia standardu: NR $05 50/60 Hz, `init_line_tables`, `wait_line`, mapa losowa, część panelu Coppera (`copper_panel_ntsc`/`_pal` skopiowane, szarość wpisana, `COPPER_GREY`), pierwsze przewinięcie Y tilemapy, okna przycinania (Layer 2 do ostatniej szarej linii panelu, sprite'y, tilemapa). |
 | `init_video` | `start` | Czarna ramka, bez ULA, globalna przezroczystość $E3, Layer 2 320×256×8 w banku 9, kolejność warstw (tilemapa nad sprite'ami nad Layer 2), palety: 4 wpisy Layer 2, 128–255 sprite'ów = kolory Atari, NR $15 z przycinaniem sprite'ów w trybie nad ramką. |
 | `test_ghost` | wersje testowe, po `display`, gdy `test_ghost_on` | NXGHOST z nxcheck: kolizje samolotu i paliwo ustawione tak, by nie mógł się rozbić. |
@@ -208,7 +207,10 @@ a każde przeniesienie to linia, więc 0–2 linie na klatkę, tym więcej, im s
 
 | procedura | wywołanie | co i jak | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Takty koloru 20–179 (`WINDOW_FIRST`) linii do wiersza A Layer 2, z kawałków `dl_seg` (bez bufora linii). Layer 2 jest zapisany kolumnami (bajt x·256 + y, 32 kolumny na stronę 8K), więc wiersz pisze się w dół kolumn (`inc h` = następna kolumna), 10 stron mapowanych po kolei w slot 2 (`rl_next`). Kawałek jednej wartości: jego kolor raz z `pix_tab`, potem `rl_fill` (8 kolumn na bajt, strona po stronie; `rl_fill`, `rl_next` w stronie 6, spans.asm); bajty krawędzi (z tablicy ROM) i wiersz ozdoby (z jej bitmapy w ROM): na bajt `pix_tab` daje 2 punkty na takt, każdy zapisany dwa razy; bajty przed oknem pominięte w danych. 320 zapisów na linię. W stronie 6 (przeniesiona ze strony 4 dla miejsca). | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | Najpierw `line_bank` (zestaw tablic linii), strona 29 (`PIX_PAGE`) na ten czas w slocie 0. Takty kolorów 20–179 (`WINDOW_FIRST`) linii do wiersza A Layer 2, z kawałków `dl_seg` (bez bufora linii). Layer 2 jest zapisany kolumnami (bajt x·256 + y, 32 kolumny na stronę 8K), więc wiersz pisze się w dół kolumn (`inc h` = następna kolumna), 10 stron kolejno w slocie 2 (`rl_next`). Kawałek jednej wartości: jego kolor raz z pierwszej strony zestawu, potem `rl_fill` (8 kolumn na bajt, strona po stronie; `rl_fill`, `rl_next` w stronie 6, spans.asm); bajty krawędzi (z tablicy w ROM) i wiersz dekoracji (z jej bitmapy w ROM): na bajt 4 strony zestawu dają 2 punkty na takt, każdy zapisany dwa razy; bajty przed oknem pomijane w danych. 320 zapisów na linię. Na końcu RAM Atari z powrotem w slocie 0. W stronie 6 (przeniesione ze strony 4 dla miejsca). | 4 100 + 3 800 / 10 000 + 8 300 |
+| `line_bank` | `render_line` | `lineBankColour` portu C++ na stanie po linii: sloty od `FIRST_SLOT` w dół, dopóki któryś może pokazać wiersz drogi (y ≤ $5E: y rośnie w dół slotów); przy moście jego wiersz drogi y + wysokość − $5E, kolor z tablicy pod $B4E5; inaczej `bank_colour` (zieleń). Ten sam kolor co linia przed: nic więcej; inaczej jego miejsce w `bank_cols` × 4 do `rl_set` (starszy bajt zestawu). W bank_colours.asm (strona 6). | 240 / 510 (+ `bank_colour` 370 / 580) |
+| `bank_init`, `pix_sets` | `start` (strona 7, po `panel_init`) | Kolory brzegu, każdy raz: $D2, $D6, 20 wierszy drogi (`bank_cols`, `bank_n`, najwyżej 8), pozycje Layer 2: 1, potem 4–10 (`bank_set`); strona 29 w slocie 0: zestaw 4 stron na kolor (zestaw i pod 4i × 256), bajt b strony k to punkt k bajtu b, jak trzyma go Layer 2 (0, 2, 3 same, 1 pozycja koloru i). | raz |
+| `bank_set` | `bank_init`, `apply` | Pozycje brzegu Layer 2: ich kolory (E = 1) albo czerń (E = 0, kolory wyłączone: `apply`, gdy zmienia się `show_bank`, `ap_bank_on`). | |
 
 ## spans.asm: odcinki linii dla kolizji z polem gry
 
@@ -233,13 +235,13 @@ przerwy niczego na tej linii nie dotyka.
 Jak `displayGeometry` portu C++ (gałąź `dli_removed`): bez DLI. Każdy obiekt stoi na y swojego
 slotu, przycięty do rzeki, a jego kolizje to prosta geometria. Co zostawia: `ds_objs` (wiersze
 każdego obiektu dla sprite'ów: 8 bajtów, pierwsza linia, liczba wierszy, wskaźniki kształtu i
-koloru, x, rozmiar), `ds_bank_ev` (zmiany koloru brzegu, dla `build_copper`), wyniki kolizji w
+koloru, x, rozmiar), wyniki kolizji w
 HIT i flagi krawędzi slotów.
 
 `display` (~11 800 / 13 500 własnych):
 
 1. Mapuje SPAN_PAGE, `dh_lists` (deskryptory innych sprite'ów), rejestry wyczyszczone i ustawione jak B527–B55C, `bm_hitclr`, `dh_sprites` (HIT = $FF, potem inne sprite'y z brzegiem i ze sobą).
-2. `.slot`, dla każdego slotu od FIRST_SLOT: IY na rodzaju slotu (strona 5: typ, X, rozmiar pod IY + 11, + 22, + 33, czytane tam, bez kopii), Y i flagi zachowane (`ds_y`, `ds_flags`), `ds_edge_kind`; początek = max(y, $5D); pierwszy wiersz = y + height[type] − początek (≥ $80: zniknął w górę, następny); X = początek + 3 (ponad 255: koniec); wierszy = min(wiersz + 1, 256 − X); `ds_rowp` bajt pierwszego wiersza; `ds_obj` (wiersze do `ds_objs`); most: `.road` (kolor drogi od linii rastra po każdym jej wierszu, X − 69 + 1; kolor brzegu sekcji po ostatnim, o ile X się nie zawinął, przez `ds_bank`; kolor wiersza tylko wtedy, gdy różni się od wiersza wyżej). Pierwsze wiersze kształtu i kolorów wylicza się na miejscu (DE, BC dla `ds_obj`). Tablice ROM (wysokość, kształt, kolory) czytane są dodawaniem 8-bitowym (`ROM_SHAPES` i `ROM_COLOURS` zaczynają się od początku strony).
+2. `.slot`, dla każdego slotu od FIRST_SLOT: IY na rodzaju slotu (strona 5: typ, X, rozmiar pod IY + 11, + 22, + 33, czytane tam, bez kopii), Y i flagi zachowane (`ds_y`, `ds_flags`), `ds_edge_kind`; początek = max(y, $5D); pierwszy wiersz = y + height[type] − początek (≥ $80: zniknął w górę, następny); X = początek + 3 (ponad 255: koniec); wierszy = min(wiersz + 1, 256 − X); `ds_rowp` bajt pierwszego wiersza; `ds_obj` (wiersze do `ds_objs`); most: `.road` (`-DBEAM`) (kolor drogi od linii rastra po każdym jej wierszu, X − 69 + 1; kolor brzegu sekcji po ostatnim, o ile X się nie zawinął, przez `ds_bank`; kolor wiersza tylko wtedy, gdy różni się od wiersza wyżej). Pierwsze wiersze kształtu i kolorów wylicza się na miejscu (DE, BC dla `ds_obj`). Tablice ROM (wysokość, kształt, kolory) czytane są dodawaniem 8-bitowym (`ROM_SHAPES` i `ROM_COLOURS` zaczynają się od początku strony).
 3. Krawędź (P3PF) dla rodzajów 8–$0D (`ds_edge_kind`: helikoptery, balony, statki zawracają przy niej): `ds_edge_test`, potem `ds_set_flags`.
 4. Wobec pocisku, pocisku czołgu (nie most) i samolotu: `dh_obj`; dotknięcie zapisuje slot (HIT_BULLET_OBJECT, HIT_SHELL_OBJECT, HIT_PLANE_OBJECT), więc zostaje ostatni w dół ekranu.
 5. `.end`: `test_ghost` (wersje testowe); `ds_bank_fill` tylko z `-DBEAM`.
@@ -248,8 +250,8 @@ HIT i flagi krawędzi slotów.
 |---|---|---|---|
 | `ds_edge_test` | `display`, dla każdego obiektu rodzajów 8–$0D | A = $02, jeśli rozpiętość wiersza (od jego pierwszego punktu do ostatniego) trafia na odcinek krawędzi na jego linii (`edgeTouches` portu C++). Prostokąt obiektu (X do X + 8, 16 lub 32 taktów; nic ponad takt 255) wiersz po wierszu wobec przerw wody linii (`eg_*`, indeks pierścienia linii rośnie o jeden); wewnątrz — następny wiersz. W przeciwnym razie pierwszy i ostatni punkt wiersza (`edge_lo`/`edge_hi` przeskalowane rozmiarem: `.s1`/`.s2`, plus X: `.ex1`/`.ex2`) wobec odcinków krawędzi linii (jej rekord): odcinek między nimi to dotknięcie, bez punkt po punkcie. | 3 200 / 10 200 |
 | `ds_set_flags` | `display` | Bit krawędzi obiektu do flag jego slotu (bit 0). | 1 100 / 1 300 |
-| `ds_bank` | `display` | Zmiana koloru brzegu od linii rastra A (droga mostu i z powrotem): do `ds_bank_ev`. | |
-| `ds_bank_fill` | koniec `display`, tylko `-DBEAM` | `scan_bank` dla każdej linii rzeki z `ds_bank_ev` (czyta go wyświetlanie promienia; nxcheck zamiast tego porównuje listę Coppera z portem C++). | |
+| `ds_bank` | `display` (`-DBEAM`) | Zmiana koloru brzegu od linii rastra A (droga mostu i z powrotem): do `ds_bank_ev`. | |
+| `ds_bank_fill` | koniec `display`, tylko `-DBEAM` | `scan_bank` dla każdej linii rzeki z `ds_bank_ev` (czyta go tylko wyświetlanie promienia; w grze kolor brzegu idzie linia po linii: `line_bank`). | |
 | `ds_edge_only` | `display` | Bit krawędzi tylko dla rodzajów, które go czytają. | |
 
 ## display_objs.asm
@@ -303,17 +305,11 @@ składany tylko z `-DBEAM`. Składane zawsze:
 | `build_sprites` | `main_frame` | `ob_list` (obiekty); samolot, jego pocisk, czołg, rakieta helikoptera, pocisk czołgu (w kolejności, w jakiej rysuje je `drawRiver`, ostatni na wierzchu): każdy to wzór jego klatki zrobiony przy starcie (`pl_plane`, `pl_tank`, `pl_shell`, `pl_bullet`, `pl_missile`) w jego pozycji, `pl_sprite`; `pl_keep` zachowuje ich atrybuty, które klatki resetu (`busy`) pokazują znowu (`pl_again`); `build_copper`. | 1 000 / 1 100 |
 | `pl_sprite` | `build_sprites` | Wzór A ($FF: brak) na linii D (brak poniżej rzeki), pozycja E, przesunięcie palety C: jego 5 bajtów atrybutów do `sprite_list` (X = 2·(x − 52), 9 bitów; Y; przesunięcie; wzór; 4 bity, połowa wzoru). | ~100 na sprite |
 | `ob_list` | `build_sprites` | Dla każdego wpisu `ds_objs` jego wiersze z `ds_objf` (wszystkie): jego obrazek zrobiony przy starcie odnaleziony po adresach kształtu i koloru górnego wiersza (`obj_lookup`; nieznaleziony: `ob_miss`, nierysowany), sprite na każde 16 wierszy (`ob_attr`: X = 2·(x − 52), Y, bank, 4 bity, połowa wzoru, skala dla podwójnej lub poczwórnej szerokości), żaden dla kawałka, którego pierwsza linia jest poniżej rzeki. | 5 700 / 6 400 |
-| `build_copper` | `build_sprites` | Tylko gdy zmieniają się kolory brzegu (`cp_colour`; zawsze, gdy są zdarzenia brzegu, `ds_bank_n` ≠ 0): `copper_start`, potem WAIT + MOVE $41 na każdą zmianę koloru na linii rzeki, z `ds_bank_ev`, ustawiane linię wcześniej; potem część panelu (`copper_panel`), końcowy WAIT. `cp_full` = 1. | 1 400 / 1 600 |
+| `build_copper` | `build_sprites` | Tylko gdy zmienił się standard (`cp_built` 0, `tv_setup`) albo kolory się wyłączyły lub włączyły (`colour_bank` 0 lub nie, wobec `cp_bank_on`): pozycje brzegu przywracane po szarości panelu (`CP_RESTORE`: ich kolory, czerń gdy kolory są wyłączone), potem `copper_start` i część panelu (`copper_panel`) do listy, końcowy WAIT. `cp_full` = 1. W bank_colours.asm. | 100 / 100 |
 | `apply` | po `wait_frame` | Przewijanie Layer 2 (NR $17), atrybuty sprite'ów (port $57, OTIR 5 na sprite; nadmiarowe z poprzedniej klatki ukryte), kolory pocisku czołgu, czołgu i samolotu (paleta sprite'ów), kolory 0, 2, 3 Layer 2, jego okno przycinania (gdy Layer 2 jest czyszczony po resecie, od jego drugiej klatki: tylko wiersze panelu, `l2_hidden`; `l2_clip_y2` ostatni wiersz okna z `tv_setup`), `panel_frame`, Copper: zatrzymany, cała lista wysłana, jeśli `cp_full`, inaczej tylko bajt przewinięcia X napisu, uruchomiony ponownie (tryb %11). Ekran wyłączany po długiej bezczynności (IDLE_TIME). Nie ma go w liczbach wyżej. | — |
 | `panel_frame` | `apply` | Panel: tylko pozycje, które wymienił `panel_put` (`pf_dirty`; wszystkie po kopii `start_attract` i `tv_setup`), każda z `.cells` (komórka jego lewej połowy; pierwszy znak wiersza tylko prawa połowa), 2 komórki kafelka 2·kod + połowa, a bity koloru jako przesunięcie palety. Przewijany napis (połowa h w 8h − X0, X0 = 16·TEXT_LO + 38 − 2·FINE_SCROLL): pierścień w wierszu mapy 26 (połowa h w kolumnie h mod 40; zapisywane tylko połowy nowe od ostatniej klatki, `.ring_write`; wszystkie 40 po skoku), przewinięcie X równe X0 mod 320 (9 bitów: `CP_XSCROLL_HI_BACK`, `CP_XSCROLL_BACK`); okno przycinania tilemapy krótsze z prawej o S = X0 & 7 punktów (kolumna, która się zawija); sprite 70 (wzór 20, przesunięcie palety 6) przy X 320 − S z połową h0 + 40 (jego 64 bajty zapisywane, gdy się zmienia: `.spr_pattern`). Sprite'y wskazówki i logo. | ~1 700 napis, ~200 panel, ~1 400 wskazówka i logo |
 
-Dane: `copper_start` (indeks palety 1 Layer 2, NOP tam, gdzie był NR $4A (kolor T), przewinięcie Y i X tilemapy 0: jej linie to linie ekranu, nic w wierszach poza panelem),
-`copper_panel_ntsc`/`_pal` (ten sam układ, więc przesunięcia od końca listy obowiązują dla obu:
-linia 200: przewinięcie Y tilemapy dla pierwszego wiersza panelu (`CP_PANEL_Y`, wpisywane przez `tv_setup`), kolory 0–3 Layer 2 czarne i okno sprite'ów od linii 215 w dół (`OBJ_LAST` + 1,
-poniżej wierszy każdego obiektu; wskazówka i logo niżej); 201: szary (`COPPER_GREY`, wpisywany przez
-`tv_setup`); przewinięcie Y tilemapy na każdy wiersz panelu; linia 230 (240 PAL):
-kolory 0–3 z powrotem, krawędzi i wody wpisuje `apply` (`CP_EDGE_BACK`); przewinięcie Y i X
-napisu (`CP_XSCROLL_HI_BACK`, `CP_XSCROLL_BACK`); przy `wait_line`: okno sprite'ów znowu to rzeki). `apply` wysyła bajty od krawędzi do przewinięcia X (`.cp_send`), gdy lista nie jest wysyłana w całości.
+Dane: `copper_start` (indeks 1 palety Layer 2, NOP tam, gdzie był NR $4A (kolor T), przewijanie Y i X tilemapy 0: jej linie to linie ekranu, w wierszach poza panelem nic nie ma), `copper_panel_ntsc`/`_pal` (w stronie 7, copper_panels.asm: `tv_setup` kopiuje jedną do `copper_panel` przez slot 2; ten sam układ, więc przesunięcia pasują do obu: linia 200: przewijanie Y tilemapy dla pierwszego wiersza panelu (`CP_PANEL_Y`, wstawiane przez `tv_setup`), kolory 0–10 Layer 2 czarne (`CP_COLOURS`: także pozycje brzegu, bo wiersze pod panelem pokazują stare linie rzeki) i okno sprite'ów od linii 215 w dół (`OBJ_LAST` + 1, poniżej wierszy każdego obiektu; wskazówka i logo niżej); 201: szary (`COPPER_GREY`, wstawiany przez `tv_setup`); przewijanie Y tilemapy na każdy wiersz panelu; linia 230 (240 PAL): kolory 0–10 z powrotem (`CP_RESTORE`: brzegu przez `build_copper`, krawędzi i wody przez `apply`, `CP_EDGE_BACK`); przewijanie Y i X przewijanego napisu (`CP_XSCROLL_HI_BACK`, `CP_XSCROLL_BACK`); na `wait_line`: okno sprite'ów znów rzeki). `apply` wysyła bajty od krawędzi do przewijania X (`.cp_send`), gdy lista nie jest wysyłana cała.
 
 ## panel.asm (strona 6): znaki panelu
 
@@ -394,7 +390,7 @@ pierścień (zob. NOTES: trzaski).
 - **Kod samomodyfikujący się** jest częsty w gorących pętlach: wpisywane wartości natychmiastowe i cele skoków (`.bx1/.be1/.bx2/.be2/.ex1/.ex2/.s1/.s2/.pv/.pv_bits/.pv_end/.pv_x` w `ds_edge_test`; `.mode/.x0a…/.x1d/.bits/.fn` w `dh_pf`; `.jp` w `snd_sum`; `.pf/.pq` w `pk_*`). Wariant trzeba sprawdzać bajt po bajcie (pozostawione `add a,a` raz podwoiło dźwięk).
 - **Rozwinięte punkty wejścia**: `snd_sum` skacze w środek bloku `rept` dla reszty.
 - **Slot 2** to okno robocze: procedura, której potrzebna jest tam strona, mapuje ją i nie przywraca; następny użytkownik mapuje swoją. **Slot 3** musi zostać stroną 12, gdy gra dźwięk.
-- **Tablice są wyrównane do strony**, żeby odczytem było `ld h,high table / ld l,index`: `pix_tab`, `span_masks`, `span_class`, `edge_lo/edge_hi`, `obj_head`, `ov_exp2`/`ov_exp4`, `eg_*`, `bg_*`, paleta.
+- **Tablice są wyrównane do strony**, żeby odczytem było `ld h,high table / ld l,index`: `span_masks`, `span_class`, `edge_lo/edge_hi`, `obj_head`, `ov_exp2`/`ov_exp4`, `eg_*`, `bg_*`, paleta.
 - **Testy**: po każdej zmianie `nxcheck` porównuje co klatkę z portem C++ stan i pamięć ekranu, kolor brzegu na linię, obiekty, jak je narysowano, listę i pamięć Coppera, a na końcu obraz. Pełny zestaw trwa ~25 minut na 2 rdzeniach (HANDOFF.pl.md, *Metoda*). Nieudane składanie zostawia stare strony: najpierw sprawdzić wyjście wersji.
 - **Pomiary**: `NXHISTALL=plik` (wszystkie klatki) albo `NXHIST=plik` (jedna klatka) i `tools/prof.py`; `NXSLOW=T` wypisuje klatki ponad T taktów. `NXHISTAPPLY=plik` robi to samo dla `apply` (od końca `wait_frame`) i wypisuje jego średnią i maksimum; `tools/prof_local.py build/test.sym plik klatki [procedura…]` dzieli czas także według lokalnych etykiet (`ds_edge_test.row`, `panel_frame.mod`, …). Najcięższe klatki: `-stress` z `NXBRIDGE=80 NXGHOST=1 NXGAME=1`.
 - **apply** (~7 400 na klatkę, nie ma go w tabelach wyżej): napis ~1 700 (przewinięcie X mod 320 przez odejmowanie ~650 z tego), wskazówka i logo ~1 400, panel ~200 (tylko to, co się zmieniło), atrybuty sprite'ów ~1 800, lista Coppera ~1 200.

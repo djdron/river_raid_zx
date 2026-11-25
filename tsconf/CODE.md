@@ -39,8 +39,8 @@ tscheck's histogram (`TSHISTALL=file`, then `python3 ../tools/prof.py build/test
 which the game does not have: `line_done` and `draw_line` are ~1 000–2 000 heavier than in
 the game). With a General Sound, so the noises cost the main CPU nothing. Two runs:
 
-- **A**: bot 1, 3 000 frames from the start: the work ~69 000 a frame on average, ~120 000 at most;
-- **B**: `-stress` from bridge 80, 6 000 frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: all slots taken, full speed, always firing): ~108 000 on average, ~144 000 at most.
+- **A**: bot 1, 3 000 frames from the start: the work ~68 000 a frame on average, ~120 000 at most;
+- **B**: `-stress` from bridge 80, 6 000 frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: all slots taken, full speed, always firing): ~107 000 on average, ~145 000 at most.
 
 The work is from `apply_done` to `frame_done` (the frame INT's waits not counted); the parts
 below also count `apply` and the INTs (~7 000).
@@ -50,9 +50,9 @@ By part (A / B):
 | part | A | B |
 |---|---|---|
 | the display: objects' placement and collisions (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| new river lines (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 13 600 | 32 200 |
-| sprites and the bank's events (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`, `build_events`, `pal_get`) | 10 300 | 14 900 |
-| `apply`, the panel and the INTs (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `pal_edges`, `irq`, the panel's printing) | 7 900 | 7 500 |
+| new river lines (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 900 |
+| sprites (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
+| `apply`, the panel and the INTs (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, the panel's printing) | 6 200 | 5 800 |
 | sound (`sound_driver`, `snd_*`, `gs_*`; without a card `ay_*`: ~5 800 in A) | 3 400 | 3 500 |
 | the game logic and the rest (`move_objects`, `main_loop`, `random_step`, `vbi`, …) | 7 000 | 8 800 |
 
@@ -64,7 +64,7 @@ The most expensive routines (A / B):
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 500 | 8 400 | render |
+| `render_line` | 3 700 | 8 900 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -75,16 +75,14 @@ The most expensive routines (A / B):
 | `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 400 | 2 300 | sound_gs |
 | `pl_keep` | 800 | 1 600 | sprites |
 | `panel_frame` | 1 600 | 1 600 | panel_ts |
-| `irq` | 1 400 | 1 400 | river_raid |
+| `irq` | 1 200 | 1 200 | river_raid |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `sfile_put` | 1 200 | 1 300 | river_raid |
-| `apply` (own code) | 1 200 | 1 200 | river_raid |
-| `pal_edges` | 1 100 | 1 100 | river_raid |
-| `build_events` | 1 000 | 1 000 | river_raid |
+| `apply` (own code) | 800 | 800 | river_raid |
 | `hit_setup` | 500 | 700 | display_hits |
 
 At 7 MHz (`TSSPEED=1`, ~143 400 ticks a frame) the work is the same instructions: `-stress`
-~93 000 on average, ~125 000 at most, just fitting; at 3.5 MHz it does not keep up.
+~92 000 on average, ~122 000 at most, just fitting; at 3.5 MHz it does not keep up.
 `gs_send` waits for the card to read each byte (~300 ticks a byte at 14 MHz).
 
 (`prof.py` takes a routine's name from the nearest global label below the address. Addresses
@@ -96,7 +94,7 @@ below $4000 are the start's work in INIT_PAGE: leave them out.)
 
 | window | address | normally | remapped by |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): the Atari's RAM at the original's addresses | at the start: 3 (`INIT_PAGE`: `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm` run there) |
+| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): the Atari's RAM at the original's addresses | at the start: 3 (`INIT_PAGE`: `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm` run there); `render_line`: 4 (`PIX_PAGE`, its dots' tables; ATARI_PAGE back) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): the lines' runs at $4000 (`SPANS`, 32 bytes × 256 lines), buffers at $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), the OS font at $7D00 | `render_line`: a page of the river's picture (32–47); `panel_draw`/`pc_*`: the panel's picture (64–79); at the start the tile map (7), the tiles (8), the sprites' pictures (24–31); always put back to 5 |
 | 2 | $8000–$BFFF | 2 (`CODE_PAGE`): code to ~$9FBF, the cartridge at $A000 | — |
 | 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): code to ~$D7EC, then at $E000 the FM window (`CRAM_SHADOW`: CRAM $E000–$E1FF, the SFILE $E200–$E3FF; the writes also go to the RAM under it), tables and variables to ~$FD65, the stack, the IM 2 vectors at $FE00 | — |
@@ -112,16 +110,12 @@ $E000–$E3FF, and $E400–$E4FF are its registers (`palette_lo` is there, read 
 `main_frame` (river_raid.asm), every frame:
 
 1. Snapshots what this frame's picture shows (`scroll`, the edge and water colours, the player), `read_input`.
-2. Normally: `prepare` → `display` → `build_sprites` → `build_events` → `main_loop` → `vbi` → `snd_frame`. During a reset (`busy`): `display` → `build_sprites` → `build_events` → `clear_layer2_page` → (`finish_reset` in the last) → `vbi` → `snd_frame`.
+2. Normally: `prepare` → `display` → `build_sprites` → `main_loop` → `vbi` → `snd_frame`. During a reset (`busy`): `display` → `build_sprites` → `clear_layer2_page` → (`finish_reset` in the last) → `vbi` → `snd_frame`.
 3. `wait_frame`: HALT until the frame INT has come (`frame_flag`), at `FRAME_LINE`, below the panel.
 4. `apply`: everything built goes live (the scroll, the sound, the colours, the SFILE, the bank's palette at the top and the INT's events for the frame to come).
 5. `panel_draw`: the panel's characters that changed and the scrolling line's new ones, into its picture (after `apply`: it may take a while, and the panel is shown only from row 184).
 
-While the picture is drawn the INT comes at each event of the list `apply` armed: EV_PAL (the
-river's palette from the next line), EV_PANEL (the panel's picture from row 184), EV_GX (the
-scrolling line's X), then the frame's INT. Each comes at the right border of the line before
-(HSINT = 208), and PALSEL, VPAGE, GYOFFS are taken at a line's end, so a change is exact at
-any CPU speed and wherever the work is.
+While the picture is drawn the INT comes three times, at the events of the list `apply` armed (`ev_panel`): EV_PANEL (the panel's picture from row 184), EV_GX (the scrolling line's X), then the frame's INT. Each comes at the right border of the line before (HSINT = 208), and VPAGE, GYOFFS, GXOFFS are taken from the line after the next, so the panel is in place at any CPU speed and wherever the work is. The bank's colours need no INT: each line's dots are in its colour's entry of the one palette.
 
 ---
 
@@ -151,16 +145,13 @@ the river's palettes, variables and buffers.
 | `restart` | `start` | `tv_setup`, the picture cleared (both halves by the DMA, waited for), the frame INT at `FRAME_LINE`, `start_attract`, the panel drawn whole, falls into `main_frame`. | once |
 | `main_frame` | every frame | See *The frame*. | 340 / 340 |
 | `wait_frame` | `main_frame` | HALT until the next frame INT (`frame_flag` cleared first: one that came during the work is too late for `apply`; one just before the HALT sends it back to the test, `irq.frame`): idle time, not work. | — |
-| `irq` | the INT | The event at `ev_ptr`: EV_PAL PALSEL; EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 colours, the bitmap over tiles and sprites); EV_GX GXOFFS; the frame's (EV_END) `frame_flag`. At the frame's event it also puts apply's picture registers and events back (`river_regs`, `ap_pal`, `ev_go` from `ap_list`): a late frame shows the last one again. Each event record holds the next one's VSINT line. EV_PAL (events on lines next to each other) puts it out first (~150 ticks in), then PALSEL, then EI before the rest; EV_PANEL and EV_GX their ports first (latched for the line after the next: at 3.5 MHz just in time), then VSINT. At 3.5 MHz (a line 224 ticks) nothing is lost or late. | 1 400 / 1 400 |
+| `irq` | the INT | The event at `ev_ptr`: EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 colours, the bitmap over tiles and sprites); EV_GX GXOFFS; the frame's (EV_END) `frame_flag`. At the frame's event it also puts apply's picture registers and events back (`river_regs`, `ap_pal`, `ev_go` from `ap_list`): a late frame shows the last one again. Each event record holds the next one's VSINT line. EV_PANEL and EV_GX write their ports first (latched for the line after the next: at 3.5 MHz just in time), then VSINT, EI before the pops. At 3.5 MHz (a line 224 ticks) nothing is lost or late. Three a frame. | 1 200 / 1 200 |
 | `vsint_set` | `irq`, `apply`, `restart` | VSINT = HL (9 bits), kept in `ev_line`. | 340 / 330 |
-| `apply` | after `wait_frame` | GYOFFS = `show_scroll`, VPAGE the river's, VCONFIG $81 (16 colours), GXOFFS 0; `snd_out` (the AY's registers or the card's frame); `panel_frame`; the shell's and the plane's colours into CRAM; `sfile_put`; while the picture is being cleared after a reset (from its second frame): the river black (palette of colour 0, edge and water 0, only the panel's events); else PALSEL the palette at the top (`ev_built`), `pal_edges`, the panel's events copied after the bank's (`ev_tail`); the INT armed at the first event (DI around it); `ev_show` = the list just armed (`build_events` writes the other). | 1 200 / 1 200 |
-| `pal_get` | `build_events`, `apply` | The river's palette (PALSEL 0–7) of Atari colour E: each bank colour has its own, made when first seen (`pal_of`, `pal_n`): its colour 1 that colour, in CRAM. Past 8, the last again (never seen). | 110 / 110 |
-| `pal_edges` | `apply` | Colours 2 and 3 (edge, water) of every palette made so far. | 1 100 / 1 100 |
+| `apply` | after `wait_frame` | GYOFFS = `show_scroll`, VPAGE the river's, VCONFIG $81 (16 colours), GXOFFS 0; `snd_out` (the AY's registers or the card's frame); `panel_frame` (the scrolling line's X into `ev_panel`); the shell's and the plane's colours into CRAM; `sfile_put`; PALSEL 0 (the river's palette) with this frame's edge and water in its entries 2 and 3, or PALSEL 1 (black but for the panel's colours) while the picture is cleared after a reset (from its second frame) or the colours are off (`show_bank` 0); the INT armed at `ev_panel`'s first event (DI around it). | 800 / 800 |
 | `sfile_put` | `apply` | The SFILE, made in `spr_list`: the river's sprites (S0), then `sf_tail` copied after them (an end entry with LEAP, the panel's 3: needle and logo, S1, an end); the entries past it up to last frame's end (`sf_end`) cleared there; then the DMA copies it to the SFILE (DMACTRL $85, RAM to SFILE, one burst; the CPU only programs it). While the DMA is busy (a reset's clearing) the CPU copies it through the FM window at $E200. | 1 200 / 1 300 |
-| `build_events` | `main_frame` | The bank's colour by line, as the Next's `build_copper` from `ds_bank_ev`: into the buffer the INTs do not read (`ev_a`/`ev_b`), the palette at the river's top, then an EV_PAL event for each change, 5 bytes (kind, palette, colour for the check, VSINT line a line before it); `ev_tail` where apply puts the panel's two. | 1 000 / 1 000 |
 | `clear_layer2_page` | `main_frame` during `busy`, `restart` | Half of the river's picture (256 lines × 160 bytes, 4 pages) a frame by the DMA's fill (DMACTRL $14, 80 words × 256 lines from `dma_zero`); none in the reset's first frame (`l2_wait`); nothing while the DMA is busy. The CPU only programs it (~150 ticks). | |
 | `dma_wait` | `restart`, `init_video` | Until the DMA is free (DMACTRL bit 7). | |
-| `init_tables` | `start` | As the Next's (`edge_runs_init`, `ov_exp2/4`, `ring_*`, `span_class`, `edge_lo/hi`, `span_init`), `pix_tab` with both nibbles the index (the 16-colour mode's 2 dots a byte). | once |
+| `init_tables` | `start` | As the Next's (`edge_runs_init`, `ov_exp2/4`, `ring_*`, `span_class`, `edge_lo/hi`, `span_init`); the dots' tables are made by `bank_init` (`pix_sets`). | once |
 | `init_video` | `start` | The river's mode (VPAGE 32, VCONFIG $81, PALSEL 0); the tile map (page 7: rows 0–23 tile 1 black, 184 tile 3 a black line over grey, 185–223 tile 2 grey, 224–239 black; the river's rows none) and the tiles' dots (page 8); the sprites' 128K cleared by the DMA; TSCONFIG $A0 (tile layer 0 and sprites on); the FM window on for good, CRAM and SFILE zeroed; the tank's colour; HSINT, the frame INT only (INTMASK 1). | once |
 | `screen_black` | first in `start` | TSCONFIG 0, BORDER 0, all 1K of CRAM and SFILE zeroed through the FM window: black whatever mode Wild Commander left (its ZX screen in page 5 is where the start's buffers go). | once |
 | `tv_setup` | `restart` | PAL only: `init_line_tables`, RANDOM's PAL columns, `rnd_tables`. | |
@@ -172,7 +163,10 @@ the river's palettes, variables and buffers.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Colour clocks 20–179 of the line into the picture's line HL (0–511): page `VID_PAGE` + line / 64 into window 1, the line at $4000 + (line & 63) × 256; from `dl_seg`'s pieces as the Next's: a piece of one value is its `pix_tab` byte 4 times a byte (`.fill`: `ld (hl),a / inc l`), an edge's bytes (the ROM's table) and a decoration's row through `pix_tab`, 4 output bytes each. 160 writes a line along the row (the Next writes 320 down columns, 10 pages). WORK_PAGE back at the end. A piece of one value 5 bytes or longer (`RL_DMA_MIN`) goes to the DMA instead while it is free: a fill (DMACTRL $04) from `rl_word` (the value twice), into page `rl_page`. In page $C000 (moved from $8000 for room). | 3 500 / 8 400 |
+| `render_line` | `line_done` | `line_bank` first (the line's set of tables), then page 4 (`PIX_PAGE`) into window 0 for the tables. Colour clocks 20–179 of the line into the picture's line HL (0–511): page `VID_PAGE` + line / 64 into window 1, the line at $4000 + (line & 63) × 256; from `dl_seg`'s pieces as the Next's: a piece of one value is its byte from the set's first page 4 times a byte (`.fill`: `ld (hl),a / inc l`), an edge's bytes (the ROM's table) and a decoration's row through the set's 4 pages, 4 output bytes each. 160 writes a line along the row (the Next writes 320 down columns, 10 pages). WORK_PAGE and ATARI_PAGE back at the end. A piece of one value 5 bytes or longer (`RL_DMA_MIN`) goes to the DMA instead while it is free: a fill (DMACTRL $04) from `rl_word` (the value twice), into page `rl_page`. In page $C000 (moved from $8000 for room). | 3 700 / 8 900 |
+| `line_bank` | `render_line` | The C++ port's `lineBankColour` on the state after the line: the slots from `FIRST_SLOT` down while one may show a road row (y ≤ $5E: y grows down the slots); a bridge's: its road row y + height − $5E, the colour from the table at $B4E5; else `bank_colour` (the green). The same colour as the line before: nothing more; else its place in `bank_cols` × 4 into `rl_set` (the set's high byte). ~250 a line. | 250 / 550 (+ `bank_colour` 400 / 600) |
+| `bank_init` | `init_video` | The bank's colours, each once: $D2, $D6, then the 20 road rows' (`bank_cols`, `bank_n`, at most 8); their CRAM entries in group 0: 1, then 9–15 (`cram_set`); then `pix_sets`. | once |
+| `pix_sets` | `bank_init` | Page 4 (`PIX_PAGE`) at $0000: a set of 4 pages per colour (set i at 4i × 256): page k's byte b is b's dot k with both nibbles its entry (0, 2, 3 themselves, 1 colour i's: 1, then 9..). Window 0 back to INIT_PAGE. | once |
 
 ## sprites.asm: the river's sprites
 
@@ -291,8 +285,8 @@ sector buffer is SPANS (made anew after the start).
 - **The shared code**: a change to the game (logic, generator, display, collisions) goes into the C++ port first, then the Next's `src/`, then the copy here (`diff ../src/X.asm src/X.asm` shows only the changes listed above). A change to how the TS-Conf shows it stays here.
 - **Window 1** is WORK_PAGE except while `render_line`, `panel_draw` or the start map another page there; each puts WORK_PAGE back (SPANS and the buffers live there).
 - **The FM window** at $E000 is on all the time: writes to $E000–$E3FF go to CRAM and the SFILE (and to the RAM under them, which is how `apply` reads them back); never put anything else there.
-- **The INT's events** are double-buffered (`ev_a`, `ev_b`): `build_events` writes the one `ev_show` does not name; `apply` arms it under DI.
-- **Registers taken at a line's end** (PALSEL, VPAGE, GYOFFS, GXOFFS): set them in the INT of the line before; the INT comes at HSINT 208 (the right border), so there is time at 3.5–14 MHz.
+- **The INT's list** is one (`ev_panel`): `apply` writes the scrolling line's X into it and arms it under DI; its INTs come after that, in the frame shown.
+- **Registers taken at a line's end** (VPAGE, GYOFFS, GXOFFS): set them in the INT of the line before; the INT comes at HSINT 208 (the right border), so there is time at 3.5–14 MHz.
 - **The DMA** is shared by the picture's clearing (`clear_layer2_page`) and the panel's characters (`pc_put`): `pc_put` draws by CPU while the DMA is busy; the SFILE's copy (`sfile_put`) and a new line's long runs (`render_line`) use it too, each falling back to the CPU while it is busy.
-- **The checks**: `make check` (3 000 frames; `FRAMES=`), and with a bot, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo or 0, as in [README.md](README.md). After any change: the state, the bank colour by line (`ev_built`), the General Sound's registers and the machine's picture of every frame pixel for pixel.
+- **The checks**: `make check` (3 000 frames; `FRAMES=`), and with a bot, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo or 0, as in [README.md](README.md). After any change: the state, the bank colour by line, the General Sound's registers and the machine's picture of every frame pixel for pixel.
 - **Measuring**: `TSHISTALL=file` (every instruction's time over the run, the start, the INTs and the wait included), then `python3 ../tools/prof.py build/test.sym file 60`; the work's average and maximum are in tscheck's last lines. `TSMSHOT=k` writes each machine frame from frame k (32 of them: a late frame's second too); `TSBORDER=1` turns T on; `TSSHOT=k` with `TSFULL=1` writes frames k.. with the border (the run's last picture shows only one colour on the border: it stops at `apply_done`). `TSTIME=N` prints the work of frames N−2..N+2. `TSVOL=1`: the frames' sums of POKEY's volumes and the card's highest level (it must stay at most 255).

@@ -38,8 +38,8 @@ przez liczbę klatek), na wersji testowej (`-DTEST`: z pamięcią ekranu Atari, 
 `line_done` i `draw_line` są cięższe niż w grze o ~1 000–2 000). Z General Sound, więc szumy nic
 nie kosztują głównego procesora. Dwa przebiegi:
 
-- **A**: bot 1, 3 000 klatek od startu: praca średnio ~69 000 na klatkę, najwyżej ~120 000;
-- **B**: `-stress` od mostu 80, 6 000 klatek (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~108 000, najwyżej ~144 000.
+- **A**: bot 1, 3 000 klatek od startu: praca średnio ~68 000 na klatkę, najwyżej ~120 000;
+- **B**: `-stress` od mostu 80, 6 000 klatek (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~107 000, najwyżej ~145 000.
 
 Praca to odcinek od `apply_done` do `frame_done` (czekanie na przerwanie klatki niewliczone);
 części niżej liczą też `apply` i przerwania (~7 000).
@@ -49,9 +49,9 @@ Według części (A / B):
 | część | A | B |
 |---|---|---|
 | wyświetlanie: rozmieszczanie obiektów i kolizje (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| nowe linie rzeki (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 13 600 | 32 200 |
-| sprite'y i zdarzenia brzegu (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`, `build_events`, `pal_get`) | 10 300 | 14 900 |
-| `apply`, panel i przerwania (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `pal_edges`, `irq`, wypisywanie panelu) | 7 900 | 7 500 |
+| nowe linie rzeki (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 900 |
+| sprite'y (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
+| `apply`, panel i przerwania (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, wypisywanie panelu) | 6 200 | 5 800 |
 | dźwięk (`sound_driver`, `snd_*`, `gs_*`; bez karty `ay_*`: ~5 800 w A) | 3 400 | 3 500 |
 | logika gry i reszta (`move_objects`, `main_loop`, `random_step`, `vbi`, …) | 7 000 | 8 800 |
 
@@ -63,7 +63,7 @@ Najdroższe procedury (A / B):
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 500 | 8 400 | render |
+| `render_line` | 3 700 | 8 900 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -74,16 +74,14 @@ Najdroższe procedury (A / B):
 | `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 400 | 2 300 | sound_gs |
 | `pl_keep` | 800 | 1 600 | sprites |
 | `panel_frame` | 1 600 | 1 600 | panel_ts |
-| `irq` | 1 400 | 1 400 | river_raid |
+| `irq` | 1 200 | 1 200 | river_raid |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `sfile_put` | 1 200 | 1 300 | river_raid |
-| `apply` (własny kod) | 1 200 | 1 200 | river_raid |
-| `pal_edges` | 1 100 | 1 100 | river_raid |
-| `build_events` | 1 000 | 1 000 | river_raid |
+| `apply` (własny kod) | 800 | 800 | river_raid |
 | `hit_setup` | 500 | 700 | display_hits |
 
 Przy 7 MHz (`TSSPEED=1`, ~143 400 taktów na klatkę) praca to te same instrukcje: `-stress`
-średnio ~93 000, najwyżej ~125 000, mieści się na styk; przy 3,5 MHz nie nadąża. `gs_send`
+średnio ~92 000, najwyżej ~122 000, mieści się na styk; przy 3,5 MHz nie nadąża. `gs_send`
 czeka, aż karta przeczyta każdy bajt (~300 taktów na bajt przy 14 MHz).
 
 (`prof.py` bierze nazwę procedury z najbliższej globalnej etykiety poniżej adresu. Adresy poniżej
@@ -95,7 +93,7 @@ Okna 16K i strony w nich (strony 16K płyty):
 
 | okno | adres | zwykle | kto przemapowuje |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): RAM Atari pod adresami oryginału | przy starcie: 3 (`INIT_PAGE`: tam działają `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`) |
+| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): RAM Atari pod adresami oryginału | przy starcie: 3 (`INIT_PAGE`: tam działają `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`); `render_line`: 4 (`PIX_PAGE`, jego tablice punktów; ATARI_PAGE z powrotem) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): odcinki linii od $4000 (`SPANS`, 32 bajty × 256 linii), bufory od $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), czcionka systemu pod $7D00 | `render_line`: strona obrazu rzeki (32–47); `panel_draw`/`pc_*`: obraz panelu (64–79); przy starcie mapa kafelków (7), kafelki (8), obrazki sprite'ów (24–31); zawsze z powrotem 5 |
 | 2 | $8000–$BFFF | 2 (`CODE_PAGE`): kod do ~$9FBF, kartridż od $A000 | — |
 | 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): kod do ~$D7EC, potem pod $E000 okno FM (`CRAM_SHADOW`: CRAM $E000–$E1FF, SFILE $E200–$E3FF; zapisy idą też do RAM pod nim), tablice i zmienne do ~$FD65, stos, wektory IM 2 pod $FE00 | — |
@@ -111,16 +109,12 @@ $E000–$E3FF, a $E400–$E4FF to jego rejestry (leży tam `palette_lo`, tylko d
 `main_frame` (river_raid.asm), co klatkę:
 
 1. Utrwala to, co pokazuje obraz tej klatki (`scroll`, kolory krawędzi i wody, gracz), `read_input`.
-2. Zwykle: `prepare` → `display` → `build_sprites` → `build_events` → `main_loop` → `vbi` → `snd_frame`. Podczas resetu (`busy`): `display` → `build_sprites` → `build_events` → `clear_layer2_page` → (`finish_reset` w ostatniej) → `vbi` → `snd_frame`.
+2. Zwykle: `prepare` → `display` → `build_sprites` → `main_loop` → `vbi` → `snd_frame`. Podczas resetu (`busy`): `display` → `build_sprites` → `clear_layer2_page` → (`finish_reset` w ostatniej) → `vbi` → `snd_frame`.
 3. `wait_frame`: HALT, aż przyjdzie przerwanie klatki (`frame_flag`), na `FRAME_LINE`, pod panelem.
 4. `apply`: wszystko zbudowane zaczyna działać (przewijanie, dźwięk, kolory, SFILE, paleta brzegu na górze i zdarzenia przerwania na nadchodzącą klatkę).
 5. `panel_draw`: znaki panelu, które się zmieniły, i nowe znaki napisu, do jego obrazu (po `apply`: może to trochę potrwać, a panel widać dopiero od linii 184).
 
-Gdy rysuje się obraz, przerwanie przychodzi przy każdym zdarzeniu listy, którą ustawił `apply`:
-EV_PAL (paleta rzeki od następnej linii), EV_PANEL (obraz panelu od linii 184), EV_GX (X
-napisu), potem przerwanie klatki. Każde przychodzi przy prawej ramce poprzedniej linii (HSINT =
-208), a PALSEL, VPAGE, GYOFFS są zatrzaskiwane na końcu linii, więc zmiana jest dokładna przy
-każdym taktowaniu procesora i gdziekolwiek jest praca.
+Gdy obraz jest rysowany, przerwanie przychodzi trzy razy, przy zdarzeniach listy, którą uzbroił `apply` (`ev_panel`): EV_PANEL (obraz panelu od linii 184), EV_GX (X przewijanego napisu), potem przerwanie klatki. Każde przychodzi na prawym brzegu linii przed (HSINT = 208), a VPAGE, GYOFFS, GXOFFS działają od linii po następnej, więc panel jest na miejscu przy każdej szybkości i gdziekolwiek jest praca. Kolory brzegu nie potrzebują przerwania: punkty każdej linii są w pozycji jej koloru jedynej palety.
 
 ---
 
@@ -150,16 +144,13 @@ zmienne i bufory.
 | `restart` | `start` | `tv_setup`, obraz wyczyszczony (obie połowy przez DMA, z czekaniem), przerwanie klatki na `FRAME_LINE`, `start_attract`, panel narysowany w całości, przechodzi do `main_frame`. | raz |
 | `main_frame` | co klatkę | Zob. *Klatka*. | 340 / 340 |
 | `wait_frame` | `main_frame` | HALT do następnego przerwania klatki (`frame_flag` najpierw zerowany: to, które przyszło w trakcie pracy, jest dla `apply` za późne; to tuż przed HALT odsyła go do testu, `irq.frame`): bezczynność, nie praca. | — |
-| `irq` | przerwanie | Zdarzenie pod `ev_ptr`: EV_PAL PALSEL; EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 kolorów, bitmapa nad kafelkami i sprite'ami); EV_GX GXOFFS; przerwanie klatki (EV_END) `frame_flag`. Przy zdarzeniu klatki przywraca też rejestry obrazu i zdarzenia z `apply` (`river_regs`, `ap_pal`, `ev_go` z `ap_list`): spóźniona klatka pokazuje poprzednią jeszcze raz. Każdy wpis zdarzenia trzyma linię VSINT następnego. EV_PAL (zdarzenia na sąsiednich liniach) wypisuje ją najpierw (~150 taktów od wejścia), potem PALSEL, potem EI przed resztą; EV_PANEL i EV_GX najpierw swoje porty (zatrzaskiwane na linię po następnej: przy 3,5 MHz w samą porę), potem VSINT. Przy 3,5 MHz (linia 224 takty) nic nie ginie ani się nie spóźnia. | 1 400 / 1 400 |
+| `irq` | przerwanie | Zdarzenie spod `ev_ptr`: EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 kolorów, bitmapa nad kafelkami i sprite'ami); EV_GX GXOFFS; zdarzenie klatki (EV_END) `frame_flag`. Przy zdarzeniu klatki przywraca też rejestry obrazu i zdarzenia apply (`river_regs`, `ap_pal`, `ev_go` z `ap_list`): spóźniona klatka pokazuje ostatnią jeszcze raz. Każdy rekord zdarzenia trzyma linię VSINT następnego. EV_PANEL i EV_GX zapisują najpierw swoje porty (zatrzaskiwane na linię po następnej: przy 3,5 MHz akurat na czas), potem VSINT, EI przed popami. Przy 3,5 MHz (linia 224 takty) nic nie ginie ani się nie spóźnia. Trzy na klatkę. | 1 200 / 1 200 |
 | `vsint_set` | `irq`, `apply`, `restart` | VSINT = HL (9 bitów), zapamiętany w `ev_line`. | 340 / 330 |
-| `apply` | po `wait_frame` | GYOFFS = `show_scroll`, VPAGE rzeki, VCONFIG $81 (16 kolorów), GXOFFS 0; `snd_out` (rejestry AY albo klatka dla karty); `panel_frame`; kolory pocisku czołgu i samolotu do CRAM; `sfile_put`; gdy obraz jest czyszczony po resecie (od jego drugiej klatki): rzeka czarna (paleta koloru 0, krawędź i woda 0, tylko zdarzenia panelu); inaczej PALSEL paleta u góry (`ev_built`), `pal_edges`, zdarzenia panelu skopiowane po zdarzeniach brzegu (`ev_tail`); przerwanie ustawione na pierwsze zdarzenie (wokół DI); `ev_show` = właśnie ustawiona lista (`build_events` pisze drugą). | 1 200 / 1 200 |
-| `pal_get` | `build_events`, `apply` | Paleta rzeki (PALSEL 0–7) dla koloru Atari E: każdy kolor brzegu ma własną, robioną przy pierwszym wystąpieniu (`pal_of`, `pal_n`): jej kolor 1 to ten kolor, w CRAM. Ponad 8 — znowu ostatnia (nie wystąpiło). | 110 / 110 |
-| `pal_edges` | `apply` | Kolory 2 i 3 (krawędź, woda) wszystkich dotąd zrobionych palet. | 1 100 / 1 100 |
+| `apply` | po `wait_frame` | GYOFFS = `show_scroll`, VPAGE rzeki, VCONFIG $81 (16 kolorów), GXOFFS 0; `snd_out` (rejestry AY albo ramka karty); `panel_frame` (X przewijanego napisu do `ev_panel`); kolory pocisku i samolotu do CRAM; `sfile_put`; PALSEL 0 (paleta rzeki) z krawędzią i wodą tej klatki w pozycjach 2 i 3, albo PALSEL 1 (czarna poza kolorami panelu), gdy obraz jest czyszczony po resecie (od jego drugiej klatki) lub kolory są wyłączone (`show_bank` 0); przerwanie uzbrojone na pierwsze zdarzenie `ev_panel` (wokół DI). | 800 / 800 |
 | `sfile_put` | `apply` | SFILE budowany w `spr_list`: sprite'y rzeki (S0), za nimi kopiowany `sf_tail` (wpis końcowy z LEAP, 3 sprite'y panelu: wskazówka i logo, S1, koniec); wpisy po nim do końca poprzedniej klatki (`sf_end`) zerowane tamże; potem DMA kopiuje to do SFILE (DMACTRL $85, RAM do SFILE, jedna seria; procesor tylko go programuje). Gdy DMA jest zajęty (czyszczenie po resecie), kopiuje procesor przez okno FM pod $E200. | 1 200 / 1 300 |
-| `build_events` | `main_frame` | Kolor brzegu linia po linii, jak `build_copper` w Next z `ds_bank_ev`: do bufora, którego nie czytają przerwania (`ev_a`/`ev_b`), paleta na górnej linii rzeki, potem zdarzenie EV_PAL na każdą zmianę, 5 bajtów (rodzaj, paleta, kolor dla testu, linia VSINT linię przed zmianą); `ev_tail`, gdzie apply kładzie dwa zdarzenia panelu. | 1 000 / 1 000 |
 | `clear_layer2_page` | `main_frame` podczas `busy`, `restart` | Połowa obrazu rzeki (256 linii × 160 bajtów, 4 strony) na klatkę przez wypełnienie DMA (DMACTRL $14, 80 słów × 256 linii z `dma_zero`); żadnej w pierwszej klatce resetu (`l2_wait`); nic, gdy DMA jest zajęty. Procesor tylko go programuje (~150 taktów). | |
 | `dma_wait` | `restart`, `init_video` | Aż DMA będzie wolny (DMACTRL bit 7). | |
-| `init_tables` | `start` | Jak w Next (`edge_runs_init`, `ov_exp2/4`, `ring_*`, `span_class`, `edge_lo/hi`, `span_init`), `pix_tab` z indeksem w obu półbajtach (2 punkty w bajcie w trybie 16-kolorowym). | raz |
+| `init_tables` | `start` | Jak na Next (`edge_runs_init`, `ov_exp2/4`, `ring_*`, `span_class`, `edge_lo/hi`, `span_init`); tablice punktów robi `bank_init` (`pix_sets`). | raz |
 | `init_video` | `start` | Tryb rzeki (VPAGE 32, VCONFIG $81, PALSEL 0); mapa kafelków (strona 7: linie 0–23 kafelek 1 czarny, 184 kafelek 3 czarna kreska nad szarością, 185–223 kafelek 2 szary, 224–239 czarny; linie rzeki żadne) i punkty kafelków (strona 8); 128K sprite'ów wyczyszczone przez DMA; TSCONFIG $A0 (warstwa kafelków 0 i sprite'y włączone); okno FM włączone na stałe, CRAM i SFILE wyzerowane; kolor czołgu; HSINT, tylko przerwanie klatki (INTMASK 1). | raz |
 | `screen_black` | jako pierwsze w `start` | TSCONFIG 0, BORDER 0, cały 1K CRAM i SFILE wyzerowany przez okno FM: czerń, jakikolwiek tryb zostawił Wild Commander (jego ekran ZX w stronie 5 jest tam, gdzie idą bufory startu). | raz |
 | `tv_setup` | `restart` | Tylko PAL: `init_line_tables`, kolumny RANDOM dla PAL, `rnd_tables`. | |
@@ -171,7 +162,10 @@ zmienne i bufory.
 
 | procedura | wywołanie | co i jak | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Takty koloru 20–179 linii do linii obrazu HL (0–511): strona `VID_PAGE` + linia / 64 w okno 1, linia pod $4000 + (linia & 63) × 256; z kawałków `dl_seg` jak w Next: kawałek jednej wartości to jego bajt `pix_tab` 4 razy na bajt (`.fill`: `ld (hl),a / inc l`), bajty krawędzi (tablica ROM) i wiersz ozdoby przez `pix_tab`, po 4 bajty wyjściowe. 160 zapisów na linię wzdłuż wiersza (Next pisze 320 w dół kolumn, 10 stron). Na końcu z powrotem WORK_PAGE. Kawałek jednej wartości od 5 bajtów (`RL_DMA_MIN`) idzie zamiast tego do DMA, gdy jest wolny: wypełnienie (DMACTRL $04) z `rl_word` (wartość dwa razy) do strony `rl_page`. W stronie $C000 (przeniesiona z $8000 dla miejsca). | 3 500 / 8 400 |
+| `render_line` | `line_done` | Najpierw `line_bank` (zestaw tablic linii), potem strona 4 (`PIX_PAGE`) w okno 0 dla tablic. Takty kolorów 20–179 linii do linii obrazu HL (0–511): strona `VID_PAGE` + linia / 64 w okno 1, linia pod $4000 + (linia & 63) × 256; z kawałków `dl_seg` jak na Next: kawałek jednej wartości to jego bajt z pierwszej strony zestawu, 4 razy na bajt (`.fill`: `ld (hl),a / inc l`), bajty krawędzi (tablica w ROM) i wiersz dekoracji przez 4 strony zestawu, po 4 bajty wyjścia. 160 zapisów na linię wzdłuż wiersza (Next pisze 320 w dół kolumn, 10 stron). Na końcu WORK_PAGE i ATARI_PAGE z powrotem. Kawałek jednej wartości od 5 bajtów (`RL_DMA_MIN`) idzie zamiast tego do DMA, gdy jest wolne: wypełnienie (DMACTRL $04) z `rl_word` (wartość dwa razy) do strony `rl_page`. W stronie $C000 (przeniesione z $8000 dla miejsca). | 3 700 / 8 900 |
+| `line_bank` | `render_line` | `lineBankColour` portu C++ na stanie po linii: sloty od `FIRST_SLOT` w dół, dopóki któryś może pokazać wiersz drogi (y ≤ $5E: y rośnie w dół slotów); przy moście jego wiersz drogi y + wysokość − $5E, kolor z tablicy pod $B4E5; inaczej `bank_colour` (zieleń). Ten sam kolor co linia przed: nic więcej; inaczej jego miejsce w `bank_cols` × 4 do `rl_set` (starszy bajt zestawu). ~250 na linię. | 250 / 550 (+ `bank_colour` 400 / 600) |
+| `bank_init` | `init_video` | Kolory brzegu, każdy raz: $D2, $D6, potem 20 wierszy drogi (`bank_cols`, `bank_n`, najwyżej 8); ich pozycje CRAM w grupie 0: 1, potem 9–15 (`cram_set`); potem `pix_sets`. | raz |
+| `pix_sets` | `bank_init` | Strona 4 (`PIX_PAGE`) pod $0000: zestaw 4 stron na kolor (zestaw i pod 4i × 256): bajt b strony k to punkt k bajtu b, oba półbajty jego pozycja (0, 2, 3 same, 1 koloru i: 1, potem 9..). Okno 0 z powrotem na INIT_PAGE. | raz |
 
 ## sprites.asm: sprite'y rzeki
 
@@ -289,8 +283,8 @@ starcie robiony od nowa).
 - **Wspólny kod**: zmiana gry (logika, generator, wyświetlanie, kolizje) idzie najpierw do portu C++, potem do `src/` Next, potem do kopii tutaj (`diff ../src/X.asm src/X.asm` pokazuje tylko zmiany wymienione wyżej). Zmiana tego, jak TS-Conf to pokazuje, zostaje tutaj.
 - **Okno 1** to WORK_PAGE, poza chwilami, gdy `render_line`, `panel_draw` albo start mapują tam inną stronę; każde z nich przywraca WORK_PAGE (tam żyją SPANS i bufory).
 - **Okno FM** pod $E000 jest włączone cały czas: zapisy do $E000–$E3FF idą do CRAM i SFILE (i do RAM pod nimi, tak `apply` je odczytuje); nigdy nie kłaść tam niczego innego.
-- **Zdarzenia przerwania** są w dwóch buforach (`ev_a`, `ev_b`): `build_events` pisze ten, którego nie wskazuje `ev_show`; `apply` ustawia go pod DI.
-- **Rejestry zatrzaskiwane na końcu linii** (PALSEL, VPAGE, GYOFFS, GXOFFS): ustawiać w przerwaniu poprzedniej linii; przerwanie przychodzi przy HSINT 208 (prawa ramka), więc przy 3,5–14 MHz jest czas.
+- **Lista przerwań** jest jedna (`ev_panel`): `apply` wpisuje do niej X przewijanego napisu i uzbraja ją pod DI; jej przerwania przychodzą potem, w pokazywanej klatce.
+- **Rejestry zatrzaskiwane na końcu linii** (VPAGE, GYOFFS, GXOFFS): ustawiać w przerwaniu poprzedniej linii; przerwanie przychodzi przy HSINT 208 (prawa ramka), więc przy 3,5–14 MHz jest czas.
 - **DMA** dzielą czyszczenie obrazu (`clear_layer2_page`) i znaki panelu (`pc_put`): gdy DMA jest zajęty, `pc_put` rysuje procesorem; korzystają z niego też kopia SFILE (`sfile_put`) i długie odcinki nowej linii (`render_line`), każde zastępowane procesorem, gdy jest zajęty.
-- **Testy**: `make check` (3 000 klatek; `FRAMES=`), a także z botem, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo albo 0, jak w [README.pl.md](README.pl.md). Po każdej zmianie: stan, kolor brzegu linia po linii (`ev_built`), rejestry General Sound i obraz maszyny co klatkę, piksel w piksel.
+- **Testy**: `make check` (3 000 klatek; `FRAMES=`), a także z botem, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo albo 0, jak w [README.pl.md](README.pl.md). Po każdej zmianie: stan, kolor brzegu linia po linii, rejestry General Sound i obraz maszyny co klatkę, piksel w piksel.
 - **Pomiary**: `TSHISTALL=plik` (czas każdej instrukcji przez cały przebieg, ze startem, przerwaniami i czekaniem), potem `python3 ../tools/prof.py build/test.sym plik 60`; średnia i najwyższa praca są w ostatnich wierszach tscheck. `TSMSHOT=k` zapisuje każdą klatkę maszyny od klatki k (32, także drugą spóźnionej); `TSBORDER=1` włącza T; `TSSHOT=k` z `TSFULL=1` zapisuje klatki od k z ramką (ostatni obraz przebiegu ma na ramce jeden kolor: przebieg zatrzymuje się na `apply_done`). `TSTIME=N` wypisuje pracę klatek N−2..N+2. `TSVOL=1`: sumy głośności POKEY w klatkach i najwyższy poziom karty (nie może przekroczyć 255).

@@ -18,11 +18,11 @@ Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, 
 - Rzeka: tryb 16 kolorów, 320x240, linia obrazu ma 256 bajtów (160 na jej początku), 512 linii
   w pierścieniu przewijanym sprzętowo (GYOFFS); nowa linia rzeki jest pisana od razu w swój
   wiersz (`render.asm`), bez kopiowania.
-- Kolor brzegu w każdej linii: każdy kolor, jaki miał brzeg, ma własną paletę (PALSEL 0-7: jej
-  kolor 1 to ten kolor, ustawiany raz; 2 i 3 to krawędź i woda, w każdej klatce). Przerwanie
-  ramki, przesuwane w dół klatki od zmiany do zmiany (`build_events`, `irq`), ustawia PALSEL
-  linię przed zmianą; rejestr jest przejmowany na końcu linii, więc zmiana jest dokładna przy
-  każdej szybkości procesora.
+- Kolor brzegu linia po linii: jedna paleta (PALSEL 0) trzyma kolory brzegu, dwie zielenie
+  i kolory drogi przy moście (pozycje 1 i 9-15, ustawiane raz na starcie), a 2 i 3 to
+  krawędź i woda; punkty brzegu każdej nowej linii są rysowane w pozycji jej koloru
+  (`line_bank`, zestaw tablic punktów na kolor), więc kolor jedzie z linią: żadnego
+  przerwania na zmianę, nic do ustawiania, gdy obraz jest pokazywany.
 - Obiekty, samolot, jego pocisk, czołg i pociski rakietowe: sprite'y (`sprites.asm`), ich
   obrazy tworzone przy starcie z kształtów w kartridżu, każdy obiekt o szerokości 16, 32 i 64
   punktów (sprite'y nie mają skalowania).

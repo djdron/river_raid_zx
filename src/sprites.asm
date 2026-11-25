@@ -9,11 +9,11 @@
 ;   scanlines are not all the objects' any more, and the sprites come from the scanlines.
 ; - The others (one colour each) are cut into runs of up to 16 lines at one position, one
 ;   sprite each, with a 4-bit pattern made from the lines' bytes.
-; The bank colour changes next to a bridge: the Copper sets it, per line, in Layer 2's palette.
+; The bank's colour goes with the line (render.asm: line_bank), in Layer 2's palette.
 ;
 ; Palette entries (4-bit patterns: offset * 16 + 1): the shell and the helicopter missile 17,
-; the tank 33, the plane and its bullet 49; Layer 2: 0 black, 1 the bank, 2 the bank edge,
-; 3 the water.
+; the tank 33, the plane and its bullet 49; Layer 2: 0 black, 1 and 4-10 the bank's colours
+; (bank_init), 2 the bank edge, 3 the water.
 ; Patterns (8-bit, 256 bytes): 0-11 the 4-bit ones, 12 a frame in turn (24 of 128 bytes);
 ; 4-bit 24 on the objects' (made at the start: obj_pics); 62-63 the needle and the logo
 ; (4-bit 124-127).
@@ -24,6 +24,7 @@ OBJ_BANK_A	equ 14			; the objects' sprite palette banks (obj_pics)
 OBJ_BANK_B	equ 15
 OBJ_ENTRIES	equ 64			; obj_lookup's entries at most
 COPPER_WAIT_H	equ 40			; where in the line before a river line the Copper changes colours
+CP_COLOURS	equ 11			; Layer 2's entries the panel's rows make black, grey, and back
 SHELL_OFFSET	equ 1
 TANK_OFFSET	equ 2
 PLANE_OFFSET	equ 3
@@ -396,92 +397,6 @@ ob_attr:
 	inc (hl)
 	ret
 
-; The Copper's list for the frame: per river line, the bank colour where it changes, set in
-; the line before (Layer 2's palette, entry 1: copper_start). The changes are the display's
-; (ds_bank_ev, as ds_bank_fill goes through them): the VBI's colour from the river's first
-; line, then each from its line (one at or above the line reached: from there).
-build_copper:
-	ld hl,cp_colour			; one colour all the way, as the list has it: only the X scroll
-	ld a,(ds_bank_n)		; changes (panel_frame, apply)
-	or a
-	ld a,$FF
-	jr nz,1F
-	ld a,(colour_bank)
-	cp (hl)
-	ret z
-1:	ld (hl),a
-	ld a,1
-	ld (cp_full),a
-	ld de,copper_list
-	ld hl,copper_start
-	ld bc,copper_start_end - copper_start
-	ldir
-	push de
-	pop ix
-	ld a,(colour_bank)
-	ld c,a				; C the colour from line E, B the one set (none yet: no Atari
-	ld b,$FF			; colour is odd); D the changes left, HL the next
-	ld e,RIVER_FIRST
-	ld a,(ds_bank_n)
-	ld d,a
-	ld hl,ds_bank_ev
-.seg	ld a,d				; the next change's line (none: the river's end)
-	or a
-	ld a,RIVER_FIRST + RIVER_LINES
-	jr z,1F
-	ld a,(hl)
-	cp RIVER_FIRST + RIVER_LINES
-	jr c,1F
-	ld a,RIVER_FIRST + RIVER_LINES
-1:	cp e
-	jr c,.set
-	jr z,.set
-	push af
-	ld a,c				; the colour on lines E to there
-	cp b
-	jr z,.same
-	ld b,a
-	ld (ix + 0),COPPER_WAIT_H * 2 | $80	; WAIT for the line before (ULA line 8 + k - 1)
-	ld a,e
-	add a,RIVER_TOP - 32 - 1 - RIVER_FIRST
-	ld (ix + 1),a
-	ld (ix + 2),$41			; MOVE $41, the Next colour of Atari colour B
-	push hl
-	ld l,b
-	ld h,high palette
-	ld a,(hl)
-	pop hl
-	ld (ix + 3),a
-	ld a,b
-	ld bc,4
-	add ix,bc
-	ld b,a
-.same	pop af
-	ld e,a
-.set	ld a,d
-	or a
-	jr z,.end
-	inc hl
-	ld c,(hl)
-	inc hl
-	dec d
-	jr .seg
-.end	push ix
-	pop de
-	ld hl,copper_panel		; the panel and the scrolling line
-	ld bc,copper_panel_end - copper_panel
-	ldir
-	ex de,hl
-	ld (hl),$FF			; the end: a WAIT that never comes
-	inc hl
-	ld (hl),$FF
-	inc hl
-	ld de,copper_list
-	or a
-	sbc hl,de
-	ld (copper_bytes),hl
-	ret
-
 ; The tilemap's rows (NTSC): the panel's at 202, 211 and 219 (map rows 20, 22, 23; buffer rows
 ; 182, 191, 199 of the C++ port, 20 lines higher), the scrolling line's at 231 (map row 26):
 ; the Copper sets the tilemap's Y scroll for each, and its X scroll for the scrolling line.
@@ -493,76 +408,6 @@ build_copper:
 copper_panel:				; (one of the two below: tv_setup)
 	ds copper_panel_ntsc_end - copper_panel_ntsc
 copper_panel_end:
-copper_panel_ntsc:
-	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
-	db $31, 0			; the tilemap at the panel's first row (tv_setup: CP_PANEL_Y)
-	db $43, $10			; Layer 2's colours 0-3 (the index going up)
-	db $40, 0
-	db $41, 0, $41, 0, $41, 0, $41, 0	; black
-	db $1C, 2			; the sprites' window below the river: from the line after
-	db $19, 0, $19, 159		; the lowest an object's rows reach (OBJ_LAST: ob_list shows
-	db $19, OBJ_LAST + 1, $19, 255	; no 16-row piece below the river), the needle and the logo
-	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
-	db $40, 0
-	db $41, 0, $41, 0, $41, 0, $41, 0	; grey (tv_setup: COPPER_GREY)
-	db $80 | COPPER_WAIT_H * 2, 211 - 32 - 1
-	db $31, 176 - 211
-	db $80 | COPPER_WAIT_H * 2, 229 + 1 - 32 - 1
-	db $40, 0			; the river's colours back after the grey (so a late frame,
-	db $41, 0, $41, 0, $41, 0, $41, 0	; whose apply comes after the next frame's top, still
-					; shows them): 0 black, 1 (the list's top sets it), 2 the
-					; edge, 3 the water (apply: CP_EDGE_BACK)
-	db $80 | COPPER_WAIT_H * 2, 231 - 32 - 1
-	db $31, 208 - 231
-	db $2F, 0			; (set by panel_frame: CP_XSCROLL_HI_BACK,
-	db $30, 0			; CP_XSCROLL_BACK)
-	db $80 | COPPER_WAIT_H * 2, WAIT_LINE_NTSC + 32 - 32 - 1
-	db $1C, 2			; the sprites' window the river's again, for the next frame
-	db $19, 0, $19, 159		; (below the logo, where apply starts)
-	db $19, RIVER_TOP, $19, RIVER_TOP + RIVER_LINES - 1
-copper_panel_ntsc_end:
-; PAL (status_bar.cpp's layout): the panel's rows at 206, 218, 226, its grey to 239 (Layer 2's
-; clip window), the scrolling line at 243. The same layout: the offsets below hold for both.
-COPPER_GREY	equ 31			; the grey's 4 bytes in either, 2 apart
-CP_PANEL_Y	equ 3			; the tilemap's Y scroll for the panel's first row
-CP_EDGE_BACK	equ 25			; the restored edge colour's byte (the water's 2 after it)
-CP_XSCROLL_BACK	equ 15			; the scrolling line's X scroll (low, high 2 before)
-CP_XSCROLL_HI_BACK equ 17
-PF_PATTERN	equ 20			; the scrolling line's sprite: its pattern (4-bit),
-PF_OFFSET	equ 6			; palette offset
-OBJ_LAST	equ RIVER_TOP + RIVER_LINES - 1 + 15	; the lowest line an object's rows reach
-					; (a 16-row piece from the river's last line at the lowest)
-NEEDLE_Y_NTSC	equ $CC - RIVER_FIRST + RIVER_TOP	; the needle's first line (10 lines)
-NEEDLE_Y_PAL	equ $D3 - RIVER_FIRST + RIVER_TOP
-	assert NEEDLE_Y_NTSC > OBJ_LAST		; (no object's rows reach the needle)
-copper_panel_pal:
-	db $80 | COPPER_WAIT_H * 2, 200 - 32 - 1
-	db $31, 0			; the tilemap at the panel's first row (tv_setup: CP_PANEL_Y)
-	db $43, $10			; Layer 2's colours 0-3 (the index going up)
-	db $40, 0
-	db $41, 0, $41, 0, $41, 0, $41, 0	; black
-	db $1C, 2			; the sprites' window below the river: from the line after
-	db $19, 0, $19, 159		; the lowest an object's rows reach (OBJ_LAST: ob_list shows
-	db $19, OBJ_LAST + 1, $19, 255	; no 16-row piece below the river), the needle and the logo
-	db $80 | COPPER_WAIT_H * 2, 201 - 32 - 1
-	db $40, 0
-	db $41, 0, $41, 0, $41, 0, $41, 0	; grey (tv_setup: COPPER_GREY)
-	db $80 | COPPER_WAIT_H * 2, 218 - 32 - 1
-	db $31, 176 - 218
-	db $80 | COPPER_WAIT_H * 2, 239 + 1 - 32 - 1
-	db $40, 0			; the river's colours back after the grey (so a late frame,
-	db $41, 0, $41, 0, $41, 0, $41, 0	; whose apply comes after the next frame's top, still
-					; shows them): 0 black, 1 (the list's top sets it), 2 the
-					; edge, 3 the water (apply: CP_EDGE_BACK)
-	db $80 | COPPER_WAIT_H * 2, 243 - 32 - 1
-	db $31, 208 - 243
-	db $2F, 0			; (set by panel_frame: CP_XSCROLL_HI_BACK,
-	db $30, 0			; CP_XSCROLL_BACK)
-	db $80 | COPPER_WAIT_H * 2, WAIT_LINE_PAL + 32 - 32 - 1
-	db $1C, 2			; the sprites' window the river's again, for the next frame
-	db $19, 0, $19, 159		; (below the logo, where apply starts)
-	db $19, RIVER_TOP, $19, RIVER_TOP + RIVER_LINES - 1
-
 copper_start:				; Layer 2's palette, index 1
 	db $43,$90,$40,1
 	db 0,0				; (a NOP: the fallback colour is T's, see main_frame)
@@ -647,7 +492,17 @@ apply:
 	ld a,$8E
 .p	call .colour
 	nextreg $41,a
-	nextreg $43,%10010000		; Layer 2: black (the Copper made it the panel's grey), the
+	ld a,(show_bank)		; the bank's entries black while the colours are off (B101)
+	or a
+	jr z,1F
+	ld a,1
+1:	ld hl,ap_bank_on
+	cp (hl)
+	jr z,2F
+	ld (hl),a
+	ld e,a
+	call bank_set
+2:	nextreg $43,%10010000		; Layer 2: black (the Copper made it the panel's grey), the
 	nextreg $40,0			; edge and the water (red while a bridge flashes; black while
 	nextreg $41,0			; the screen is cleared)
 	nextreg $40,2

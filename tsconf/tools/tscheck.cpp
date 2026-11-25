@@ -3,7 +3,7 @@
 // POKEY counter):
 //   - after every frame: the river generator's state (RiverGen::diffWithRam), the game's
 //     state (the fields of game_ram.cpp but the scrolling line's), the panel's characters,
-//     screen memory, the bank colour's changes by line (the INT's list against Game::scan);
+//     screen memory, the bank's colour of each river line (its dots' entry against Game::lineBank);
 //   - at the end, the picture of the last frame, pixel by pixel: the river and its objects
 //     and players as the C++ port's Game::drawRiver draws them,
 //     in the TS-Conf's colours, black above and below it;
@@ -476,7 +476,7 @@ int main(int argc, char **argv) {
 		}
 		return false;
 	};
-	const uint16_t evShow = symbol(dir, "ev_built");
+	const uint16_t scrollAt = symbol(dir, "scroll"), bankColsAt = symbol(dir, "bank_cols"), bankNAt = symbol(dir, "bank_n");
 	// the General Sound: the program's state (build/gs.sym), the samples (TSWAV, TSWAVCPP)
 	const uint16_t gsOnAt = symbol(dir, "gs_on"), gsAudf = symbol(dir, "pokey_audf", "gs.sym"),
 		gsAudc = symbol(dir, "pokey_audc", "gs.sym"), gsW = symbol(dir, "snd_w", "gs.sym");
@@ -621,25 +621,25 @@ int main(int argc, char **argv) {
 			if ((addr >> 8) == 0x2F) addr = 0x3000;
 			if ((addr >> 8) == 0x3F) addr = 0x2000;
 		}
-		{   // the bank's colour by line, as the INTs will set it: the top's, then the changes
-			// (the list's first 5 bytes: 1 byte, the first event's VSINT line, the palette, the
-			// colour; then each event: its kind (EV_PAL 0), the next one's VSINT line, the palette,
-			// the colour; a VSINT line is a line before the change)
-			const uint16_t list = uint16_t(readZ80(comp, evShow) | readZ80(comp, uint16_t(evShow + 1)) << 8);
-			uint16_t p = uint16_t(list + 5);   // the event, its line 4 bytes before it
-			uint8_t colour = readZ80(comp, uint16_t(list + 4));
-			auto next = [&] { return readZ80(comp, p) == 0 ? readZ80(comp, uint16_t(p - 4)) | readZ80(comp, uint16_t(p - 3)) << 8 : 0; };
-			int line = next();
-			for (int k = 0; k < kRiverLines; k++) {
-				while (line && line - (kRowLine - 1) <= kRiverTop + k) {
-					colour = readZ80(comp, uint16_t(p + 4));
-					p = uint16_t(p + 5);
-					line = next();
+		{   // the bank's colour by line: each river line's bank dots in its colour's entry of the
+			// river's palette (render.asm: bank_cols, entry 1 then 9..), against the C++ port's
+			// lineBank (drawRiver's colour; lines without bank dots not compared)
+			const uint16_t sc = uint16_t(readZ80(comp, scrollAt) | readZ80(comp, uint16_t(scrollAt + 1)) << 8);
+			const int n = readZ80(comp, bankNAt);
+			for (int k = 0; bankColsAt && k < kRiverLines && size_t(k) < game.lineBank.size() && size_t(k) < game.screen.size(); k++) {
+				const int line = (sc + kRiverTop + k) & 511;
+				const uint8_t *v = ram + kVidPage * 0x4000 + line * 256;
+				int e = -1;
+				for (int x = 0; x < 160 && e < 0; x++) {
+					const int c = v[x] & 15;
+					if (c == 1 || c >= 9) e = c;
 				}
-				const uint8_t want = game.scan[size_t(kRiverFirstLine + k)].bankColour;
-				if (colour != want) {
+				if (e < 0) continue;
+				const int i = e == 1 ? 0 : e - 8;
+				const int colour = i < n ? readZ80(comp, uint16_t(bankColsAt + i)) : -1;
+				if (colour != game.lineBank[size_t(k)]) {
 					evBad++;
-					std::snprintf(b, sizeof b, "bank colour, river line %d: %02X, c++ %02X", k, colour, want);
+					std::snprintf(b, sizeof b, "bank colour, river line %d: %02X (entry %d), c++ %02X", k, colour, e, game.lineBank[size_t(k)]);
 					diffs.push_back(b);
 					break;
 				}
@@ -858,7 +858,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	std::printf("pictures: %ld frames compared, %ld differ\n", picCompared, picBad);
-	if (evBad) std::printf("the bank colour's list differed in %ld frames\n", evBad);
+	if (evBad) std::printf("the bank's colour by line differed in %ld frames\n", evBad);
 	if (bad) {
 		std::printf("FAIL: the picture differs in %d pixels, the first at (%d, %d)\n", bad, firstBadX, firstBadY);
 		return 1;

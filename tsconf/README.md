@@ -18,11 +18,11 @@ The source routine by routine, what changed in the Next's shared code, and a tab
 - The river: the 16-colour mode, 320x240, a picture line of 256 bytes (160 at its start), 512
   lines a ring scrolled by the hardware (GYOFFS); a new river line is written straight into
   its row (`render.asm`), no copies.
-- The bank's colour by line: each colour the bank has had has a palette of its own (PALSEL
-  0-7: its colour 1 that colour, set once; 2 and 3 the edge and the water, each frame). The
-  frame INT, moved down the frame from change to change (`build_events`, `irq`), sets PALSEL
-  a line before the change; the register is taken at the line's end, so the change is
-  exact at any CPU speed.
+- The bank's colour by line: one palette (PALSEL 0) holds the bank's colours, the two greens
+  and the bridge road's (entries 1 and 9-15, set once at the start), with 2 and 3 the edge and
+  the water; each new line's bank dots are drawn in its own colour's entry (`line_bank`, a set
+  of dot tables per colour), so the colour goes with the line: no INT per change, nothing to
+  set while the picture is shown.
 - The objects, the plane, its bullet, the tank and the missiles: sprites (`sprites.asm`), their
   pictures made at the start from the cartridge's shapes, each object at 16, 32 and 64 dots
   across (the sprites have no scale).

@@ -62,6 +62,8 @@ L2_BANK		equ 9			; 16K bank of Layer 2: 8K pages 18..27
 L2_FIRST_PAGE	equ L2_BANK * 2
 L2_PAGES	equ 10			; 320x256 bytes
 RIVER_LINES	equ 160
+BANK_COLS	equ 8			; the bank's colours at most: Layer 2's entries 1, 4-10
+PIX_PAGE	equ 29			; render_line's dots' tables, a set per bank colour (pix_sets)
 RIVER_TOP	equ 40			; Layer 2 row (of 256) of the river's top line
 WAIT_LINE_NTSC	equ 208			; raster line (ULA numbering) where a frame's work starts:
 WAIT_LINE_PAL	equ 220			; below the scrolling line
@@ -151,6 +153,7 @@ start:
 	call init_video
 	nextreg $53,INIT_PAGE		; the panel's characters, tiles and sprites
 	call panel_init
+	call bank_init			; the bank's colours in Layer 2's palette (panel_init.asm)
 	nextreg $53,DATA_PAGE
 	ld hl,(rnd_init)
 	ld (rnd_state),hl
@@ -189,6 +192,8 @@ main_frame:
 	ld (show_edge),a
 	ld a,(colour_water)
 	ld (show_water),a
+	ld a,(colour_bank)
+	ld (show_bank),a
 	ld a,(PLAYER)
 	ld (show_player),a
 	ifndef TEST
@@ -294,21 +299,6 @@ init_tables:
 	ld h,high ov_exp2
 	inc l
 	jr nz,.ov
-	ld hl,pix_tab			; render_line's tables
-.pix	ld a,l
-	ld c,h
-	ld b,4
-.pk	rlca
-	rlca
-	ld e,a
-	and 3
-	ld (hl),a
-	ld a,e
-	inc h
-	djnz .pk
-	ld h,c
-	inc l
-	jr nz,.pix
 	ld hl,$2000			; ring_lo/hi: screen memory's lines, 80 in each block
 	ld de,ring_lo
 .ring	ld a,l
@@ -388,35 +378,32 @@ tv_setup:
 	or a
 	ld a,WAIT_LINE_NTSC
 	ld hl,random_columns_ntsc
-	ld de,copper_panel_ntsc
+	ld de,copper_panel_ntsc - $2000
 	ld bc,PANEL_LAST_NTSC << 8 | 160 - 202
 	jr z,.set
 	ld a,WAIT_LINE_PAL
 	ld hl,random_columns_pal
-	ld de,copper_panel_pal
+	ld de,copper_panel_pal - $2000
 	ld bc,PANEL_LAST_PAL << 8 | 160 - 206
 .set	ld (wait_line),a
 	ld (rnd_cols),hl
 	ex de,hl			; the Copper's part for the panel and the scrolling line
-	ld de,copper_panel
+	ld de,copper_panel		; (from page 7, at $4000 meanwhile: copper_panels.asm)
 	push bc
 	ld bc,copper_panel_end - copper_panel
+	nextreg $52,INIT_PAGE
 	ldir
 	pop bc
 	ld a,c				; the tilemap at the panel's first row (from line 200)
 	ld (copper_panel + CP_PANEL_Y),a
 	ld a,(palette + $06)		; the panel's background (COLBK $06)
 	ld hl,copper_panel + COPPER_GREY
-	ld (hl),a
+	ld e,CP_COLOURS
+.grey	ld (hl),a
 	inc hl
 	inc hl
-	ld (hl),a
-	inc hl
-	inc hl
-	ld (hl),a
-	inc hl
-	inc hl
-	ld (hl),a
+	dec e
+	jr nz,.grey
 	ld a,(tv_pal)			; Layer 2's clip window: the river and the panel's grey
 	or a
 	ld a,229
@@ -428,8 +415,8 @@ tv_setup:
 	nextreg $18,159
 	nextreg $18,RIVER_TOP
 	nextreg $18,a
-	ld a,$FF			; the Copper's list made again (no Atari colour is odd)
-	ld (cp_colour),a
+	xor a				; the Copper's list made again
+	ld (cp_built),a
 	nextreg $1C,%00001010		; clip windows: the sprites the river (below it the Copper
 	nextreg $19,0			; switches them: copper_panel), the tilemap to the last line
 	nextreg $19,159
@@ -522,6 +509,7 @@ random_columns:
 	include "display_hits.asm"
 	include "panel.asm"
 	include "render.asm"		; (from page 4: room there for T, TM_COLOUR)
+	include "bank_colours.asm"
 
 	display "page 6 end: ",$
 	assert $ <= $E000		; page 6 is full
@@ -532,6 +520,7 @@ random_columns:
 	include "sound_ay.asm"
 	include "load_rom.asm"
 	include "obj_pics.asm"
+	include "copper_panels.asm"
 	display "page 7 end: ",$
 	assert $ <= $8000
 
@@ -595,6 +584,7 @@ colour_edge:	ds 1
 colour_water:	ds 1
 show_edge:	ds 1			; and as this frame shows them
 show_water:	ds 1
+show_bank:	ds 1			; (0: the colours off)
 show_player:	ds 1
 pf_s:		ds 1			; panel_frame: the scrolling line's X0 & 7,
 pf_h0:		ds 2			; its left edge's half character (X0 / 8),
@@ -773,11 +763,14 @@ bc_bank:	ds 1
 bc_p3:		ds 1
 copper_bytes:	ds 2
 cp_full:	ds 1			; the list changed: all of it to the Copper (apply)
-cp_colour:	ds 1			; the bank's colour of the list, when it has no changes ($FF:
-					; it has, or none made yet)
+cp_built:	ds 1			; build_copper: the list made (tv_setup: not),
+cp_bank_on:	ds 1			; with the bank's colours (0: black, the colours off)
+ap_bank_on:	ds 1			; apply: Layer 2's bank entries the same
+bank_cols:	ds BANK_COLS		; bank_init: the bank's Atari colours, in their entries' order
+bank_n:		ds 1			; how many
+rl_set:		ds 1			; line_bank: the line's set of tables (pix_sets: high byte),
+rl_colour:	ds 1			; and its bank colour
 ap_shown:	ds 1
-	align 256
-pix_tab:	ds 4 * 256		; render_line: pixel k (bits 7-6 first) of a line byte
 	align 256
 line_start:	ds 256			; per scanline: ANTIC's cycles at its start
 line_after_draw: ds 256			; and the cycles left after it is drawn

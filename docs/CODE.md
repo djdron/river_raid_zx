@@ -23,8 +23,8 @@ Times are the Next core's ticks at 28 MHz, per frame, averaged, from nxcheck's h
 frames), on the check's build without screen memory as the game has it (`-DNOSCREEN`,
 `NXNOSCREEN=1`). Two runs:
 
-- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~106 000 a frame on average, ~162 000 at most;
-- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~164 000 on average, ~202 000 at most (NTSC ~160 000 / ~202 000; at 14 MHz NTSC ~131 000 / ~165 000 of ~240 000).
+- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~102 000 a frame on average, ~158 000 at most;
+- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~159 000 on average, ~198 000 at most (NTSC ~160 000 / ~202 000; at 14 MHz NTSC ~131 000 / ~165 000 of ~240 000).
 
 A frame has ~567 000 ticks on PAL and ~481 000 on NTSC (half that at 14 MHz). `apply` (and
 so `panel_frame`) runs after the measured work (below the scrolling line) and is not in these
@@ -35,22 +35,22 @@ By part (A / B):
 
 | part | A | B |
 |---|---|---|
-| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 41 300 | 55 200 |
+| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 40 400 | 54 300 |
 | sound (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
-| new river lines (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 18 800 | 44 000 |
-| sprites and the Copper's list (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 10 900 | 15 900 |
+| new river lines (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
+| sprites and the Copper's list (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
 | the game logic and the rest (`prepare`, `main_loop`, `move_objects`, `random_step`, the panel's printing, …) | 9 400 | 10 500 |
 
 The most expensive routines (A / B):
 
 | routine | A | B | file |
 |---|---|---|---|
-| `display` (own code) | 11 800 | 13 500 | display_simple |
+| `display` (own code) | 10 900 | 12 600 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
 | `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `render_line` | 3 900 | 9 400 | render |
+| `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
@@ -67,10 +67,9 @@ The most expensive routines (A / B):
 | `draw_line` | 900 | 2 300 | river_gen |
 | `pk_g4` | 0 | 1 400 (~9 000 in a frame when the missile sounds) | sound_pulses |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
-| `build_copper` | 1 100 | 1 000 | sprites |
 | `hit_setup` | 500 | 700 | display_hits |
 
-The heaviest frame of B (~202 000): the sound up to ~60 000 (the noise and the missile on the
+The heaviest frame of B (~198 000): the sound up to ~60 000 (the noise and the missile on the
 DAC, ~180 pulses), the placement and edge tests (`display`, `ds_obj`, `ds_edge_test`) ~30 000,
 the collisions (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, the river's new lines ~25 000.
 
@@ -127,7 +126,7 @@ and buffers of page 12, test-build hooks.
 | `restart` | `start`; CAPS + 1 | The machine "switched on" in `tv_pal`'s standard: `tv_setup`, Layer 2 cleared (all 10 pages at once), `sound_init`, `start_attract`, falls into `main_frame`. |
 | `main_frame` | every frame | See *The frame*. ~340 ticks of its own. |
 | `wait_frame` | `main_frame` | Busy-waits on NR $1F against `wait_line`. Its time is idle time, not work. |
-| `init_tables` | `start` | Once: the tables: `pix_tab` (`render_line`), `ring_lo`/`ring_hi` (screen memory's 160 lines in order), `span_class` (a byte's colour if its 4 pixels are one), `span_init` (the masks), an empty Copper list. |
+| `init_tables` | `start` | Once: the tables: `ring_lo`/`ring_hi` (screen memory's 160 lines in order), `span_class` (a byte's colour if its 4 pixels are one), `span_init` (the masks), an empty Copper list. |
 | `tv_setup` | `restart` | The standard's settings: NR $05 50/60 Hz, `init_line_tables`, `wait_line`, the random map, the Copper's panel part (`copper_panel_ntsc`/`_pal` copied, the grey patched into it, `COPPER_GREY`), the tilemap's first Y scroll, clip windows (Layer 2 down to the panel's last grey line, sprites, tilemap). |
 | `init_video` | `start` | Black border, no ULA, global transparency $E3, Layer 2 320×256×8 at bank 9, layer order (tilemap over sprites over Layer 2), the palettes: Layer 2's 4 entries, the sprites' 128–255 = the Atari's colours, NR $15 with the sprites' clip in over-border mode. |
 | `test_ghost` | test builds, after `display` when `test_ghost_on` | nxcheck's NXGHOST: the plane's collisions and the fuel set so that it cannot crash. |
@@ -208,7 +207,10 @@ each carry is a line, so 0–2 lines a frame, more the faster the plane flies.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Colour clocks 20–179 (`WINDOW_FIRST`) of the line into Layer 2's row A, from `dl_seg`'s pieces (no line buffer). Layer 2 is stored by columns (byte x·256 + y, 32 columns an 8K page), so the row is written down the columns (`inc h` = the next column), 10 pages mapped in turn into slot 2 (`rl_next`). A piece of one value: its colour once from `pix_tab`, then `rl_fill` (8 columns a byte, page by page; `rl_fill`, `rl_next` in page 6, spans.asm); an edge's bytes (from the ROM's table) and a decoration's row (from its bitmap in the ROM): per byte `pix_tab` gives 2 dots per clock, each written twice; the bytes before the window skipped in the data. 320 writes a line. In page 6 (moved from page 4 for room). | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | `line_bank` first (the line's set of tables), page 29 (`PIX_PAGE`) into slot 0 meanwhile. Colour clocks 20–179 (`WINDOW_FIRST`) of the line into Layer 2's row A, from `dl_seg`'s pieces (no line buffer). Layer 2 is stored by columns (byte x·256 + y, 32 columns an 8K page), so the row is written down the columns (`inc h` = the next column), 10 pages mapped in turn into slot 2 (`rl_next`). A piece of one value: its colour once from the set's first page, then `rl_fill` (8 columns a byte, page by page; `rl_fill`, `rl_next` in page 6, spans.asm); an edge's bytes (from the ROM's table) and a decoration's row (from its bitmap in the ROM): per byte the set's 4 pages give 2 dots per clock, each written twice; the bytes before the window skipped in the data. 320 writes a line. The Atari's RAM back in slot 0 at the end. In page 6 (moved from page 4 for room). | 4 100 + 3 800 / 10 000 + 8 300 |
+| `line_bank` | `render_line` | The C++ port's `lineBankColour` on the state after the line: the slots from `FIRST_SLOT` down while one may show a road row (y ≤ $5E: y grows down the slots); a bridge's: its road row y + height − $5E, the colour from the table at $B4E5; else `bank_colour` (the green). The same colour as the line before: nothing more; else its place in `bank_cols` × 4 into `rl_set` (the set's high byte). In bank_colours.asm (page 6). | 240 / 510 (+ `bank_colour` 370 / 580) |
+| `bank_init`, `pix_sets` | `start` (page 7, after `panel_init`) | The bank's colours, each once: $D2, $D6, the 20 road rows' (`bank_cols`, `bank_n`, at most 8), Layer 2's entries 1, then 4–10 (`bank_set`); page 29 into slot 0: a set of 4 pages per colour (set i at 4i × 256), page k's byte b is b's dot k as Layer 2 has it (0, 2, 3 themselves, 1 colour i's entry). | once |
+| `bank_set` | `bank_init`, `apply` | Layer 2's bank entries: their colours (E = 1) or black (E = 0, the colours off: `apply` when `show_bank` changes, `ap_bank_on`). | |
 
 ## spans.asm: the lines' runs for the playfield collisions
 
@@ -233,13 +235,13 @@ a gap touches nothing on the line.
 As the C++ port's `displayGeometry` (branch `dli_removed`): no DLI. Each object stands at
 its slot's y, cut to the river, and its collisions are plain geometry. What it leaves:
 `ds_objs` (each object's rows for the sprites: 8 bytes, first line, row count, shape and
-colour pointers, x, size), `ds_bank_ev` (the bank colour's changes, for `build_copper`), the
+colour pointers, x, size), the
 collision results in HIT and the slots' edge flags.
 
 `display` (~11 800 / 13 500 of its own):
 
 1. Maps SPAN_PAGE, `dh_lists` (the other sprites' descriptors), the registers cleared and set as B527–B55C, `bm_hitclr`, `dh_sprites` (HIT = $FF, then the other sprites with the bank and each other).
-2. `.slot`, per slot from FIRST_SLOT: IY at the slot's kind (page 5: type, X, size at IY + 11, + 22, + 33, read there, no copies), Y and the flags kept (`ds_y`, `ds_flags`), `ds_edge_kind`; the start = max(y, $5D); the first row = y + height[type] − start (≥ $80: gone above, the next); X = start + 3 (past 255: the end); rows = min(row + 1, 256 − X); `ds_rowp` the first row's byte; `ds_obj` (the rows into `ds_objs`); a bridge: `.road` (the road's colour from the scanline after each row's, X − 69 + 1; the section's bank colour after the last unless X wrapped, via `ds_bank`; a row's colour only when it differs from the row above). The shape's and colours' first rows are worked out in place (DE, BC for `ds_obj`). The ROM's tables (height, shape, colours) are read by 8-bit sums (`ROM_SHAPES` and `ROM_COLOURS` start pages).
+2. `.slot`, per slot from FIRST_SLOT: IY at the slot's kind (page 5: type, X, size at IY + 11, + 22, + 33, read there, no copies), Y and the flags kept (`ds_y`, `ds_flags`), `ds_edge_kind`; the start = max(y, $5D); the first row = y + height[type] − start (≥ $80: gone above, the next); X = start + 3 (past 255: the end); rows = min(row + 1, 256 − X); `ds_rowp` the first row's byte; `ds_obj` (the rows into `ds_objs`); a bridge: `.road` (`-DBEAM`) (the road's colour from the scanline after each row's, X − 69 + 1; the section's bank colour after the last unless X wrapped, via `ds_bank`; a row's colour only when it differs from the row above). The shape's and colours' first rows are worked out in place (DE, BC for `ds_obj`). The ROM's tables (height, shape, colours) are read by 8-bit sums (`ROM_SHAPES` and `ROM_COLOURS` start pages).
 3. The edge (P3PF) for kinds 8–$0D (`ds_edge_kind`: helicopters, balloons, ships turn at it): `ds_edge_test`, then `ds_set_flags`.
 4. Against the bullet, the shell (not a bridge) and the plane: `dh_obj`; a touch stores the slot (HIT_BULLET_OBJECT, HIT_SHELL_OBJECT, HIT_PLANE_OBJECT), so the last one down the screen stays.
 5. `.end`: `test_ghost` (test builds); `ds_bank_fill` only with `-DBEAM`.
@@ -248,8 +250,8 @@ collision results in HIT and the slots' edge flags.
 |---|---|---|---|
 | `ds_edge_test` | `display`, per object of kinds 8–$0D | A = $02 if a row's span (its first dot to its last) meets an edge run on its line (the C++ port's `edgeTouches`). The object's box (X to X + 8, 16 or 32 clocks; none past clock 255) per row against the line's water gaps (`eg_*`, the line's ring index stepping by one); inside one, the next row. Else the row's first and last dots (`edge_lo`/`edge_hi` scaled by the size: `.s1`/`.s2`, plus X: `.ex1`/`.ex2`) against the line's edge runs (its record): a run between them is a touch, no dot by dot. | 3 200 / 10 200 |
 | `ds_set_flags` | `display` | The object's edge bit into its slot's flags (bit 0). | 1 100 / 1 300 |
-| `ds_bank` | `display` | A bank colour change from scanline A (a bridge's road and back): into `ds_bank_ev`. | |
-| `ds_bank_fill` | end of `display`, `-DBEAM` only | `scan_bank` for every river line from `ds_bank_ev` (the beam's display reads it; nxcheck compares the Copper's list with the C++ port instead). | |
+| `ds_bank` | `display` (`-DBEAM`) | A bank colour change from scanline A (a bridge's road and back): into `ds_bank_ev`. | |
+| `ds_bank_fill` | end of `display`, `-DBEAM` only | `scan_bank` for every river line from `ds_bank_ev` (only the beam's display reads it; the game's bank colour goes by line: `line_bank`). | |
 | `ds_edge_only` | `display` | The edge bit only for the kinds that read it. | |
 
 ## display_objs.asm
@@ -302,18 +304,11 @@ assembled only with `-DBEAM`. Assembled always:
 | `build_sprites` | `main_frame` | `ob_list` (the objects); the plane, its bullet, the tank, the helicopter's missile, the shell (in the order `drawRiver` draws them, the last on top): each its frame's pattern made at the start (`pl_plane`, `pl_tank`, `pl_shell`, `pl_bullet`, `pl_missile`) at its position, `pl_sprite`; `pl_keep` saves their attributes, which a reset's frames (`busy`) show again (`pl_again`); `build_copper`. | 1 000 / 1 100 |
 | `pl_sprite` | `build_sprites` | Pattern A ($FF: none) at line D (none below the river), position E, palette offset C: its 5 attribute bytes into `sprite_list` (X = 2·(x − 52), 9 bits; Y; the offset; the pattern; 4-bit, the half pattern). | ~100 a sprite |
 | `ob_list` | `build_sprites` | Per `ds_objs` entry, its rows from `ds_objf` (all of them): its picture made at the start found by the top row's shape and colour addresses (`obj_lookup`; not found: `ob_miss`, not drawn), a sprite per 16 rows (`ob_attr`: X = 2·(x − 52), Y, the bank, 4 bits, the half pattern, the scale for double or quadruple width), none for a piece whose first line is below the river. | 5 700 / 6 400 |
-| `build_copper` | `build_sprites` | Only when the bank colours change (`cp_colour`; always while there are bank events, `ds_bank_n` ≠ 0): `copper_start`, then a WAIT + MOVE $41 for each colour change by river line, from `ds_bank_ev`, set on the line before; then the panel's part (`copper_panel`), the end WAIT. `cp_full` = 1. | 1 400 / 1 600 |
+| `build_copper` | `build_sprites` | Only when the standard changed (`cp_built` 0, `tv_setup`) or the colours went off or on (`colour_bank` 0 or not, against `cp_bank_on`): the bank's entries restored after the panel's grey (`CP_RESTORE`: their colours, black while the colours are off), then `copper_start` and the panel's part (`copper_panel`) into the list, the end WAIT. `cp_full` = 1. In bank_colours.asm. | 100 / 100 |
 | `apply` | after `wait_frame` | Layer 2's scroll (NR $17), the sprites' attributes (port $57, OTIR 5 a sprite; the previous frame's extra ones hidden), the colours of the shell, the tank and the plane (sprite palette), Layer 2's colours 0, 2, 3, its clip window (while Layer 2 is cleared after a reset, from its second frame: only the panel's rows, `l2_hidden`; `l2_clip_y2` the window's last row from `tv_setup`), `panel_frame`, the Copper: stopped, the whole list sent if `cp_full`, else only the scrolling line's X-scroll byte, restarted (mode %11). The screen off after a long idle (IDLE_TIME). Not in the numbers above. | — |
 | `panel_frame` | `apply` | The panel: only the positions `panel_put` listed (`pf_dirty`; all after `start_attract`'s copy and `tv_setup`), each from `.cells` (its left half's cell; the row's first character its right half only), 2 cells of tile 2·code + half and the colour bits as the palette offset. The scrolling line (half h at 8h − X0, X0 = 16·TEXT_LO + 38 − 2·FINE_SCROLL): a ring in map row 26 (half h in column h mod 40; only the halves new since the last frame written, `.ring_write`; all 40 after a jump), the X scroll X0 mod 320 (9 bits: `CP_XSCROLL_HI_BACK`, `CP_XSCROLL_BACK`); the tilemap's clip window S = X0 & 7 dots short on the right (the column that wraps); sprite 70 (pattern 20, palette offset 6) at X 320 − S with half h0 + 40 (its 64 bytes written when it changes: `.spr_pattern`). The needle's and the logo's sprites. | ~1 700 the scrolling line, ~200 the panel, ~1 400 needle and logo |
 
-Data: `copper_start` (Layer 2's palette index 1, a NOP where NR $4A was (T's colour), the tilemap's Y and X scroll 0: its lines the screen's, nothing in the rows outside the panel),
-`copper_panel_ntsc`/`_pal` (the same layout, so the offsets from the list's end hold for both:
-line 200: the tilemap's Y scroll for the panel's first row (`CP_PANEL_Y`, patched by `tv_setup`), Layer 2's colours 0–3 black and the sprites' window from line 215 down (`OBJ_LAST` + 1,
-below any object's rows; the needle and the logo lower); 201: grey (`COPPER_GREY`, patched by
-`tv_setup`); the tilemap's Y scroll per panel row; line 230 (240 PAL):
-colours 0–3 back, the edge's and water's written by `apply` (`CP_EDGE_BACK`); the scrolling
-line's Y and X scroll (`CP_XSCROLL_HI_BACK`, `CP_XSCROLL_BACK`); at `wait_line`: the sprites' window the river's
-again). `apply` sends the edge-to-X-scroll bytes (`.cp_send`) when the list is not sent whole.
+Data: `copper_start` (Layer 2's palette index 1, a NOP where NR $4A was (T's colour), the tilemap's Y and X scroll 0: its lines the screen's, nothing in the rows outside the panel), `copper_panel_ntsc`/`_pal` (in page 7, copper_panels.asm: `tv_setup` copies one into `copper_panel` through slot 2; the same layout, so the offsets hold for both: line 200: the tilemap's Y scroll for the panel's first row (`CP_PANEL_Y`, patched by `tv_setup`), Layer 2's colours 0–10 black (`CP_COLOURS`: the bank's entries too, as the rows under the panel show old river lines) and the sprites' window from line 215 down (`OBJ_LAST` + 1, below any object's rows; the needle and the logo lower); 201: grey (`COPPER_GREY`, patched by `tv_setup`); the tilemap's Y scroll per panel row; line 230 (240 PAL): colours 0–10 back (`CP_RESTORE`: the bank's by `build_copper`, the edge's and water's by `apply`, `CP_EDGE_BACK`); the scrolling line's Y and X scroll (`CP_XSCROLL_HI_BACK`, `CP_XSCROLL_BACK`); at `wait_line`: the sprites' window the river's again). `apply` sends the edge-to-X-scroll bytes (`.cp_send`) when the list is not sent whole.
 
 ## panel.asm (page 6): the panel's characters
 
@@ -394,7 +389,7 @@ ring (see NOTES: the crackle).
 - **Self-modifying code** is common in hot loops: patched immediates and jump targets (`ds_edge_test`'s `.bx1/.be1/.bx2/.be2/.ex1/.ex2/.s1/.s2/.pv/.pv_bits/.pv_end/.pv_x`; `dh_pf`'s `.mode/.x0a…/.x1d/.bits/.fn`; `snd_sum`'s `.jp`; `pk_*`'s `.pf/.pq`). A variant must be checked byte by byte (a leftover `add a,a` once doubled the sound).
 - **Unrolled entry points**: `snd_sum` jumps into the middle of a `rept` block for the remainder.
 - **Slot 2** is a scratch window: a routine that needs a page there maps it and does not restore it; the next user maps its own. **Slot 3** must stay page 12 while the sound plays.
-- **Tables are page-aligned** so that `ld h,high table / ld l,index` is the lookup: `pix_tab`, `span_masks`, `span_class`, `edge_lo/edge_hi`, `obj_head`, `ov_exp2`/`ov_exp4`, `eg_*`, `bg_*`, the palette.
+- **Tables are page-aligned** so that `ld h,high table / ld l,index` is the lookup: `span_masks`, `span_class`, `edge_lo/edge_hi`, `obj_head`, `ov_exp2`/`ov_exp4`, `eg_*`, `bg_*`, the palette.
 - **The checks**: after any change, `nxcheck` compares state and screen memory, the bank colour per line, the objects as drawn, the Copper's list and memory every frame, and the picture at the end, against the C++ port. The full set takes ~25 minutes on 2 cores (HANDOFF.md, *Method*). A failed assembly leaves the old pages: check the build output first.
 - **Measuring**: `NXHISTALL=file` (all frames) or `NXHIST=file` (one frame) and `tools/prof.py`; `NXSLOW=T` lists the frames over T ticks. `NXHISTAPPLY=file` does the same for `apply` (from the end of `wait_frame`) and prints its average and maximum; `tools/prof_local.py build/test.sym file frames [routine…]` splits the time by local labels too (`ds_edge_test.row`, `panel_frame.mod`, …). The heaviest frames: `-stress` with `NXBRIDGE=80 NXGHOST=1 NXGAME=1`.
 - **apply** (~7 400 a frame, not in the tables above): the scrolling line ~1 700 (the X scroll mod 320 by subtraction ~650 of it), the needle and logo ~1 400, the panel ~200 (only what changed), the sprites' attributes ~1 800, the Copper's list ~1 200.

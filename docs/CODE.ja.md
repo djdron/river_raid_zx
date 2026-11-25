@@ -20,8 +20,8 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 （`NXHISTALL=ファイル`、次に `python3 tools/prof.py build/test.sym ファイル 60`、フレーム数で割る）から取りました。
 ゲームと同じく画面メモリなしの検証ビルド（`-DNOSCREEN`、`NXNOSCREEN=1`）です。2 回の実行：
 
-- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 106 000、最大約 162 000。
-- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 164 000、最大約 202 000（NTSC 約 160 000 / 約 202 000、14 MHz NTSC では約 240 000 のうち約 131 000 / 約 165 000）。
+- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 102 000、最大約 158 000。
+- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 159 000、最大約 198 000（NTSC 約 160 000 / 約 202 000、14 MHz NTSC では約 240 000 のうち約 131 000 / 約 165 000）。
 
 1 フレームは PAL で約 567 000 サイクル、NTSC で約 481 000（14 MHz ではその半分）。`apply`（とその中の
 `panel_frame`）は計測される処理の後（スクロールテキストの下）で動き、この数値には入りません：1 フレーム約 7 400。
@@ -31,22 +31,22 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 41 300 | 55 200 |
+| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 40 400 | 54 300 |
 | 音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
-| 川の新しい行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 18 800 | 44 000 |
-| スプライトと Copper リスト（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 10 900 | 15 900 |
+| 川の新しい行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 500 | 45 400 |
+| スプライトと Copper リスト（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 9 900 | 15 000 |
 | ゲームロジックとその他（`prepare`、`main_loop`、`move_objects`、`random_step`、パネル表示など） | 9 400 | 10 500 |
 
 最も重いルーチン（A / B）：
 
 | ルーチン | A | B | ファイル |
 |---|---|---|---|
-| `display`（自身のコード） | 11 800 | 13 500 | display_simple |
+| `display`（自身のコード） | 10 900 | 12 600 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
 | `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `render_line` | 3 900 | 9 400 | render |
+| `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
@@ -63,10 +63,9 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 | `draw_line` | 900 | 2 300 | river_gen |
 | `pk_g4` | 0 | 1 400 （ミサイルが鳴るフレームでは約 9 000） | sound_pulses |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
-| `build_copper` | 1 100 | 1 000 | sprites |
 | `hit_setup` | 500 | 700 | display_hits |
 
-B で最も重いフレーム（約 202 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
+B で最も重いフレーム（約 198 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
 岸の判定（`display`、`ds_obj`、`ds_edge_test`）約 30 000、衝突（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）約
 25 000、川の新しい行約 25 000。
 
@@ -123,7 +122,7 @@ T をオン（`tm_show`）にすると、各部分はまずボーダーの色を
 | `restart` | `start`；CAPS + 1 | `tv_pal` の方式でマシンを「電源オン」：`tv_setup`、Layer 2 のクリア（10 ページ一度に）、`sound_init`、`start_attract`、そのまま `main_frame` へ。 |
 | `main_frame` | 毎フレーム | *1 フレーム* を参照。自身約 340 サイクル。 |
 | `wait_frame` | `main_frame` | NR $1F を `wait_line` と比べながらビジーウェイト。時間は待ちであって仕事ではない。 |
-| `init_tables` | `start` | 一度だけ：テーブル。`pix_tab`（`render_line` 用）、`ring_lo`/`ring_hi`（画面メモリ 160 行の順序）、`span_class`（4 ピクセルが同じバイトの色）、`span_init`（マスク）、空の Copper リスト。 |
+| `init_tables` | `start` | 一度だけ：テーブル。`ring_lo`/`ring_hi`（画面メモリ 160 行の順序）、`span_class`（4 ピクセルが同じバイトの色）、`span_init`（マスク）、空の Copper リスト。 |
 | `tv_setup` | `restart` | 方式ごとの設定：NR $05 50/60 Hz、`init_line_tables`、`wait_line`、ランダムの写像、Copper のパネル部分（`copper_panel_ntsc`/`_pal` をコピーし灰色 `COPPER_GREY` を埋め込む）、tilemap の最初の Y スクロール、クリップ窓（Layer 2 はパネル最後の灰色の行まで、スプライト、tilemap）。 |
 | `init_video` | `start` | 黒いボーダー、ULA なし、グローバル透明色 $E3、Layer 2 320×256×8 をバンク 9 に、レイヤー順（tilemap がスプライトの上、スプライトが Layer 2 の上）、パレット：Layer 2 の 4 エントリ、スプライトの 128–255 = Atari の色、NR $15 でスプライトのクリップをボーダー上モードに。 |
 | `test_ghost` | テストビルド、`test_ghost_on` のとき `display` の後 | nxcheck の NXGHOST：飛行機の衝突と燃料を設定して墜落しないようにする。 |
@@ -199,7 +198,10 @@ $B800 のテーブル内での部品のオフセット、1 は同じ値のバイ
 
 | ルーチン | 呼び出し | 何をどうする | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | 行のカラークロック 20–179（`WINDOW_FIRST`）を Layer 2 の A 行目へ、`dl_seg` の部品から（行バッファなし）。Layer 2 は列単位に格納（バイト x·256 + y、8K ページに 32 列）なので、行は列を下りながら書く（`inc h` = 次の列）。10 ページを順にスロット 2 へマップ（`rl_next`）。同じ値の部品：その色を `pix_tab` から一度取り、あとは `rl_fill`（1 バイトにつき 8 列、ページごと。`rl_fill`、`rl_next` はページ 6 の spans.asm）。縁のバイト（ROM のテーブルから）と装飾の 1 行（ROM のビットマップから）：1 バイトごとに `pix_tab` がクロックあたり 2 点を与え、それぞれ 2 回書く。窓より前のバイトはデータ上で飛ばす。1 行 320 回の書き込み。ページ 6 にある（場所のためページ 4 から移した）。 | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | まず `line_bank`（そのラインのテーブル一式）、その間 29 ページ（`PIX_PAGE`）をスロット 0 に。ラインのカラークロック 20–179（`WINDOW_FIRST`）を Layer 2 の行 A へ、`dl_seg` の断片から（ラインバッファーなし）。Layer 2 は列ごとに格納（バイト x·256 + y、8K ページに 32 列）なので、行は列を下へ書く（`inc h` = 次の列）。10 ページを順にスロット 2 へ（`rl_next`）。1 つの値の断片：その色を一式の最初のページから一度取り、`rl_fill`（1 バイト 8 列、ページごと；`rl_fill`、`rl_next` は 6 ページの spans.asm）；縁のバイト（ROM の表から）と装飾の 1 行（ROM のビットマップから）：1 バイトごとに一式の 4 ページが 1 クロック 2 ドットを出し、それぞれ 2 回書く；ウィンドウより前のバイトはデータ上で飛ばす。1 ラインに 320 回の書き込み。最後にスロット 0 を Atari の RAM に戻す。6 ページにある（場所のため 4 ページから移動）。 | 4 100 + 3 800 / 10 000 + 8 300 |
+| `line_bank` | `render_line` | ライン生成後の状態で C++ 移植の `lineBankColour`：道路の行を映しうるスロットがある間 `FIRST_SLOT` から下へ（y ≤ $5E：y はスロットを下るほど大きい）；橋ならその道路の行 y + 高さ − $5E、色は $B4E5 の表から；それ以外は `bank_colour`（緑）。前のラインと同じ色ならそれで終わり；違えば `bank_cols` 内の位置 × 4 を `rl_set`（一式の上位バイト）へ。bank_colours.asm（6 ページ）。 | 240 / 510（＋ `bank_colour` 370 / 580） |
+| `bank_init`、`pix_sets` | `start`（7 ページ、`panel_init` の後） | 岸の色を 1 回ずつ：$D2、$D6、道路の 20 行の色（`bank_cols`、`bank_n`、最大 8）、Layer 2 の 1 番、そして 4–10 番（`bank_set`）；29 ページをスロット 0 に：色ごとに 4 ページの一式（一式 i は 4i × 256）、ページ k のバイト b は Layer 2 での b の k 番目の点（0、2、3 はそのまま、1 は色 i の番号）。 | 1 回 |
+| `bank_set` | `bank_init`、`apply` | Layer 2 の岸の番号：その色（E = 1）か黒（E = 0、色がオフ：`show_bank` が変わったとき `apply` から、`ap_bank_on`）。 | |
 
 ## spans.asm：playfield との衝突に使う行ごとのラン
 
@@ -221,13 +223,13 @@ $B800 のテーブル内での部品のオフセット、1 は同じ値のバイ
 
 C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI はありません。各物体はそのスロットの y にあり、
 川の範囲で切り取られ、衝突は単純な幾何です。残すもの：`ds_objs`（スプライト用の各物体の行：8 バイト、最初の行、
-行数、形と色のポインタ、x、サイズ）、`ds_bank_ev`（岸の色の変化、`build_copper` 用）、HIT の衝突結果、
+行数、形と色のポインタ、x、サイズ）、HIT の衝突結果、
 スロットの岸フラグ。
 
 `display`（自身約 11 800 / 13 500）：
 
 1. SPAN_PAGE をマップ、`dh_lists`（他のスプライトの記述子）、B527–B55C と同じくレジスタをクリアして設定、`bm_hitclr`、`dh_sprites`（HIT = $FF、次に他のスプライトと岸、スプライト同士）。
-2. `.slot`、FIRST_SLOT からの各スロット：IY をスロットの見た目の種類へ（ページ 5：種類、X、サイズは IY + 11、+ 22、+ 33 にあり、その場で読みコピーしない）、Y とフラグを保持（`ds_y`、`ds_flags`）、`ds_edge_kind`。開始 = max(y, $5D)、最初の行 = y + height[type] − 開始（≥ $80：上に消えた、次へ）、X = 開始 + 3（255 を超えたら終わり）、行数 = min(行 + 1, 256 − X)、`ds_rowp` は最初の行のバイト、`ds_obj`（行を `ds_objs` へ）。橋なら `.road`（各行の後の走査線からの道路の色、X − 69 + 1。最後の行の後は X が一周していなければセクションの岸の色、`ds_bank` 経由。行の色は上の行と違うときだけ記録）。形と色の最初の行はその場で計算する（DE、BC を `ds_obj` へ）。ROM のテーブル（高さ、形、色）は 8 ビットの加算で読む（`ROM_SHAPES` と `ROM_COLOURS` はページの先頭から始まる）。
+2. `.slot`、FIRST_SLOT からの各スロット：IY をスロットの見た目の種類へ（ページ 5：種類、X、サイズは IY + 11、+ 22、+ 33 にあり、その場で読みコピーしない）、Y とフラグを保持（`ds_y`、`ds_flags`）、`ds_edge_kind`。開始 = max(y, $5D)、最初の行 = y + height[type] − 開始（≥ $80：上に消えた、次へ）、X = 開始 + 3（255 を超えたら終わり）、行数 = min(行 + 1, 256 − X)、`ds_rowp` は最初の行のバイト、`ds_obj`（行を `ds_objs` へ）。橋なら `.road` (`-DBEAM`)（各行の後の走査線からの道路の色、X − 69 + 1。最後の行の後は X が一周していなければセクションの岸の色、`ds_bank` 経由。行の色は上の行と違うときだけ記録）。形と色の最初の行はその場で計算する（DE、BC を `ds_obj` へ）。ROM のテーブル（高さ、形、色）は 8 ビットの加算で読む（`ROM_SHAPES` と `ROM_COLOURS` はページの先頭から始まる）。
 3. 種類 8–$0D について縁（P3PF）を判定（`ds_edge_kind`：ヘリ、気球、船はそこで向きを変える）：`ds_edge_test`、次に `ds_set_flags`。
 4. 弾、戦車の砲弾（橋は除く）、飛行機との判定：`dh_obj`。当たるとスロットを記録（HIT_BULLET_OBJECT、HIT_SHELL_OBJECT、HIT_PLANE_OBJECT）するので、画面を下へ見て最後のものが残る。
 5. `.end`：`test_ghost`（テストビルド）。`ds_bank_fill` は `-DBEAM` のみ。
@@ -236,8 +238,8 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 |---|---|---|---|
 | `ds_edge_test` | `display`、種類 8–$0D の物体ごと | ある行の範囲（最初の点から最後の点まで）がその走査行の縁のランと重なれば A = $02（C++ 版の `edgeTouches`）。物体の箱（X から X + 8、16、32 クロック。クロック 255 を超える分は無視）を行ごとにその行の水の隙間（`eg_*`、行のリング番号を 1 ずつ進める）と比べ、隙間の中なら次の行。そうでなければ行の最初と最後の点（サイズで拡大した `edge_lo`/`edge_hi`：`.s1`/`.s2`、X を足して `.ex1`/`.ex2`）をその行の縁のラン（レコード）と比べる：間にランがあれば接触、点ごとの判定はしない。 | 3 200 / 10 200 |
 | `ds_set_flags` | `display` | 物体の岸ビットをスロットのフラグ（ビット 0）へ。 | 1 100 / 1 300 |
-| `ds_bank` | `display` | 走査線 A からの岸の色の変化（橋の道路とその戻り）：`ds_bank_ev` へ。 | |
-| `ds_bank_fill` | `display` の最後、`-DBEAM` のみ | `ds_bank_ev` から川の各行の `scan_bank`（ビームの display が読む。nxcheck は代わりに Copper リストを C++ 版と比べる）。 | |
+| `ds_bank` | `display` (`-DBEAM`) | 走査線 A からの岸の色の変化（橋の道路とその戻り）：`ds_bank_ev` へ。 | |
+| `ds_bank_fill` | `display` の最後、`-DBEAM` のみ | `ds_bank_ev` から川の各行の `scan_bank`（読むのはビームの display だけ。ゲームでは岸の色はラインごと：`line_bank`）。 | |
 | `ds_edge_only` | `display` | 岸ビットはそれを読む種類だけ。 | |
 
 ## display_objs.asm
@@ -289,15 +291,11 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 | `build_sprites` | `main_frame` | `ob_list`（物体）。飛行機、その弾、戦車、ヘリのミサイル、砲弾（`drawRiver` が描く順、最後が一番上）：それぞれ起動時に作ったそのフレームのパターン（`pl_plane`、`pl_tank`、`pl_shell`、`pl_bullet`、`pl_missile`）をその位置に、`pl_sprite`。`pl_keep` が属性を保存し、リセット中（`busy`）のフレームはそれを再表示（`pl_again`）。`build_copper`。 | 1 000 / 1 100 |
 | `pl_sprite` | `build_sprites` | パターン A（$FF：なし）を D 行目（川より下ならなし）、位置 E、パレットオフセット C で：5 バイトの属性を `sprite_list` へ（X = 2·(x − 52)、9 ビット、Y、オフセット、パターン、4 ビット、ハーフパターン）。 | スプライトあたり約 100 |
 | `ob_list` | `build_sprites` | `ds_objs` の各エントリについて `ds_objf` からの行（全部）：起動時に作った画像を最上行の形と色のアドレスで見つけ（`obj_lookup`、見つからなければ `ob_miss` で描かない）、16 行ごとに 1 スプライト（`ob_attr`：X = 2·(x − 52)、Y、バンク、4 ビット、ハーフパターン、2 倍幅・4 倍幅の拡大）、最初の行が川より下の部分には作らない。 | 5 700 / 6 400 |
-| `build_copper` | `build_sprites` | 岸の色が変わるときだけ（`cp_colour`、岸のイベントがある間は常に、`ds_bank_n` ≠ 0）：`copper_start`、次に `ds_bank_ev` から川の各行の色の変化ごとに WAIT + MOVE $41 を 1 行前に置く。次にパネル部分（`copper_panel`）、最後の WAIT。`cp_full` = 1。 | 1 400 / 1 600 |
+| `build_copper` | `build_sprites` | 方式が変わったとき（`cp_built` が 0、`tv_setup`）か色がオフ／オンになったとき（`colour_bank` が 0 かどうか、`cp_bank_on` と比べて）だけ：パネルの灰色の後に戻す岸の番号（`CP_RESTORE`：その色、色がオフの間は黒）、次に `copper_start` とパネルの部分（`copper_panel`）をリストへ、最後の WAIT。`cp_full` = 1。bank_colours.asm。 | 100 / 100 |
 | `apply` | `wait_frame` の後 | Layer 2 のスクロール（NR $17）、スプライト属性（ポート $57、1 スプライト OTIR 5 バイト、前フレームより多い分は隠す）、砲弾、戦車、飛行機の色（スプライトのパレット）、Layer 2 の色 0、2、3、そのクリップ窓（リセット後に Layer 2 を消している間は 2 フレーム目から：パネルの行だけ、`l2_hidden`、`l2_clip_y2` は `tv_setup` が決める窓の最後の行）、`panel_frame`、Copper：止めて、`cp_full` ならリスト全体、そうでなければスクロールテキストの X スクロールのバイトだけを送り、再開（モード %11）。長く操作がないと画面を消す（IDLE_TIME）。上の数値には入らない。 | — |
 | `panel_frame` | `apply` | パネル：`panel_put` が列挙した位置だけ（`pf_dirty`、`start_attract` のコピーと `tv_setup` の後は全部）、それぞれ `.cells`（左半分のセル。行の最初の文字は右半分だけ）から、タイル 2·コード + 半分の 2 セルと、パレットオフセットとしての色ビット。スクロールテキスト（半分 h は 8h − X0、X0 = 16·TEXT_LO + 38 − 2·FINE_SCROLL）：マップ 26 行目のリング（半分 h は h mod 40 列目。前フレームから新しい半分だけを書く `.ring_write`、ジャンプ後は 40 全部）、X スクロール X0 mod 320（9 ビット：`CP_XSCROLL_HI_BACK`、`CP_XSCROLL_BACK`）。tilemap のクリップ窓を右で S = X0 & 7 点短く（一周する列）。スプライト 70（パターン 20、パレットオフセット 6）を X 320 − S に半分 h0 + 40 で（変わったとき 64 バイトを書く：`.spr_pattern`）。針とロゴのスプライト。 | スクロールテキスト約 1 700、パネル約 200、針とロゴ約 1 400 |
 
-データ：`copper_start`（Layer 2 のパレット番号 1、以前 NR $4A（T の色）があった場所の NOP、tilemap の Y と X スクロール 0：その行は画面の行、パネル以外の行には何もない）、
-`copper_panel_ntsc`/`_pal`（同じ配置なので、リストの最後からのオフセットは両方で使える：
-200 行：パネル最初の行の tilemap Y スクロール（`CP_PANEL_Y`、`tv_setup` が埋める）、Layer 2 の色 0–3 を黒に、スプライト窓を 215 行目から下へ（`OBJ_LAST` + 1、
-どの物体の行よりも下。針とロゴはさらに下）。201：灰色（`COPPER_GREY`、`tv_setup` が埋める）。パネルの各行の tilemap Y スクロール。230 行（PAL は 240）：
-色 0–3 を戻し、縁と水の色は `apply` が書く（`CP_EDGE_BACK`）。スクロールテキストの Y と X スクロール（`CP_XSCROLL_HI_BACK`、`CP_XSCROLL_BACK`）。`wait_line` で：スプライト窓を川のものに戻す）。リストを丸ごと送らないとき、`apply` は縁から X スクロールまでのバイトを送る（`.cp_send`）。
+データ：`copper_start`（Layer 2 のパレットのインデックス 1、NR $4A があった所（T の色）は NOP、タイルマップの Y と X スクロール 0：その行は画面の行で、パネル外の行には何もない）、`copper_panel_ntsc`/`_pal`（7 ページの copper_panels.asm：`tv_setup` がスロット 2 を通して一方を `copper_panel` にコピー。同じ配置なのでオフセットはどちらにも使える：200 行目：パネルの最初の行のタイルマップ Y スクロール（`CP_PANEL_Y`、`tv_setup` が書き込む）、Layer 2 の色 0–10 を黒（`CP_COLOURS`：岸の番号も。パネルの下の行には古い川のラインが見えるため）、スプライトのウィンドウを 215 行目から下へ（`OBJ_LAST` + 1、どの物体の行よりも下。針とロゴはもっと下）；201：灰色（`COPPER_GREY`、`tv_setup` が書き込む）；パネルの行ごとのタイルマップ Y スクロール；230 行目（PAL では 240）：色 0–10 を戻す（`CP_RESTORE`：岸は `build_copper`、縁と水は `apply`、`CP_EDGE_BACK`）；スクロール文字の Y と X スクロール（`CP_XSCROLL_HI_BACK`、`CP_XSCROLL_BACK`）；`wait_line` で：スプライトのウィンドウを再び川のものに）。リスト全体を送らないとき、`apply` は縁から X スクロールまでのバイトを送る（`.cp_send`）。
 
 ## panel.asm（ページ 6）：パネルの文字
 
@@ -377,7 +375,7 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 - **自己書き換えコード**はホットループでよく使います：即値とジャンプ先を埋め込む（`ds_edge_test` の `.bx1/.be1/.bx2/.be2/.ex1/.ex2/.s1/.s2/.pv/.pv_bits/.pv_end/.pv_x`、`dh_pf` の `.mode/.x0a…/.x1d/.bits/.fn`、`snd_sum` の `.jp`、各 `pk_*` の `.pf/.pq`）。変種はバイト単位で確認すること（残っていた `add a,a` 1 つで音が倍になったことがある）。
 - **展開されたコードへの入口**：`snd_sum` は余りのために `rept` ブロックの途中へジャンプします。
 - **スロット 2** は作業用の窓です：ページが必要なルーチンは自分でマップし、元に戻しません。次の利用者が自分のページをマップします。**スロット 3** は音が鳴っている間ページ 12 のままでなければなりません。
-- **テーブルはページ境界に揃えて**あり、`ld h,high table / ld l,index` で引けます：`pix_tab`、`span_masks`、`span_class`、`edge_lo/edge_hi`、`obj_head`、`ov_exp2`/`ov_exp4`、`eg_*`、`bg_*`、パレット。
+- **テーブルはページ境界に揃えて**あり、`ld h,high table / ld l,index` で引けます：`span_masks`、`span_class`、`edge_lo/edge_hi`、`obj_head`、`ov_exp2`/`ov_exp4`、`eg_*`、`bg_*`、パレット。
 - **検証**：変更のたびに `nxcheck` が毎フレーム C++ 版と状態と画面メモリ、行ごとの岸の色、描かれた物体、Copper のリストとメモリを比べ、最後に画像を比べます。全部で 2 コア約 25 分（HANDOFF.ja.md、*方法*）。アセンブルに失敗すると古いページが残るので、まずビルドの出力を見ること。
 - **計測**：`NXHISTALL=ファイル`（全フレーム）または `NXHIST=ファイル`（1 フレーム）と `tools/prof.py`。`NXSLOW=T` は T サイクルを超えるフレームを列挙。`NXHISTAPPLY=ファイル` は `apply`（`wait_frame` の終わりから）について同じことをし、平均と最大を表示。`tools/prof_local.py build/test.sym ファイル フレーム数 [ルーチン…]` はローカルラベル（`ds_edge_test.row`、`panel_frame.mod` など）ごとにも時間を分けます。最も重いフレーム：`-stress` と `NXBRIDGE=80 NXGHOST=1 NXGAME=1`。
 - **apply**（1 フレーム約 7 400、上の表には入らない）：スクロールテキスト約 1 700（うち X スクロール mod 320 の引き算が約 650）、針とロゴ約 1 400、パネル約 200（変わったものだけ）、スプライト属性約 1 800、Copper リスト約 1 200。

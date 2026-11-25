@@ -20,11 +20,11 @@ Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Ne
 - Il fiume: la modalità a 16 colori, 320x240, una riga dell'immagine di 256 byte (160 al suo
   inizio), 512 righe ad anello con scorrimento hardware (GYOFFS); una nuova riga del fiume si
   scrive direttamente nella sua riga (`render.asm`), senza copie.
-- Il colore della riva riga per riga: ogni colore che la riva ha avuto ha una palette propria
-  (PALSEL 0-7: il suo colore 1 è quel colore, impostato una volta; 2 e 3 il bordo e l'acqua, a
-  ogni fotogramma). L'INT di quadro, spostato in giù nel fotogramma da un cambio all'altro
-  (`build_events`, `irq`), imposta PALSEL una riga prima del cambio; il registro viene preso a
-  fine riga, quindi il cambio è esatto a qualsiasi velocità della CPU.
+- Il colore della riva per riga: una palette (PALSEL 0) tiene i colori della riva, i due verdi
+  e quelli della strada al ponte (voci 1 e 9-15, impostate una volta all'avvio), con 2 e 3 bordo
+  e acqua; i punti di riva di ogni nuova riga sono disegnati nella voce del suo colore
+  (`line_bank`, un set di tabelle dei punti per colore), così il colore va con la riga: nessun
+  INT per cambio, niente da impostare mentre l'immagine è mostrata.
 - Gli oggetti, l'aereo, il suo proiettile, il carro armato e i missili: sprite (`sprites.asm`),
   le loro immagini create all'avvio dalle forme della cartuccia, ogni oggetto largo 16, 32 e 64
   punti (gli sprite non hanno scala).

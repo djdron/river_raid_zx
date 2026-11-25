@@ -5,8 +5,8 @@
 // now and then; it crashes often enough to lose its planes and start again.
 //   - after every frame: the river generator's state (RiverGen::diffWithRam), the game's
 //     state (the fields of game_ram.cpp but the scrolling line's), the high scores and the
-//     panel's characters, screen memory, the bank colour per river
-//     line (Game::scan) and the objects as drawn (Game::drawn);
+//     panel's characters, screen memory, the bank's colour of each river line (its dots'
+//     entry in Layer 2, against Game::lineBank) and the objects as drawn (Game::drawn);
 //   - at the end, the picture of the last frame, pixel by pixel: Game::drawRiver in the
 //     Next's colours, black around the river.
 // It also reports whether every frame was ready in time on the Next.
@@ -54,6 +54,7 @@ constexpr int kRiverFirstLine = 28;
 constexpr int kRiverTop = 40;      // Layer 2 row of the river's top line
 // Where Layer 2 (320x256) is in the core's picture (360 dots x 303 lines, 2 columns a dot)
 constexpr int kL2Left = 8;
+constexpr int kL2FirstPage = 18;   // Layer 2's first 8K page (L2_FIRST_PAGE), 32 columns of 256 bytes each
 constexpr int kL2Top = 24;     // (at 50 Hz; at 60 Hz the picture starts with Layer 2 row 0)
 
 int sramOffset(int page) { return 0x40000 + page * 0x2000; }
@@ -303,9 +304,8 @@ int main(int argc, char **argv) {
 	const uint16_t copperBytes = symbol(argv[2], "copper_bytes"), copperList = symbol(argv[2], "copper_list");
 	static std::set<long long> objKeys;
 	const uint16_t objN = symbol(argv[2], "ds_obj_n"), objList = symbol(argv[2], "ds_objs");
-	long copperBad = 0, copperListBad = 0;
-	std::array<uint8_t, 160> bankWant{};   // the C++ port's bank colour by river line (the Copper's list's check)
-	const uint16_t paletteAt = symbol(argv[2], "palette");
+	long copperBad = 0, bankBad = 0;
+	const uint16_t scrollAt = symbol(argv[2], "scroll"), bankColsAt = symbol(argv[2], "bank_cols"), bankNAt = symbol(argv[2], "bank_n");
 	const uint16_t tvToggle = symbol(argv[2], "tv_toggle"), rndState = symbol(argv[2], "rnd_state");
 	auto word = [&](int at) { return uint16_t(code[0][size_t(at)] | (code[0][size_t(at + 1)] << 8)); };
 	const uint16_t frameHook = word(5), applyHook = word(7);
@@ -661,8 +661,28 @@ int main(int argc, char **argv) {
 			if ((addr >> 8) == 0x2F) addr = 0x3000;
 			if ((addr >> 8) == 0x3F) addr = 0x2000;
 		}
-		for (int k = 0; k < kRiverLines; k++)   // the bank's colour by river line: the C++ port's,
-			bankWant[size_t(k)] = game.scan[size_t(kRiverFirstLine + k)].bankColour;   // (the Copper's list below)
+		{   // the bank's colour by line: each river line's bank dots in its colour's entry of Layer
+			// 2's palette (bank_colours.asm: bank_cols, entry 1 then 4..), against the C++ port's
+			// lineBank (drawRiver's colour; lines without bank dots not compared)
+			const int sc = readZ80(comp, scrollAt), nb = readZ80(comp, bankNAt);
+			for (int k = 0; bankColsAt && k < kRiverLines && size_t(k) < game.lineBank.size() && size_t(k) < game.screen.size(); k++) {
+				const int row = (sc + kRiverTop + k) & 255;
+				int e = -1;
+				for (int x = 0; x < 320 && e < 0; x++) {
+					const int c = comp->mem->ramData[sramOffset(kL2FirstPage + x / 32) + (x % 32) * 256 + row];
+					if (c == 1 || c >= 4) e = c;
+				}
+				if (e < 0) continue;
+				const int i = e == 1 ? 0 : e - 3;
+				const int colour = i < nb ? readZ80(comp, uint16_t(bankColsAt + i)) : -1;
+				if (colour != game.lineBank[size_t(k)]) {
+					bankBad++;
+					std::snprintf(b, sizeof b, "bank colour, river line %d: %02X (entry %d), c++ %02X", k, colour, e, game.lineBank[size_t(k)]);
+					diffs.push_back(b);
+					break;
+				}
+			}
+		}
 		{   // the objects as drawn (ds_objs: first scanline, rows, the first row's and colour's
 			// addresses, X, size; an object partly above the river may start higher, with its
 			// rows above it: compared from the C++ port's first)
@@ -866,20 +886,6 @@ int main(int argc, char **argv) {
 		{   // the Copper's memory as apply left it: the list the program made (the parts it sends)
 			const int n = readZ80(comp, copperBytes) | readZ80(comp, uint16_t(copperBytes + 1)) << 8;
 			const uint8_t *list = &comp->mem->ramData[sramOffset(12) + (copperList - 0x6000)];
-			// and the list's bank colours (after its first 12 bytes: WAIT, MOVE $41 pairs) the
-			// changes of the C++ port's bank colour by river line, each set on the line before
-			{
-				std::vector<std::pair<int, int>> want, have;
-				int prev = -1;
-				for (int k = 0; k < kRiverLines; k++)
-					if (bankWant[size_t(k)] != prev) { prev = bankWant[size_t(k)]; want.push_back({k + 40 - 32 - 1, readZ80(comp, uint16_t(paletteAt + prev))}); }
-				for (int i = 12; i + 3 < n && (list[i] & 0x80) && list[i + 2] == 0x41; i += 4) have.push_back({list[i + 1], list[i + 3]});
-				if (want != have) {
-					copperListBad++;
-					std::snprintf(b, sizeof b, "the Copper's list has not the bank's colours");
-					if (copperListBad < 4) std::printf("frame %d: %s\n", f, b);
-				}
-			}
 			if (n > 0 && n <= 2048 && std::memcmp(comp->next->coppMem, list, size_t(n))) {
 				if (copperBad++ < 3) {
 					int i = 0;
@@ -909,7 +915,7 @@ int main(int argc, char **argv) {
 		applyTick = comp->tickTotal;
 		(void)lastApply;
 	}
-	if (errors || copperListBad) {
+	if (errors) {
 		std::printf("FAIL: frames differ\n");
 		return 1;
 	}
@@ -947,7 +953,7 @@ int main(int argc, char **argv) {
 	std::printf("played: %ld games started (games %s), %ld crashes, %ld games over, up to bridge %ld; %ld frames paused, %ld of resets\n",
 		games, numbers.empty() ? "-" : numbers.c_str(), crashes, gameOvers, maxBridge, pausedFrames, busyFrames);
 	std::printf("sprites: up to %d of the %d a frame can have\n", maxSprites, kSpritesMax);
-	std::printf("Copper: %ld frames with its memory not the list, %ld with the list not the bank's colours\n", copperBad, copperListBad);
+	std::printf("Copper: %ld frames with its memory not the list; the bank's colour by line differed in %ld frames\n", copperBad, bankBad);
 	std::printf("sound: %.1f samples a frame on average; making them (pokey_frame) %lld ticks on average, %lld at most (frame %d)\n",
 		sndFrames ? double(sndSamples) / double(sndFrames) : 0.0, worked ? sndSum / worked : 0, sndMax, sndMaxFrame);
 	{

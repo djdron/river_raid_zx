@@ -1,7 +1,8 @@
 ; A generated line as Layer 2 shows it: the 2-bit colour indices of the playfield (0 the
 ; background, 1 the bank, 2 the bank edge, 3 the water), two dots per colour clock, colour
-; clocks WINDOW_FIRST..WINDOW_FIRST + 159 of the 192. The colours are the palette's,
-; which the Copper changes per line as the DLI does (sprites.asm).
+; clocks WINDOW_FIRST..WINDOW_FIRST + 159 of the 192. The colours are Layer 2's palette's: 2 the
+; edge, 3 the water (apply), the bank in its colour's entry (1 or 4.., bank_init): the dots from
+; the line's set of tables (line_bank, pix_sets: page PIX_PAGE at $0000 while it draws).
 
 WINDOW_FIRST	equ 20		; the first colour clock shown (the water never comes nearer)
 
@@ -9,9 +10,18 @@ WINDOW_END	equ WINDOW_FIRST / 4 + 40	; the byte after the last shown
 
 ; By draw_line's pieces (dl_seg), not from the line's bytes: bytes of one value are one
 ; colour, 8 columns each, written without the table; an edge's bytes (from its piece in the
-; table at $B800) and a decoration's row (from its bitmap) through pix_tab.
+; table at $B800) and a decoration's row (from its bitmap) through the line's set of tables.
 render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
-	ld (wr_row),a			; 32 columns per 8K page)
+	push ix				; 32 columns per 8K page)
+	push af
+	call line_bank
+	nextreg $50,PIX_PAGE		; the dots' tables at $0000 meanwhile (pix_sets)
+	pop af
+	call .go
+	nextreg $50,ATARI_RAM_PAGE
+	pop ix
+	ret
+.go	ld (wr_row),a
 	ld l,a
 	ld h,$40
 	ld a,L2_FIRST_PAGE
@@ -51,7 +61,8 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	ld a,(iy+1)
 	dec a
 	jr nz,.table			; (kind 1: one value, E)
-	ld d,high pix_tab
+	ld a,(rl_set)			; (the bank in its colour's entry: the line's set)
+	ld d,a
 	ld a,(de)
 	ld e,a				; E: the colour
 .chunk	ld a,$60			; bytes to the page's end (1-4)
@@ -80,10 +91,12 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	jr nz,.t
 	ld d,high ROM_EDGE_PIECES
 .t	ld ixl,c
+	ld a,(rl_set)
+	ld ixh,a
 .byte	ld a,(de)
 	ld c,a
 	inc de
-	ld b,high pix_tab
+	ld b,ixh
 	ld a,(bc)
 	ld (hl),a
 	inc h
@@ -112,4 +125,3 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	dec ixl
 	jr nz,.byte
 	jp .next
-

@@ -19,8 +19,8 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 `python3 tools/prof.py build/test.sym 文件 60`，再除以帧数），用的是不带屏幕内存的校验构建，与游戏
 本身一致（`-DNOSCREEN`、`NXNOSCREEN=1`）。两次运行：
 
-- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 106 000，最多约 162 000；
-- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 164 000，最多约 202 000（NTSC 约 160 000 / 约 202 000；14 MHz NTSC 约 131 000 / 约 165 000，满额约 240 000）。
+- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 102 000，最多约 158 000；
+- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 159 000，最多约 198 000（NTSC 约 160 000 / 约 202 000；14 MHz NTSC 约 131 000 / 约 165 000，满额约 240 000）。
 
 一帧在 PAL 下约有 567 000 个周期，NTSC 下约 481 000（14 MHz 时减半）。`apply`（以及其中的
 `panel_frame`）在被测量的工作之后运行（在滚动字幕下方），不计入这些数字：每帧约 7 400。一个例程的时间
@@ -30,22 +30,22 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 41 300 | 55 200 |
+| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 40 400 | 54 300 |
 | 声音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
-| 河流的新行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 18 800 | 44 000 |
-| 精灵和 Copper 列表（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 10 900 | 15 900 |
+| 河流的新行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 500 | 45 400 |
+| 精灵和 Copper 列表（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 9 900 | 15 000 |
 | 游戏逻辑及其他（`prepare`、`main_loop`、`move_objects`、`random_step`、面板打印……） | 9 400 | 10 500 |
 
 最耗时的例程（A / B）：
 
 | 例程 | A | B | 文件 |
 |---|---|---|---|
-| `display`（自身代码） | 11 800 | 13 500 | display_simple |
+| `display`（自身代码） | 10 900 | 12 600 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
 | `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
-| `render_line` | 3 900 | 9 400 | render |
+| `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
@@ -62,10 +62,9 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 | `draw_line` | 900 | 2 300 | river_gen |
 | `pk_g4` | 0 | 1 400 （导弹发声的那一帧约 9 000） | sound_pulses |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
-| `build_copper` | 1 100 | 1 000 | sprites |
 | `hit_setup` | 500 | 700 | display_hits |
 
-B 中最重的一帧（约 202 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
+B 中最重的一帧（约 198 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
 （`display`、`ds_obj`、`ds_edge_test`）约 30 000，碰撞（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）约
 25 000，河流新行约 25 000。
 
@@ -120,7 +119,7 @@ Copper 负责。
 | `restart` | `start`；CAPS + 1 | 以 `tv_pal` 的制式“开机”：`tv_setup`，清空 Layer 2（10 页一次清完），`sound_init`，`start_attract`，落入 `main_frame`。 |
 | `main_frame` | 每帧 | 见 *一帧*。自身约 340 周期。 |
 | `wait_frame` | `main_frame` | 忙等 NR $1F 与 `wait_line` 比较。它的时间是空闲，不是工作。 |
-| `init_tables` | `start` | 一次性：各种表：`pix_tab`（`render_line` 用），`ring_lo`/`ring_hi`（屏幕内存的 160 行顺序），`span_class`（一个字节 4 个像素相同时的颜色），`span_init`（掩码），一个空的 Copper 列表。 |
+| `init_tables` | `start` | 一次性：各种表：`ring_lo`/`ring_hi`（屏幕内存的 160 行顺序），`span_class`（一个字节 4 个像素相同时的颜色），`span_init`（掩码），一个空的 Copper 列表。 |
 | `tv_setup` | `restart` | 制式相关设置：NR $05 50/60 Hz，`init_line_tables`，`wait_line`，随机映射，Copper 的面板部分（复制 `copper_panel_ntsc`/`_pal`，填入灰色 `COPPER_GREY`），tilemap 的第一个 Y 滚动，裁剪窗口（Layer 2 到面板最后一条灰线、精灵、tilemap）。 |
 | `init_video` | `start` | 黑色边框，不用 ULA，全局透明色 $E3，Layer 2 320×256×8 在 bank 9，层顺序（tilemap 在精灵之上、精灵在 Layer 2 之上），调色板：Layer 2 的 4 项，精灵的 128–255 = Atari 颜色，NR $15 开启精灵覆盖边框的裁剪模式。 |
 | `test_ghost` | 测试构建，`test_ghost_on` 时在 `display` 之后 | nxcheck 的 NXGHOST：设置飞机的碰撞和燃油，使它不会坠毁。 |
@@ -196,7 +195,10 @@ Copper 负责。
 
 | 例程 | 调用 | 做什么、怎么做 | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | 这一行的色钟 20–179（`WINDOW_FIRST`）写入 Layer 2 的第 A 行，依据 `dl_seg` 中的各段（没有行缓冲）。Layer 2 按列存放（字节 x·256 + y，每个 8K 页 32 列），所以这一行要沿列写下去（`inc h` = 下一列），10 页轮流映射到槽 2（`rl_next`）。同值段：其颜色从 `pix_tab` 取一次，然后 `rl_fill`（每字节 8 列，逐页；`rl_fill`、`rl_next` 在第 6 页的 spans.asm）；边缘的字节（来自 ROM 表）和装饰的一行（来自 ROM 中的位图）：每字节由 `pix_tab` 给出每色钟 2 个点，每个写两次；窗口之前的字节在数据中跳过。每行 320 次写入。在第 6 页（为了腾出空间从第 4 页移来）。 | 3 900 + 3 800 / 9 400 + 8 300 |
+| `render_line` | `line_done` | 先调 `line_bank`（这一行的那组表），其间把第 29 页（`PIX_PAGE`）映射到槽 0。把该行的颜色时钟 20–179（`WINDOW_FIRST`）写入 Layer 2 的第 A 行，按 `dl_seg` 的片段（没有行缓冲）。Layer 2 按列存放（字节 x·256 + y，每 8K 页 32 列），所以这一行沿各列往下写（`inc h` = 下一列），10 页轮流映射到槽 2（`rl_next`）。单值片段：其颜色从该组的第一页取一次，然后 `rl_fill`（每字节 8 列，逐页；`rl_fill`、`rl_next` 在第 6 页的 spans.asm）；边缘的字节（来自 ROM 的表）和装饰的一行（来自 ROM 中的位图）：每字节由该组的 4 页给出每时钟 2 个点，各写两次；窗口之前的字节在数据中跳过。每行写 320 次。结束时槽 0 恢复为 Atari 的内存。位于第 6 页（为腾空间从第 4 页移来）。 | 4 100 + 3 800 / 10 000 + 8 300 |
+| `line_bank` | `render_line` | 按该行之后的状态做 C++ 移植的 `lineBankColour`：从 `FIRST_SLOT` 往下查槽位，只要某个还可能显示道路的一行（y ≤ $5E：y 沿槽位往下增大）；若是桥，其道路行为 y + 高度 − $5E，颜色取自 $B4E5 处的表；否则 `bank_colour`（绿色）。与上一行颜色相同就到此为止；否则其在 `bank_cols` 中的位置 × 4 存入 `rl_set`（该组的高字节）。在 bank_colours.asm（第 6 页）。 | 240 / 510（另 `bank_colour` 370 / 580） |
+| `bank_init`、`pix_sets` | `start`（第 7 页，在 `panel_init` 之后） | 河岸的颜色，每种一次：$D2、$D6、20 行道路的颜色（`bank_cols`、`bank_n`，最多 8 种），Layer 2 的第 1 项，然后 4–10（`bank_set`）；第 29 页映射到槽 0：每种颜色一组 4 页（第 i 组在 4i × 256），第 k 页的字节 b 是 b 的第 k 个点在 Layer 2 中的值（0、2、3 不变，1 为颜色 i 的项）。 | 一次 |
+| `bank_set` | `bank_init`、`apply` | Layer 2 的河岸各项：它们的颜色（E = 1）或黑色（E = 0，颜色关闭：`show_bank` 改变时由 `apply` 调用，`ap_bank_on`）。 | |
 
 ## spans.asm：用于与 playfield 碰撞的行色段
 
@@ -218,13 +220,13 @@ Copper 负责。
 
 与 C++ 移植版的 `displayGeometry`（`dli_removed` 分支）一样：没有 DLI。每个物体位于其槽位的 y，按河流
 范围裁剪，碰撞就是简单的几何。它留下：`ds_objs`（每个物体给精灵用的行：8 字节，第一行、行数、形状和
-颜色指针、x、尺寸），`ds_bank_ev`（河岸颜色的变化，供 `build_copper` 用），HIT 中的碰撞结果以及各槽位
+颜色指针、x、尺寸），HIT 中的碰撞结果以及各槽位
 的河岸标志。
 
 `display`（自身约 11 800 / 13 500）：
 
 1. 映射 SPAN_PAGE，`dh_lists`（其他精灵的描述符），按 B527–B55C 清除并设置寄存器，`bm_hitclr`，`dh_sprites`（HIT = $FF，然后其他精灵与河岸及彼此之间的检测）。
-2. `.slot`，从 FIRST_SLOT 起的每个槽位：IY 指向槽位的外观类型（第 5 页：类型、X、尺寸分别在 IY + 11、+ 22、+ 33，就地读取，不复制），保存 Y 和标志（`ds_y`、`ds_flags`），`ds_edge_kind`；起点 = max(y, $5D)；第一行 = y + height[type] − 起点（≥ $80：已从顶部消失，下一个）；X = 起点 + 3（超过 255：结束）；行数 = min(行 + 1, 256 − X)；`ds_rowp` 为第一行的字节；`ds_obj`（行写入 `ds_objs`）；若是桥：`.road`（道路颜色从其每一行之后的扫描线起，X − 69 + 1；最后一行之后是该段的河岸颜色，除非 X 已回绕，经 `ds_bank`；一行的颜色只在与上一行不同时才记录）。形状和颜色的首行就地计算（DE、BC 传给 `ds_obj`）。ROM 的表（高度、形状、颜色）用 8 位加法读取（`ROM_SHAPES` 和 `ROM_COLOURS` 从页首开始）。
+2. `.slot`，从 FIRST_SLOT 起的每个槽位：IY 指向槽位的外观类型（第 5 页：类型、X、尺寸分别在 IY + 11、+ 22、+ 33，就地读取，不复制），保存 Y 和标志（`ds_y`、`ds_flags`），`ds_edge_kind`；起点 = max(y, $5D)；第一行 = y + height[type] − 起点（≥ $80：已从顶部消失，下一个）；X = 起点 + 3（超过 255：结束）；行数 = min(行 + 1, 256 − X)；`ds_rowp` 为第一行的字节；`ds_obj`（行写入 `ds_objs`）；若是桥：`.road` (`-DBEAM`)（道路颜色从其每一行之后的扫描线起，X − 69 + 1；最后一行之后是该段的河岸颜色，除非 X 已回绕，经 `ds_bank`；一行的颜色只在与上一行不同时才记录）。形状和颜色的首行就地计算（DE、BC 传给 `ds_obj`）。ROM 的表（高度、形状、颜色）用 8 位加法读取（`ROM_SHAPES` 和 `ROM_COLOURS` 从页首开始）。
 3. 对类型 8–$0D 检测边缘（P3PF）（`ds_edge_kind`：直升机、气球、船会在那里掉头）：`ds_edge_test`，然后 `ds_set_flags`。
 4. 与子弹、坦克炮弹（桥除外）和飞机检测：`dh_obj`；碰到时记录槽位（HIT_BULLET_OBJECT、HIT_SHELL_OBJECT、HIT_PLANE_OBJECT），因此保留的是沿屏幕向下的最后一个。
 5. `.end`：`test_ghost`（测试构建）；`ds_bank_fill` 仅在 `-DBEAM` 下。
@@ -233,8 +235,8 @@ Copper 负责。
 |---|---|---|---|
 | `ds_edge_test` | `display`，类型 8–$0D 的每个物体 | 若某一行的范围（从第一个点到最后一个点）与其所在扫描行上的边缘色段相交，则 A = $02（即 C++ 移植版的 `edgeTouches`）。物体的方框（X 到 X + 8、16 或 32 个色钟；超过色钟 255 的部分忽略）逐行与该行的水缝隙比较（`eg_*`，行的环索引每次加一）；落在缝隙内就看下一行。否则用该行的第一个和最后一个点（`edge_lo`/`edge_hi` 按尺寸缩放：`.s1`/`.s2`，加 X：`.ex1`/`.ex2`）与该行的边缘色段（其记录）比较：两点之间有色段即为接触，不逐点检测。 | 3 200 / 10 200 |
 | `ds_set_flags` | `display` | 把物体的河岸位写入其槽位的标志（第 0 位）。 | 1 100 / 1 300 |
-| `ds_bank` | `display` | 从扫描线 A 起河岸颜色的一次变化（桥的道路以及恢复）：写入 `ds_bank_ev`。 | |
-| `ds_bank_fill` | `display` 末尾，仅 `-DBEAM` | 根据 `ds_bank_ev` 为河流每一行写 `scan_bank`（光束 display 会读取；nxcheck 则改为把 Copper 列表与 C++ 移植版比较）。 | |
+| `ds_bank` | `display` (`-DBEAM`) | 从扫描线 A 起河岸颜色的一次变化（桥的道路以及恢复）：写入 `ds_bank_ev`。 | |
+| `ds_bank_fill` | `display` 末尾，仅 `-DBEAM` | 根据 `ds_bank_ev` 为河流每一行写 `scan_bank`（只有光束 display 读取；游戏中河岸颜色按行：`line_bank`）。 | |
 | `ds_edge_only` | `display` | 只为会读取河岸位的类型设置它。 | |
 
 ## display_objs.asm
@@ -286,15 +288,11 @@ Copper 负责。
 | `build_sprites` | `main_frame` | `ob_list`（各物体）；飞机、它的子弹、坦克、直升机的导弹、炮弹（按 `drawRiver` 绘制它们的顺序，最后的在最上面）：各自用启动时生成的本帧图案（`pl_plane`、`pl_tank`、`pl_shell`、`pl_bullet`、`pl_missile`）放到其位置，`pl_sprite`；`pl_keep` 保存它们的属性，重置期间（`busy`）的帧会再次显示它们（`pl_again`）；`build_copper`。 | 1 000 / 1 100 |
 | `pl_sprite` | `build_sprites` | 图案 A（$FF：没有）在第 D 行（在河流下方则没有），位置 E，调色板偏移 C：其 5 个属性字节写入 `sprite_list`（X = 2·(x − 52)，9 位；Y；偏移；图案；4 位、半图案）。 | 每个精灵约 100 |
 | `ob_list` | `build_sprites` | `ds_objs` 的每一项，取 `ds_objf` 中的全部行：用顶行的形状和颜色地址找到启动时生成的图像（`obj_lookup`；找不到：`ob_miss`，不画），每 16 行一个精灵（`ob_attr`：X = 2·(x − 52)，Y，bank，4 位，半图案，双倍或四倍宽时的缩放），第一行在河流下方的那一块不建精灵。 | 5 700 / 6 400 |
-| `build_copper` | `build_sprites` | 只在河岸颜色变化时（`cp_colour`；只要有河岸事件就总是，`ds_bank_n` ≠ 0）：`copper_start`，然后对 `ds_bank_ev` 中每条河流行的每次颜色变化放一个 WAIT + MOVE $41，设在前一行；然后是面板部分（`copper_panel`），最后的 WAIT。`cp_full` = 1。 | 1 400 / 1 600 |
+| `build_copper` | `build_sprites` | 只在制式改变（`cp_built` 为 0，`tv_setup`）或颜色关闭/打开（`colour_bank` 是否为 0，对比 `cp_bank_on`）时：面板灰色之后恢复的河岸各项（`CP_RESTORE`：它们的颜色，颜色关闭时为黑），然后把 `copper_start` 和面板部分（`copper_panel`）放进列表，加结尾的 WAIT。`cp_full` = 1。在 bank_colours.asm。 | 100 / 100 |
 | `apply` | `wait_frame` 之后 | Layer 2 的滚动（NR $17），精灵属性（端口 $57，每个精灵 OTIR 5 字节；比上一帧多出的隐藏），炮弹、坦克和飞机的颜色（精灵调色板），Layer 2 的颜色 0、2、3，其裁剪窗口（重置后清 Layer 2 期间，从第二帧起：只有面板的行，`l2_hidden`；`l2_clip_y2` 为 `tv_setup` 给出的窗口最后一行），`panel_frame`，Copper：停止，若 `cp_full` 则发送整个列表，否则只发送滚动字幕的 X 滚动字节，重新启动（模式 %11）。长时间无操作后关闭屏幕（IDLE_TIME）。不计入上面的数字。 | — |
 | `panel_frame` | `apply` | 面板：只处理 `panel_put` 列出的位置（`pf_dirty`；在 `start_attract` 的复制和 `tv_setup` 之后为全部），每个位置从 `.cells`（其左半的格子；行首字符只有右半）起，写 2 个格子：tile 2·代码 + 半，颜色位作为调色板偏移。滚动字幕（半字 h 在 8h − X0，X0 = 16·TEXT_LO + 38 − 2·FINE_SCROLL）：映射第 26 行上的环（半字 h 在第 h mod 40 列；只写自上一帧以来新出现的半字，`.ring_write`；跳变后写全部 40 个），X 滚动 X0 mod 320（9 位：`CP_XSCROLL_HI_BACK`、`CP_XSCROLL_BACK`）；tilemap 的裁剪窗口右侧缩短 S = X0 & 7 个点（回绕的那一列）；精灵 70（图案 20，调色板偏移 6）在 X 320 − S 处显示半字 h0 + 40（变化时写入其 64 字节：`.spr_pattern`）。指针和标志的精灵。 | 滚动字幕约 1 700，面板约 200，指针和标志约 1 400 |
 
-数据：`copper_start`（Layer 2 调色板索引 1，原 NR $4A（T 的颜色）处的一个 NOP，tilemap 的 Y 和 X 滚动为 0：其行即屏幕的行，面板以外的行上什么也没有），
-`copper_panel_ntsc`/`_pal`（布局相同，因此从列表末尾算起的偏移对两者都适用：
-第 200 行：面板第一行的 tilemap Y 滚动（`CP_PANEL_Y`，由 `tv_setup` 填入），Layer 2 颜色 0–3 设为黑色，精灵窗口从第 215 行向下（`OBJ_LAST` + 1，
-在任何物体的行之下；指针和标志更靠下）；201：灰色（`COPPER_GREY`，由 `tv_setup` 填入）；面板每一行的 tilemap Y 滚动；第 230 行（PAL 为 240）：
-恢复颜色 0–3，边缘和水的颜色由 `apply` 写入（`CP_EDGE_BACK`）；滚动字幕的 Y 和 X 滚动（`CP_XSCROLL_HI_BACK`、`CP_XSCROLL_BACK`）；在 `wait_line`：精灵窗口恢复为河流的窗口）。列表不整体发送时，`apply` 发送从边缘到 X 滚动的那些字节（`.cp_send`）。
+数据：`copper_start`（Layer 2 调色板索引 1，原 NR $4A 处（T 的颜色）为 NOP，tilemap 的 Y 和 X 卷动为 0：它的行就是屏幕的行，面板之外的行里什么都没有），`copper_panel_ntsc`/`_pal`（在第 7 页的 copper_panels.asm：`tv_setup` 经槽 2 把其中一个复制到 `copper_panel`；布局相同，所以偏移对两者都适用：第 200 行：面板第一行的 tilemap Y 卷动（`CP_PANEL_Y`，由 `tv_setup` 填入），Layer 2 的颜色 0–10 设为黑（`CP_COLOURS`：河岸各项也要，因为面板下面的行显示旧的河流行），精灵窗口从第 215 行往下（`OBJ_LAST` + 1，在所有物体的行之下；指针和标志更低）；201：灰色（`COPPER_GREY`，由 `tv_setup` 填入）；面板每行的 tilemap Y 卷动；第 230 行（PAL 为 240）：恢复颜色 0–10（`CP_RESTORE`：河岸的由 `build_copper` 写，边缘和水的由 `apply` 写，`CP_EDGE_BACK`）；滚动字幕的 Y 和 X 卷动（`CP_XSCROLL_HI_BACK`、`CP_XSCROLL_BACK`）；在 `wait_line`：精灵窗口恢复为河流的）。列表不整个发送时，`apply` 发送从边缘到 X 卷动的字节（`.cp_send`）。
 
 ## panel.asm（第 6 页）：面板字符
 
@@ -374,7 +372,7 @@ NOTES：咔嗒声）。
 - **自修改代码**在热循环中很常见：填入的立即数和跳转目标（`ds_edge_test` 的 `.bx1/.be1/.bx2/.be2/.ex1/.ex2/.s1/.s2/.pv/.pv_bits/.pv_end/.pv_x`；`dh_pf` 的 `.mode/.x0a…/.x1d/.bits/.fn`；`snd_sum` 的 `.jp`；各 `pk_*` 的 `.pf/.pq`）。任何变体都要逐字节核对（曾经有一个遗留的 `add a,a` 让声音翻了倍）。
 - **展开代码的入口点**：`snd_sum` 为处理余数会跳进 `rept` 块的中间。
 - **槽 2** 是工作窗口：需要在那里放某页的例程自己映射，用完不恢复；下一个使用者映射自己的页。**槽 3** 在发声期间必须保持第 12 页。
-- **表按页对齐**，这样查表就是 `ld h,high table / ld l,index`：`pix_tab`、`span_masks`、`span_class`、`edge_lo/edge_hi`、`obj_head`、`ov_exp2`/`ov_exp4`、`eg_*`、`bg_*`、调色板。
+- **表按页对齐**，这样查表就是 `ld h,high table / ld l,index`：`span_masks`、`span_class`、`edge_lo/edge_hi`、`obj_head`、`ov_exp2`/`ov_exp4`、`eg_*`、`bg_*`、调色板。
 - **校验**：每次修改后，`nxcheck` 每帧把状态和屏幕内存、逐行河岸颜色、绘制出的物体、Copper 列表和内存与 C++ 移植版比较，最后比较图像。完整一套在 2 个核心上约 25 分钟（HANDOFF.zh.md，*方法*）。汇编失败会留下旧的页：先看构建输出。
 - **测量**：`NXHISTALL=文件`（所有帧）或 `NXHIST=文件`（一帧）加 `tools/prof.py`；`NXSLOW=T` 列出超过 T 周期的帧。`NXHISTAPPLY=文件` 对 `apply`（从 `wait_frame` 结束起）做同样的事并打印其平均和最大值；`tools/prof_local.py build/test.sym 文件 帧数 [例程…]` 还按局部标号细分时间（`ds_edge_test.row`、`panel_frame.mod`……）。最重的帧：`-stress` 加 `NXBRIDGE=80 NXGHOST=1 NXGAME=1`。
 - **apply**（每帧约 7 400，不在上面的表中）：滚动字幕约 1 700（其中用减法做 X 滚动 mod 320 约 650），指针和标志约 1 400，面板约 200（只处理变化的部分），精灵属性约 1 800，Copper 列表约 1 200。

@@ -19,11 +19,11 @@ El código fuente rutina a rutina, qué cambió en el código compartido con el 
 - El río: el modo de 16 colores, 320x240, una línea de imagen de 256 bytes (160 al principio),
   512 líneas en anillo desplazadas por el hardware (GYOFFS); una línea nueva del río se escribe
   directamente en su fila (`render.asm`), sin copias.
-- El color de la orilla por línea: cada color que ha tenido la orilla tiene una paleta propia
-  (PALSEL 0-7: su color 1 es ese color, puesto una vez; 2 y 3 el borde y el agua, en cada
-  fotograma). La INT de cuadro, movida hacia abajo en el fotograma de un cambio a otro
-  (`build_events`, `irq`), pone PALSEL una línea antes del cambio; el registro se toma al final
-  de la línea, así que el cambio es exacto a cualquier velocidad de la CPU.
+- El color de la orilla por línea: una paleta (PALSEL 0) guarda los colores de la orilla, los
+  dos verdes y los de la carretera del puente (entradas 1 y 9-15, puestas una vez al arrancar),
+  con 2 y 3 el borde y el agua; los puntos de orilla de cada línea nueva se dibujan en la
+  entrada de su color (`line_bank`, un juego de tablas de puntos por color), así el color va
+  con la línea: ninguna INT por cambio, nada que poner mientras se muestra la imagen.
 - Los objetos, el avión, su bala, el tanque y los misiles: sprites (`sprites.asm`), sus
   imágenes hechas al arrancar a partir de las formas del cartucho, cada objeto de 16, 32 y 64
   puntos de ancho (los sprites no tienen escala).

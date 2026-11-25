@@ -40,8 +40,8 @@ Bildschirmspeicher des Atari, den das Spiel nicht hat: `line_done` und `draw_lin
 2 000 schwerer als im Spiel). Mit einer General Sound, also kosten die Geräusche den
 Hauptprozessor nichts. Zwei Läufe:
 
-- **A**: Bot 1, 3 000 Frames ab dem Start: die Arbeit im Mittel ~69 000 pro Frame, höchstens ~120 000;
-- **B**: `-stress` ab Brücke 80, 6 000 Frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~108 000, höchstens ~144 000.
+- **A**: Bot 1, 3 000 Frames ab dem Start: die Arbeit im Mittel ~68 000 pro Frame, höchstens ~120 000;
+- **B**: `-stress` ab Brücke 80, 6 000 Frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~107 000, höchstens ~145 000.
 
 Die Arbeit reicht von `apply_done` bis `frame_done` (das Warten auf den Frame-Interrupt nicht
 gezählt); die Teile unten zählen auch `apply` und die Interrupts (~7 000).
@@ -51,9 +51,9 @@ Nach Teilen (A / B):
 | Teil | A | B |
 |---|---|---|
 | das Display: Platzieren der Objekte und Kollisionen (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| neue Flusszeilen (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 13 600 | 32 200 |
-| Sprites und die Ereignisse des Ufers (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`, `build_events`, `pal_get`) | 10 300 | 14 900 |
-| `apply`, das Panel und die Interrupts (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `pal_edges`, `irq`, das Drucken des Panels) | 7 900 | 7 500 |
+| neue Flusszeilen (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 900 |
+| Sprites (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
+| `apply`, das Panel und die Interrupts (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, das Drucken des Panels) | 6 200 | 5 800 |
 | Ton (`sound_driver`, `snd_*`, `gs_*`; ohne Karte `ay_*`: ~5 800 in A) | 3 400 | 3 500 |
 | die Spiellogik und der Rest (`move_objects`, `main_loop`, `random_step`, `vbi`, …) | 7 000 | 8 800 |
 
@@ -65,7 +65,7 @@ Die teuersten Routinen (A / B):
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 500 | 8 400 | render |
+| `render_line` | 3 700 | 8 900 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -76,16 +76,14 @@ Die teuersten Routinen (A / B):
 | `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 400 | 2 300 | sound_gs |
 | `pl_keep` | 800 | 1 600 | sprites |
 | `panel_frame` | 1 600 | 1 600 | panel_ts |
-| `irq` | 1 400 | 1 400 | river_raid |
+| `irq` | 1 200 | 1 200 | river_raid |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `sfile_put` | 1 200 | 1 300 | river_raid |
-| `apply` (eigener Code) | 1 200 | 1 200 | river_raid |
-| `pal_edges` | 1 100 | 1 100 | river_raid |
-| `build_events` | 1 000 | 1 000 | river_raid |
+| `apply` (eigener Code) | 800 | 800 | river_raid |
 | `hit_setup` | 500 | 700 | display_hits |
 
 Bei 7 MHz (`TSSPEED=1`, ~143 400 Takte pro Frame) ist die Arbeit dieselben Befehle: `-stress`
-im Mittel ~93 000, höchstens ~125 000, es passt gerade noch; bei 3,5 MHz kommt es nicht mit.
+im Mittel ~92 000, höchstens ~122 000, es passt gerade noch; bei 3,5 MHz kommt es nicht mit.
 `gs_send` wartet, bis die Karte jedes Byte gelesen hat (~300 Takte pro Byte bei 14 MHz).
 
 (`prof.py` nimmt den Namen einer Routine vom nächsten globalen Label unterhalb der Adresse.
@@ -97,7 +95,7 @@ Adressen unter $4000 sind die Arbeit des Starts in INIT_PAGE: weglassen.)
 
 | Fenster | Adresse | normalerweise | umgemappt von |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): das RAM des Atari an den Adressen des Originals | beim Start: 3 (`INIT_PAGE`: dort laufen `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`) |
+| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): das RAM des Atari an den Adressen des Originals | beim Start: 3 (`INIT_PAGE`: dort laufen `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`); `render_line`: 4 (`PIX_PAGE`, seine Punkttabellen; ATARI_PAGE zurück) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): die Läufe der Zeilen ab $4000 (`SPANS`, 32 Byte × 256 Zeilen), Puffer ab $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), die OS-Schrift bei $7D00 | `render_line`: eine Seite des Flussbilds (32–47); `panel_draw`/`pc_*`: das Bild des Panels (64–79); beim Start die Kachelkarte (7), die Kacheln (8), die Bilder der Sprites (24–31); immer zurück auf 5 |
 | 2 | $8000–$BFFF | 2 (`CODE_PAGE`): Code bis ~$9FBF, die Cartridge ab $A000 | — |
 | 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): Code bis ~$D7EC, dann bei $E000 das FM-Fenster (`CRAM_SHADOW`: CRAM $E000–$E1FF, das SFILE $E200–$E3FF; die Schreibzugriffe gehen auch ins RAM darunter), Tabellen und Variablen bis ~$FD65, der Stack, die IM-2-Vektoren bei $FE00 | — |
@@ -114,16 +112,12 @@ liegt dort, nur gelesen).
 `main_frame` (river_raid.asm), jedes Frame:
 
 1. Hält fest, was das Bild dieses Frames zeigt (`scroll`, die Farben von Kante und Wasser, den Spieler), `read_input`.
-2. Normalerweise: `prepare` → `display` → `build_sprites` → `build_events` → `main_loop` → `vbi` → `snd_frame`. Während eines Resets (`busy`): `display` → `build_sprites` → `build_events` → `clear_layer2_page` → (`finish_reset` im letzten) → `vbi` → `snd_frame`.
+2. Normalerweise: `prepare` → `display` → `build_sprites` → `main_loop` → `vbi` → `snd_frame`. Während eines Resets (`busy`): `display` → `build_sprites` → `clear_layer2_page` → (`finish_reset` im letzten) → `vbi` → `snd_frame`.
 3. `wait_frame`: HALT, bis der Frame-Interrupt gekommen ist (`frame_flag`), bei `FRAME_LINE`, unter dem Panel.
 4. `apply`: Alles Gebaute wird wirksam (der Scroll, der Ton, die Farben, das SFILE, die Palette des Ufers oben und die Ereignisse des Interrupts für das kommende Frame).
 5. `panel_draw`: die Zeichen des Panels, die sich geändert haben, und die neuen der Laufschrift in sein Bild (nach `apply`: Es kann eine Weile dauern, und das Panel ist erst ab Zeile 184 zu sehen).
 
-Während das Bild gezeichnet wird, kommt der Interrupt bei jedem Ereignis der Liste, die `apply`
-gestellt hat: EV_PAL (die Palette des Flusses ab der nächsten Zeile), EV_PANEL (das Bild des
-Panels ab Zeile 184), EV_GX (das X der Laufschrift), dann der des Frames. Jeder kommt am rechten
-Rand der Zeile davor (HSINT = 208), und PALSEL, VPAGE, GYOFFS werden am Ende einer Zeile
-übernommen, also ist ein Wechsel bei jedem Prozessortakt exakt, wo immer die Arbeit gerade ist.
+Während das Bild gezeichnet wird, kommt der Interrupt dreimal, bei den Ereignissen der Liste, die `apply` gestellt hat (`ev_panel`): EV_PANEL (das Bild des Panels ab Zeile 184), EV_GX (das X der Laufschrift), dann der Interrupt des Frames. Jeder kommt am rechten Rand der Zeile davor (HSINT = 208), und VPAGE, GYOFFS, GXOFFS wirken ab der übernächsten Zeile, so sitzt das Panel bei jeder CPU-Geschwindigkeit und wo die Arbeit auch steht. Die Uferfarben brauchen keinen Interrupt: die Punkte jeder Zeile sind im Eintrag ihrer Farbe der einen Palette.
 
 ---
 
@@ -153,16 +147,13 @@ Interrupt, `apply`, die Paletten des Flusses, Variablen und Puffer.
 | `restart` | `start` | `tv_setup`, das Bild gelöscht (beide Hälften per DMA, abgewartet), der Frame-Interrupt bei `FRAME_LINE`, `start_attract`, das Panel ganz gezeichnet, fällt in `main_frame`. | einmal |
 | `main_frame` | jedes Frame | Siehe *Das Frame*. | 340 / 340 |
 | `wait_frame` | `main_frame` | HALT bis zum nächsten Frame-INT (`frame_flag` zuerst gelöscht: einer während der Arbeit kommt für `apply` zu spät; einer kurz vor dem HALT schickt es zum Test zurück, `irq.frame`): Leerlauf, keine Arbeit. | — |
-| `irq` | der Interrupt | Das Ereignis bei `ev_ptr`: EV_PAL PALSEL; EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 Farben, das Bitmap über Kacheln und Sprites); EV_GX GXOFFS; der des Frames (EV_END) `frame_flag`. Beim Frame-Ereignis setzt es außerdem die Bildregister und Ereignisse von `apply` zurück (`river_regs`, `ap_pal`, `ev_go` aus `ap_list`): ein verspätetes Frame zeigt das letzte noch einmal. Jeder Ereigniseintrag hält die VSINT-Zeile des nächsten. EV_PAL (Ereignisse auf Nachbarzeilen) gibt sie zuerst aus (~150 Takte nach dem Eintritt), dann PALSEL, dann EI vor dem Rest; EV_PANEL und EV_GX zuerst ihre Ports (für die übernächste Zeile übernommen: bei 3,5 MHz gerade rechtzeitig), dann VSINT. Bei 3,5 MHz (eine Zeile 224 Takte) geht nichts verloren und nichts kommt zu spät. | 1 400 / 1 400 |
+| `irq` | der Interrupt | Das Ereignis bei `ev_ptr`: EV_PANEL VPAGE = `VPANEL`, GYOFFS = 0, VCONFIG $8A (256 Farben, die Bitmap über Tiles und Sprites); EV_GX GXOFFS; das des Frames (EV_END) `frame_flag`. Beim Frame-Ereignis setzt er auch die Bildregister und Ereignisse von apply wieder (`river_regs`, `ap_pal`, `ev_go` aus `ap_list`): ein später Frame zeigt den letzten noch einmal. Jeder Ereigniseintrag hält die VSINT-Zeile des nächsten. EV_PANEL und EV_GX schreiben zuerst ihre Ports (übernommen für die übernächste Zeile: bei 3,5 MHz gerade rechtzeitig), dann VSINT, EI vor den Pops. Bei 3,5 MHz (eine Zeile 224 Takte) geht nichts verloren und nichts kommt zu spät. Drei pro Frame. | 1 200 / 1 200 |
 | `vsint_set` | `irq`, `apply`, `restart` | VSINT = HL (9 Bit), in `ev_line` behalten. | 340 / 330 |
-| `apply` | nach `wait_frame` | GYOFFS = `show_scroll`, VPAGE die des Flusses, VCONFIG $81 (16 Farben), GXOFFS 0; `snd_out` (die Register des AY oder das Frame der Karte); `panel_frame`; die Farben von Granate und Flugzeug ins CRAM; `sfile_put`; während das Bild nach einem Reset gelöscht wird (ab dessen zweitem Frame): der Fluss schwarz (Palette der Farbe 0, Kante und Wasser 0, nur die Ereignisse des Panels); sonst PALSEL die Palette oben (`ev_built`), `pal_edges`, die Ereignisse des Panels nach denen des Ufers kopiert (`ev_tail`); der Interrupt auf das erste Ereignis gestellt (DI darum herum); `ev_show` = die eben gestellte Liste (`build_events` schreibt die andere). | 1 200 / 1 200 |
-| `pal_get` | `build_events`, `apply` | Die Palette des Flusses (PALSEL 0–7) für Atari-Farbe E: Jede Uferfarbe hat ihre eigene, gemacht, wenn sie zum ersten Mal vorkommt (`pal_of`, `pal_n`): ihre Farbe 1 diese Farbe, im CRAM. Über 8 wieder die letzte (nie vorgekommen). | 110 / 110 |
-| `pal_edges` | `apply` | Die Farben 2 und 3 (Kante, Wasser) aller bisher gemachten Paletten. | 1 100 / 1 100 |
+| `apply` | nach `wait_frame` | GYOFFS = `show_scroll`, VPAGE die des Flusses, VCONFIG $81 (16 Farben), GXOFFS 0; `snd_out` (die Register der AYs oder der Frame der Karte); `panel_frame` (das X der Laufschrift in `ev_panel`); die Farben der Granate und des Flugzeugs ins CRAM; `sfile_put`; PALSEL 0 (die Palette des Flusses) mit Kante und Wasser dieses Frames in ihren Einträgen 2 und 3, oder PALSEL 1 (schwarz bis auf die Farben des Panels), während das Bild nach einem Reset gelöscht wird (ab seinem zweiten Frame) oder die Farben aus sind (`show_bank` 0); der Interrupt auf das erste Ereignis von `ev_panel` gestellt (DI darum). | 800 / 800 |
 | `sfile_put` | `apply` | Das SFILE, in `spr_list` gebaut: die Sprites des Flusses (S0), dahinter `sf_tail` kopiert (ein End-Eintrag mit LEAP, die 3 des Panels: Nadel und Logo, S1, ein Ende); die Einträge danach bis zum Ende des vorigen Frames (`sf_end`) dort gelöscht; dann kopiert es der DMA ins SFILE (DMACTRL $85, RAM ins SFILE, ein Burst; die CPU programmiert ihn nur). Solange der DMA belegt ist (das Löschen beim Reset), kopiert die CPU über das FM-Fenster bei $E200. | 1 200 / 1 300 |
-| `build_events` | `main_frame` | Die Uferfarbe pro Zeile, wie `build_copper` des Next aus `ds_bank_ev`: in den Puffer, den die Interrupts nicht lesen (`ev_a`/`ev_b`), die Palette an der Oberkante des Flusses, dann ein EV_PAL-Ereignis für jeden Wechsel, 5 Byte (Art, Palette, Farbe für die Prüfung, VSINT-Zeile eine Zeile davor); `ev_tail`, wohin `apply` die zwei des Panels legt. | 1 000 / 1 000 |
 | `clear_layer2_page` | `main_frame` während `busy`, `restart` | Ein halbes Flussbild (256 Zeilen × 160 Byte, 4 Seiten) pro Frame per DMA-Füllung (DMACTRL $14, 80 Wörter × 256 Zeilen aus `dma_zero`); keines im ersten Frame des Resets (`l2_wait`); nichts, solange der DMA beschäftigt ist. Der Prozessor programmiert ihn nur (~150 Takte). | |
 | `dma_wait` | `restart`, `init_video` | Bis der DMA frei ist (DMACTRL Bit 7). | |
-| `init_tables` | `start` | Wie beim Next (`edge_runs_init`, `ov_exp2/4`, `ring_*`, `span_class`, `edge_lo/hi`, `span_init`), `pix_tab` mit dem Index in beiden Nibbles (die 2 Punkte pro Byte des 16-Farben-Modus). | einmal |
+| `init_tables` | `start` | Wie beim Next (`edge_runs_init`, `ov_exp2/4`, `ring_*`, `span_class`, `edge_lo/hi`, `span_init`); die Punkttabellen macht `bank_init` (`pix_sets`). | einmal |
 | `init_video` | `start` | Der Modus des Flusses (VPAGE 32, VCONFIG $81, PALSEL 0); die Kachelkarte (Seite 7: Zeilen 0–23 Kachel 1 schwarz, 184 Kachel 3 eine schwarze Linie über Grau, 185–223 Kachel 2 grau, 224–239 schwarz; die Zeilen des Flusses keine) und die Punkte der Kacheln (Seite 8); die 128K der Sprites per DMA gelöscht; TSCONFIG $A0 (Kachelebene 0 und Sprites an); das FM-Fenster dauerhaft an, CRAM und SFILE genullt; die Farbe des Panzers; HSINT, nur der Frame-Interrupt (INTMASK 1). | einmal |
 | `screen_black` | als Erstes in `start` | TSCONFIG 0, BORDER 0, das ganze 1K von CRAM und SFILE über das FM-Fenster genullt: schwarz, welchen Modus Wild Commander auch hinterlassen hat (sein ZX-Bildschirm in Seite 5 ist dort, wohin die Puffer des Starts gehen). | einmal |
 | `tv_setup` | `restart` | Nur PAL: `init_line_tables`, die PAL-Spalten von RANDOM, `rnd_tables`. | |
@@ -174,7 +165,10 @@ Interrupt, `apply`, die Paletten des Flusses, Variablen und Puffer.
 
 | Routine | aufgerufen | was und wie | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Die Farbtakte 20–179 der Zeile in die Bildzeile HL (0–511): Seite `VID_PAGE` + Zeile / 64 in Fenster 1, die Zeile bei $4000 + (Zeile & 63) × 256; aus den Stücken von `dl_seg` wie beim Next: ein Stück eines Werts ist sein `pix_tab`-Byte 4-mal pro Byte (`.fill`: `ld (hl),a / inc l`), die Bytes einer Kante (die Tabelle des ROM) und eine Zeile einer Dekoration über `pix_tab`, je 4 Ausgabebytes. 160 Schreibzugriffe pro Zeile entlang der Zeile (der Next schreibt 320 die Spalten hinunter, 10 Seiten). Am Ende WORK_PAGE zurück. Ein Stück eines Werts ab 5 Bytes (`RL_DMA_MIN`) geht stattdessen an den DMA, wenn er frei ist: eine Füllung (DMACTRL $04) aus `rl_word` (der Wert zweimal) in die Seite `rl_page`. In Seite $C000 (aus Platzgründen aus $8000 verschoben). | 3 500 / 8 400 |
+| `render_line` | `line_done` | Zuerst `line_bank` (der Tabellensatz der Zeile), dann Seite 4 (`PIX_PAGE`) in Fenster 0 für die Tabellen. Farbtakte 20–179 der Zeile in die Bildzeile HL (0–511): Seite `VID_PAGE` + Zeile / 64 in Fenster 1, die Zeile bei $4000 + (Zeile & 63) × 256; aus den Stücken von `dl_seg` wie beim Next: ein Stück eines Werts ist sein Byte aus der ersten Seite des Satzes, 4-mal pro Byte (`.fill`: `ld (hl),a / inc l`), die Bytes einer Kante (die Tabelle im ROM) und die Zeile einer Dekoration über die 4 Seiten des Satzes, je 4 Ausgabebytes. 160 Schreibzugriffe pro Zeile entlang der Reihe (der Next schreibt 320 die Spalten hinunter, 10 Seiten). Am Ende WORK_PAGE und ATARI_PAGE zurück. Ein Stück eines Werts ab 5 Bytes (`RL_DMA_MIN`) geht stattdessen an den DMA, solange er frei ist: eine Füllung (DMACTRL $04) aus `rl_word` (der Wert zweimal) in Seite `rl_page`. In Seite $C000 (von $8000 verschoben, aus Platzgründen). | 3 700 / 8 900 |
+| `line_bank` | `render_line` | `lineBankColour` des C++-Ports auf dem Zustand nach der Zeile: die Slots ab `FIRST_SLOT` abwärts, solange einer eine Straßenzeile zeigen kann (y ≤ $5E: y wächst die Slots hinunter); bei einer Brücke ihre Straßenzeile y + Höhe − $5E, die Farbe aus der Tabelle bei $B4E5; sonst `bank_colour` (das Grün). Dieselbe Farbe wie die Zeile davor: nichts weiter; sonst ihr Platz in `bank_cols` × 4 nach `rl_set` (das High-Byte des Satzes). ~250 pro Zeile. | 250 / 550 (+ `bank_colour` 400 / 600) |
+| `bank_init` | `init_video` | Die Uferfarben, jede einmal: $D2, $D6, dann die der 20 Straßenzeilen (`bank_cols`, `bank_n`, höchstens 8); ihre CRAM-Einträge in Gruppe 0: 1, dann 9–15 (`cram_set`); dann `pix_sets`. | einmal |
+| `pix_sets` | `bank_init` | Seite 4 (`PIX_PAGE`) bei $0000: ein Satz aus 4 Seiten pro Farbe (Satz i bei 4i × 256): Byte b der Seite k ist der Punkt k von b, beide Nibbles sein Eintrag (0, 2, 3 sie selbst, 1 der der Farbe i: 1, dann 9..). Fenster 0 zurück auf INIT_PAGE. | einmal |
 
 ## sprites.asm: die Sprites des Flusses
 
@@ -293,8 +287,8 @@ Sektorpuffer ist SPANS (nach dem Start neu gemacht).
 - **Der gemeinsame Code**: Eine Änderung am Spiel (Logik, Generator, Display, Kollisionen) geht zuerst in den C++-Port, dann nach `src/` des Next, dann in die Kopie hier (`diff ../src/X.asm src/X.asm` zeigt nur die oben aufgezählten Änderungen). Eine Änderung daran, wie TS-Conf es zeigt, bleibt hier.
 - **Fenster 1** ist WORK_PAGE, außer während `render_line`, `panel_draw` oder der Start dort eine andere Seite mappen; jede stellt WORK_PAGE zurück (SPANS und die Puffer liegen dort).
 - **Das FM-Fenster** bei $E000 ist die ganze Zeit an: Schreibzugriffe auf $E000–$E3FF gehen in CRAM und SFILE (und ins RAM darunter, so liest `apply` sie zurück); nie etwas anderes dorthin legen.
-- **Die Ereignisse des Interrupts** sind doppelt gepuffert (`ev_a`, `ev_b`): `build_events` schreibt den, den `ev_show` nicht nennt; `apply` stellt ihn unter DI.
-- **Register, die am Zeilenende übernommen werden** (PALSEL, VPAGE, GYOFFS, GXOFFS): im Interrupt der Zeile davor setzen; der Interrupt kommt bei HSINT 208 (der rechte Rand), also ist bei 3,5–14 MHz Zeit.
+- **Die Liste des Interrupts** ist eine (`ev_panel`): `apply` schreibt das X der Laufschrift hinein und stellt sie unter DI; ihre Interrupts kommen danach, im gezeigten Frame.
+- **Register, die am Zeilenende übernommen werden** (VPAGE, GYOFFS, GXOFFS): im Interrupt der Zeile davor setzen; der Interrupt kommt bei HSINT 208 (der rechte Rand), also ist bei 3,5–14 MHz Zeit.
 - **Der DMA** wird vom Löschen des Bilds (`clear_layer2_page`) und von den Zeichen des Panels (`pc_put`) geteilt: `pc_put` zeichnet per Prozessor, solange der DMA beschäftigt ist; auch die SFILE-Kopie (`sfile_put`) und die langen Läufe einer neuen Zeile (`render_line`) nutzen ihn, jedes mit dem Prozessor als Ersatz, solange er beschäftigt ist.
-- **Die Prüfungen**: `make check` (3 000 Frames; `FRAMES=`), und mit einem Bot, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo oder 0, wie in [README.de.md](README.de.md). Nach jeder Änderung: der Zustand, die Uferfarbe pro Zeile (`ev_built`), die Register der General Sound und das Bild der Maschine jedes Frames Pixel für Pixel.
+- **Die Prüfungen**: `make check` (3 000 Frames; `FRAMES=`), und mit einem Bot, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo oder 0, wie in [README.de.md](README.de.md). Nach jeder Änderung: der Zustand, die Uferfarbe pro Zeile, die Register der General Sound und das Bild der Maschine jedes Frames Pixel für Pixel.
 - **Messen**: `TSHISTALL=Datei` (die Zeit jedes Befehls über den Lauf, Start, Interrupts und Warten eingeschlossen), dann `python3 ../tools/prof.py build/test.sym Datei 60`; Mittel und Maximum der Arbeit stehen in den letzten Zeilen von tscheck. `TSMSHOT=k` schreibt jedes Maschinenbild ab Frame k (32 davon, auch das zweite eines verspäteten); `TSBORDER=1` schaltet T ein; `TSSHOT=k` mit `TSFULL=1` schreibt die Frames ab k mit Rand (das letzte Bild eines Laufs zeigt am Rand nur eine Farbe: der Lauf hält bei `apply_done`). `TSTIME=N` druckt die Arbeit der Frames N−2..N+2. `TSVOL=1`: die Summen der POKEY-Lautstärken der Frames und der höchste Pegel der Karte (er muss höchstens 255 bleiben).

@@ -315,3 +315,91 @@ panel_init:
 .tile_colours
 	db $1E,$8E,$1E,$00		; the panel: PF0-PF3 (B66B)
 	db $0C				; the scrolling line
+
+; The bank's colours: the two greens ($D2, $D6), then the road's by the bridge (the
+; cartridge's table at $B4E5, its 20 rows), each once, into Layer 2's palette: entries 1, then
+; 4.. (2 and 3 are the edge's and the water's); bank_set puts them in (the start: from
+; page 7)
+bank_init:
+	ld a,$FF			; (line_bank: no colour yet)
+	ld (rl_colour),a
+	xor a
+	ld (bank_n),a
+	ld a,$D2
+	call .add
+	ld a,$D6
+	call .add
+	ld hl,ROM_ROAD_COLOURS
+	ld b,20
+1:	ld a,(hl)
+	push hl
+	push bc
+	call .add
+	pop bc
+	pop hl
+	inc hl
+	djnz 1B
+	call pix_sets
+	ld e,1
+	ld a,e
+	ld (ap_bank_on),a
+	jp bank_set
+.add	ld e,a				; already there: nothing
+	ld hl,bank_cols
+	ld a,(bank_n)
+	or a
+	jr z,.new
+	ld b,a
+	ld a,e
+2:	cp (hl)
+	ret z
+	inc hl
+	djnz 2B
+.new	ld a,(bank_n)
+	cp BANK_COLS
+	ret nc
+	ld (hl),e
+	inc a
+	ld (bank_n),a
+	ret
+
+; The dots' tables, a set per bank colour (bank_cols' order), in PIX_PAGE (at $0000 while they
+; are made, then while render_line draws): set i at 4 i x 256, its page k byte b's dot k (bits
+; 7-6 first) as Layer 2 has it: 0, 2, 3 themselves, 1 colour i's entry (1, then 4..)
+pix_sets:
+	nextreg $50,PIX_PAGE
+	ld hl,0
+	ld a,(bank_n)
+	ld ixh,a			; IXH: the sets left, IXL: the set
+	ld ixl,0
+.set	ld a,ixl			; E: its entry
+	ld e,1
+	or a
+	jr z,1F
+	add a,3
+	ld e,a
+1:	ld c,0				; C: the dot
+.page	ld l,0
+.byte	ld a,l
+	ld b,c
+	inc b
+2:	rlca
+	rlca
+	djnz 2B
+	and 3
+	cp 1
+	jr nz,3F
+	ld a,e
+3:	ld (hl),a
+	inc l
+	jr nz,.byte
+	inc h
+	inc c
+	ld a,c
+	cp 4
+	jr c,.page
+	inc ixl
+	dec ixh
+	jr nz,.set
+	nextreg $50,ATARI_RAM_PAGE
+	ret

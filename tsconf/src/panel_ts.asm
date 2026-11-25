@@ -62,11 +62,13 @@ panel_init:
 	ld de,$07D0
 	ld bc,$30
 	ldir
-	ld hl,.colours			; the colours: the characters' (group 0, 4-8), the needle's,
-	ld b,4				; the logo's rows (from $B48D, the bottom one first), the
-.pc	ld e,(hl)			; tiles' black and grey
-	inc hl
+	ld hl,.colours			; the colours: the characters' (group 0, 4-8; PAL_BLACK's too,
+	ld b,4				; the panel shown while the river is black), the needle's,
+.pc	ld e,(hl)			; the logo's rows (from $B48D, the bottom one first), the
+	inc hl				; tiles' black and grey
 	xor a
+	call cram_set
+	ld a,PAL_BLACK
 	call cram_set
 	inc b
 	ld a,b

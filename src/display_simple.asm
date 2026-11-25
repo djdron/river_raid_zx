@@ -137,9 +137,11 @@ display:
 	ld de,(ds_rowp)
 	assert low ROM_SHAPES == 0 && low ROM_COLOURS == 0
 	call ds_obj			; (for the sprites: ds_objs)
-	ld a,(ds_flags)			; a bridge: the road's colours by row, the bank's back after
-	and $80
+	ifdef BEAM			; a bridge: the road's colours by row, the bank's back after
+	ld a,(ds_flags)			; (the cycle model's scan_bank only: the bank's colour
+	and $80				; goes by line, line_bank)
 	call nz,.road
+	endif
 	ld a,(ds_edge_kind)		; P3PF: the edge, only for the kinds that turn at it
 	or a
 	call nz,ds_edge_test
@@ -184,6 +186,7 @@ display:
 	ret
 	endif
 
+	ifdef BEAM
 .road					; a bridge's rows: the road's colour from the scanline after
 	ld a,(ds_row)			; each row's, then the section's bank colour after the last
 	ld (ds_l1),a			; (unless X wrapped)
@@ -222,6 +225,7 @@ display:
 	ld e,a
 	ld a,c
 	jp ds_bank
+	endif
 
 ; The object's rows against the edge (P3PF): A = $02 if a row's span (its first dot to its
 ; last) meets a run of edge pixels on its line, else 0 (the C++ port's edgeTouches). Its rows from ds_rowp (going down in memory), the first on the scanline of X =
@@ -356,7 +360,8 @@ ds_set_flags:
 1:	ld (hl),a
 	ret
 
-; The bank colour E from scanline A on (a bridge's road, and back)
+	ifdef BEAM
+; The bank colour E from scanline A on (a bridge's road, and back; the cycle model's scan_bank)
 ds_bank:
 	push hl
 	ld l,a
@@ -380,7 +385,6 @@ ds_bank:
 .full	pop hl
 	ret
 
-	ifdef BEAM
 ; The bank colour of every scanline of the river into scan_bank: the VBI's, then as the DLI
 ; changed it
 ds_bank_fill:

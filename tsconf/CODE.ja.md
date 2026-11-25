@@ -37,8 +37,8 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 1 000–2 000 重い）で取りました。General Sound ありなので、ノイズはメインプロセッサに何のコストもかけません。
 2 回の実行：
 
-- **A**：bot 1、開始から 3 000 フレーム：処理は平均 1 フレーム約 69 000、最大約 120 000。
-- **B**：橋 80 からの `-stress`、6 000 フレーム（`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`：全スロット使用、全速、撃ちっぱなし）：平均約 108 000、最大約 144 000。
+- **A**：bot 1、開始から 3 000 フレーム：処理は平均 1 フレーム約 68 000、最大約 120 000。
+- **B**：橋 80 からの `-stress`、6 000 フレーム（`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`：全スロット使用、全速、撃ちっぱなし）：平均約 107 000、最大約 145 000。
 
 処理は `apply_done` から `frame_done` まで（フレーム割り込みを待つ時間は数えない）。下の部分には `apply` と割り込み
 （約 7 000）も含みます。
@@ -48,9 +48,9 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 | 部分 | A | B |
 |---|---|---|
 | display：物体の配置と衝突（`display`、`ds_*`、`dh_*`、`sp_*`、`hit_*`） | 38 300 | 51 000 |
-| 川の新しい行（`river_gen`、`render_line`、`span_line`、`line_done`、`push_line`） | 13 600 | 32 200 |
-| スプライトと岸のイベント（`build_sprites`、`ob_*`、`pl_*`、`obj_lookup`、`sfile_put`、`build_events`、`pal_get`） | 10 300 | 14 900 |
-| `apply`、パネル、割り込み（`apply`、`panel_frame`、`panel_draw`、`pc_*`、`pal_edges`、`irq`、パネル表示） | 7 900 | 7 500 |
+| 川の新しい行（`river_gen`、`render_line`、`span_line`、`line_done`、`push_line`） | 14 400 | 33 900 |
+| スプライト（`build_sprites`、`ob_*`、`pl_*`、`obj_lookup`、`sfile_put`） | 9 300 | 13 900 |
+| `apply`、パネル、割り込み（`apply`、`panel_frame`、`panel_draw`、`pc_*`、`irq`、パネル表示） | 6 200 | 5 800 |
 | 音（`sound_driver`、`snd_*`、`gs_*`。カードなしなら `ay_*`：A で約 5 800） | 3 400 | 3 500 |
 | ゲームロジックとその他（`move_objects`、`main_loop`、`random_step`、`vbi` など） | 7 000 | 8 800 |
 
@@ -62,7 +62,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 500 | 8 400 | render |
+| `render_line` | 3 700 | 8 900 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -73,16 +73,14 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 | `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 400 | 2 300 | sound_gs |
 | `pl_keep` | 800 | 1 600 | sprites |
 | `panel_frame` | 1 600 | 1 600 | panel_ts |
-| `irq` | 1 400 | 1 400 | river_raid |
+| `irq` | 1 200 | 1 200 | river_raid |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `sfile_put` | 1 200 | 1 300 | river_raid |
-| `apply`（自身のコード） | 1 200 | 1 200 | river_raid |
-| `pal_edges` | 1 100 | 1 100 | river_raid |
-| `build_events` | 1 000 | 1 000 | river_raid |
+| `apply`（自身のコード） | 800 | 800 | river_raid |
 | `hit_setup` | 500 | 700 | display_hits |
 
-7 MHz（`TSSPEED=1`、1 フレーム約 143 400 サイクル）でも処理は同じ命令です：`-stress` で平均約 93 000、最大約
-125 000、ぎりぎり収まります。3.5 MHz では足りません。`gs_send` はカードが各バイトを読むのを待ちます（14 MHz で
+7 MHz（`TSSPEED=1`、1 フレーム約 143 400 サイクル）でも処理は同じ命令です：`-stress` で平均約 92 000、最大約
+122 000、ぎりぎり収まります。3.5 MHz では足りません。`gs_send` はカードが各バイトを読むのを待ちます（14 MHz で
 1 バイト約 300 サイクル）。
 
 （`prof.py` はアドレスの下で最も近いグローバルラベルをルーチン名にします。$4000 未満のアドレスは INIT_PAGE での
@@ -94,7 +92,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 
 | 窓 | アドレス | 通常 | 切り替える者 |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：元のアドレスに置いた Atari の RAM | 起動時：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` がそこで動く） |
+| 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：元のアドレスに置いた Atari の RAM | 起動時：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` がそこで動く）；`render_line`：4（`PIX_PAGE`、その点のテーブル；ATARI_PAGE に戻す） |
 | 1 | $4000–$7FFF | 5（`WORK_PAGE`）：$4000 から各行のラン（`SPANS`、32 バイト × 256 行）、$6000 からバッファ（`scan_*`、`edge_runs`、`ring_*`、`ds_objs`、`ov_exp2/4`、`eg_*`、`bg_*`、`line_*`、`edge_lo/hi`、`rnd_tab`）、$7D00 にシステムフォント | `render_line`：川の画像の 1 ページ（32–47）。`panel_draw`/`pc_*`：パネルの画像（64–79）。起動時にタイルマップ（7）、タイル（8）、スプライトの画像（24–31）。必ず 5 に戻す |
 | 2 | $8000–$BFFF | 2（`CODE_PAGE`）：約 $9FBF までコード、$A000 からカートリッジ | — |
 | 3 | $C000–$FFFF | 6（`HIGH_PAGE`）：約 $D7EC までコード、次に $E000 に FM 窓（`CRAM_SHADOW`：CRAM $E000–$E1FF、SFILE $E200–$E3FF。書き込みは下の RAM にも行く）、約 $FD65 までテーブルと変数、スタック、$FE00 に IM 2 のベクタ | — |
@@ -109,15 +107,12 @@ $E000–$E3FF は他に使えず、$E400–$E4FF はそのレジスタです（`
 `main_frame`（river_raid.asm）、毎フレーム：
 
 1. このフレームの画面に映るもの（`scroll`、岸の縁と水の色、プレイヤー）を記録、`read_input`。
-2. 通常：`prepare` → `display` → `build_sprites` → `build_events` → `main_loop` → `vbi` → `snd_frame`。リセット中（`busy`）：`display` → `build_sprites` → `build_events` → `clear_layer2_page` →（最後のフレームで `finish_reset`）→ `vbi` → `snd_frame`。
+2. 通常：`prepare` → `display` → `build_sprites` → `main_loop` → `vbi` → `snd_frame`。リセット中（`busy`）：`display` → `build_sprites` → `clear_layer2_page` →（最後のフレームで `finish_reset`）→ `vbi` → `snd_frame`。
 3. `wait_frame`：フレーム割り込み（`frame_flag`）が来るまで HALT。パネルの下の `FRAME_LINE` で来る。
 4. `apply`：作ったものを有効にする（スクロール、音、色、SFILE、上端の岸のパレット、次のフレームの割り込みイベント）。
 5. `panel_draw`：パネルで変わった文字とスクロールテキストの新しい文字を、その画像へ（`apply` の後：時間がかかることがあり、パネルは 184 行目からしか見えない）。
 
-画面を描いている間、割り込みは `apply` が設定したリストのイベントごとに来ます：EV_PAL（次の行からの川のパレット）、
-EV_PANEL（184 行目からのパネルの画像）、EV_GX（スクロールテキストの X）、最後にフレームのもの。どれも 1 行前の右端
-（HSINT = 208）で来て、PALSEL、VPAGE、GYOFFS は行末で取り込まれるので、プロセッサの速度や処理の進み具合に関係なく
-切り替えは正確です。
+画面を描いている間、割り込みは 3 回、`apply` が設定したリスト（`ev_panel`）のイベントで来ます：EV_PANEL（184 行目からパネルの画像）、EV_GX（スクロール文字の X）、そしてフレームの割り込み。どれも前の行の右ボーダーで来て（HSINT = 208）、VPAGE、GYOFFS、GXOFFS は 1 行おいた次の行から効くので、プロセッサの速度や処理の進み具合に関係なくパネルは正しい位置に出ます。岸の色に割り込みは要りません：各ラインの点は 1 つのパレットのその色の番号にあります。
 
 ---
 
@@ -146,16 +141,13 @@ EV_PANEL（184 行目からのパネルの画像）、EV_GX（スクロールテ
 | `restart` | `start` | `tv_setup`、画面のクリア（両半分とも DMA で、完了を待つ）、フレーム割り込みを `FRAME_LINE` に、`start_attract`、パネル全体を描き、そのまま `main_frame` へ。 | 一度 |
 | `main_frame` | 毎フレーム | *1 フレーム* を参照。 | 340 / 340 |
 | `wait_frame` | `main_frame` | 次のフレーム割り込みまで HALT（先に `frame_flag` をクリア：処理中に来たものは `apply` には遅すぎる。HALT の直前に来たものは判定へ戻す、`irq.frame`）：待ちであって仕事ではない。 | — |
-| `irq` | 割り込み | `ev_ptr` のイベント：EV_PAL は PALSEL。EV_PANEL は VPAGE = `VPANEL`、GYOFFS = 0、VCONFIG $8A（256 色、ビットマップをタイルとスプライトの上に）。EV_GX は GXOFFS。フレームのもの（EV_END）は `frame_flag`。フレームのイベントでは `apply` の画面レジスタとイベントも置き直す（`river_regs`、`ap_pal`、`ap_list` からの `ev_go`）：遅れたフレームは前のフレームをもう一度表示する。各イベントのレコードは次のイベントの VSINT 行を持つ。EV_PAL（隣の行のイベント）はそれを最初に出し（入ってから約 150 クロック）、次に PALSEL、残りの前に EI。EV_PANEL と EV_GX はまず自分のポート（1 行おいた行でラッチ：3.5 MHz でぎりぎり間に合う）、次に VSINT。3.5 MHz（1 行 224 クロック）でも何も失わず遅れない。 | 1 400 / 1 400 |
+| `irq` | 割り込み | `ev_ptr` のイベント：EV_PANEL は VPAGE = `VPANEL`、GYOFFS = 0、VCONFIG $8A（256 色、ビットマップをタイルとスプライトの上に）；EV_GX は GXOFFS；フレームのもの（EV_END）は `frame_flag`。フレームのイベントでは apply の画像レジスターとイベントも設定し直す（`river_regs`、`ap_pal`、`ap_list` から `ev_go`）：遅れたフレームは前のものをもう一度表示する。各イベントのレコードは次のイベントの VSINT 行を持つ。EV_PANEL と EV_GX はまず自分のポートを書き（1 行おいた次の行から効く：3.5 MHz でちょうど間に合う）、次に VSINT、pop の前に EI。3.5 MHz（1 行 224 クロック）でも取りこぼしも遅れもない。1 フレームに 3 回。 | 1 200 / 1 200 |
 | `vsint_set` | `irq`、`apply`、`restart` | VSINT = HL（9 ビット）、`ev_line` に保持。 | 340 / 330 |
-| `apply` | `wait_frame` の後 | GYOFFS = `show_scroll`、VPAGE は川のもの、VCONFIG $81（16 色）、GXOFFS 0。`snd_out`（AY のレジスタまたはカードへのフレーム）。`panel_frame`。砲弾と飛行機の色を CRAM へ。`sfile_put`。リセット後に画面を消している間（2 フレーム目から）：川を黒に（色 0 のパレット、縁と水も 0、パネルのイベントだけ）。そうでなければ PALSEL に上端のパレット（`ev_built`）、`pal_edges`、パネルのイベントを岸のイベントの後へコピー（`ev_tail`）。割り込みを最初のイベントに設定（前後で DI）。`ev_show` = いま設定したリスト（`build_events` はもう一方に書く）。 | 1 200 / 1 200 |
-| `pal_get` | `build_events`、`apply` | Atari の色 E の川のパレット（PALSEL 0–7）：岸の色ごとに専用のパレットを持ち、初めて現れたとき作る（`pal_of`、`pal_n`）：その色 1 がその色、CRAM へ。8 を超えたら最後のものを再利用（起きたことはない）。 | 110 / 110 |
-| `pal_edges` | `apply` | これまで作ったすべてのパレットの色 2 と 3（縁、水）。 | 1 100 / 1 100 |
+| `apply` | `wait_frame` の後 | GYOFFS = `show_scroll`、VPAGE は川の、VCONFIG $81（16 色）、GXOFFS 0；`snd_out`（AY のレジスターかカードのフレーム）；`panel_frame`（スクロール文字の X を `ev_panel` に）；砲弾と飛行機の色を CRAM へ；`sfile_put`；PALSEL 0（川のパレット）でその 2 番と 3 番にこのフレームの縁と水、またはリセット後に画像を消している間（その 2 フレーム目から）や色がオフの間（`show_bank` が 0）は PALSEL 1（パネルの色以外は黒）；割り込みを `ev_panel` の最初のイベントに設定（前後に DI）。 | 800 / 800 |
 | `sfile_put` | `apply` | SFILE は `spr_list` で組み立てる：川のスプライト（S0）、その後ろに `sf_tail` をコピー（LEAP 付きの終端エントリ、パネルの 3 つ：針とロゴ、S1、終わり）。その後ろから前フレームの終わり（`sf_end`）までもそこでゼロに。それを DMA が SFILE へコピー（DMACTRL $85、RAM から SFILE、1 バースト。CPU は設定するだけ）。DMA が使用中（リセット時の消去）なら CPU が $E200 の FM 窓経由でコピー。 | 1 200 / 1 300 |
-| `build_events` | `main_frame` | 行ごとの岸の色。Next の `build_copper` と同じく `ds_bank_ev` から：割り込みが読まない方のバッファ（`ev_a`/`ev_b`）に、川の上端のパレット、次に変化ごとに EV_PAL イベント 5 バイト（種類、パレット、検証用の色、1 行前の VSINT 行）。`ev_tail` は apply がパネルの 2 つを置く場所。 | 1 000 / 1 000 |
 | `clear_layer2_page` | `busy` 中の `main_frame`、`restart` | 1 フレームに川の画像の半分（256 行 × 160 バイト、4 ページ）を DMA の塗りつぶしで（DMACTRL $14、`dma_zero` から 80 ワード × 256 行）。リセットの最初のフレームは何もしない（`l2_wait`）。DMA が使用中なら何もしない。プロセッサは設定するだけ（約 150 サイクル）。 | |
 | `dma_wait` | `restart`、`init_video` | DMA が空くまで（DMACTRL ビット 7）。 | |
-| `init_tables` | `start` | Next と同じもの（`edge_runs_init`、`ov_exp2/4`、`ring_*`、`span_class`、`edge_lo/hi`、`span_init`）、`pix_tab` は番号を両方のニブルに（16 色モードの 1 バイト 2 点）。 | 一度 |
+| `init_tables` | `start` | Next と同じ（`edge_runs_init`、`ov_exp2/4`、`ring_*`、`span_class`、`edge_lo/hi`、`span_init`）；点のテーブルは `bank_init` が作る（`pix_sets`）。 | 1 回 |
 | `init_video` | `start` | 川のモード（VPAGE 32、VCONFIG $81、PALSEL 0）。タイルマップ（ページ 7：行 0–23 はタイル 1 の黒、184 はタイル 3 で灰色の上の黒い線、185–223 はタイル 2 の灰色、224–239 は黒。川の行はなし）とタイルの点（ページ 8）。スプライトの 128K を DMA でクリア。TSCONFIG $A0（タイルレイヤー 0 とスプライトをオン）。FM 窓を永久にオンにし、CRAM と SFILE をゼロに。戦車の色。HSINT、フレーム割り込みのみ（INTMASK 1）。 | 一度 |
 | `screen_black` | `start` の最初 | TSCONFIG 0、BORDER 0、FM 窓経由で CRAM と SFILE の 1K 全部をゼロに：Wild Commander がどのモードを残していても黒に（ページ 5 にある ZX の画面がちょうど起動時のバッファの場所）。 | 一度 |
 | `tv_setup` | `restart` | PAL のみ：`init_line_tables`、RANDOM の PAL 列、`rnd_tables`。 | |
@@ -167,7 +159,10 @@ EV_PANEL（184 行目からのパネルの画像）、EV_GX（スクロールテ
 
 | ルーチン | 呼び出し | 何をどうする | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | 行のカラークロック 20–179 を画像の HL 行目（0–511）へ：ページ `VID_PAGE` + 行 / 64 を窓 1 に、行は $4000 + (行 & 63) × 256。`dl_seg` の部品から Next と同じく：同じ値の部品は元の 1 バイトにつき `pix_tab` のバイトを 4 回（`.fill`：`ld (hl),a / inc l`）、縁のバイト（ROM のテーブル）と装飾の 1 行は `pix_tab` 経由でそれぞれ出力 4 バイト。1 行につき行に沿って 160 回の書き込み（Next は列を下って 320 回、10 ページ）。最後に WORK_PAGE に戻す。5 バイト以上の同じ値の部品（`RL_DMA_MIN`）は DMA が空いていれば代わりに DMA へ：`rl_word`（値を 2 回）から `rl_page` ページへの塗りつぶし（DMACTRL $04）。ページ $C000 にある（場所のため $8000 から移した）。 | 3 500 / 8 400 |
+| `render_line` | `line_done` | まず `line_bank`（そのラインのテーブル一式）、次にテーブル用に 4 ページ（`PIX_PAGE`）をウィンドウ 0 へ。ラインのカラークロック 20–179 を画像のライン HL（0–511）へ：`VID_PAGE` + ライン / 64 ページをウィンドウ 1 に、ラインは $4000 + (ライン & 63) × 256；Next と同じく `dl_seg` の断片から：1 つの値の断片は一式の最初のページのバイトを 1 バイトに 4 回（`.fill`：`ld (hl),a / inc l`）、縁のバイト（ROM の表）と装飾の 1 行は一式の 4 ページを通して、それぞれ出力 4 バイト。1 ラインに行に沿って 160 回の書き込み（Next は列を下へ 320 回、10 ページ）。最後に WORK_PAGE と ATARI_PAGE を戻す。5 バイト以上の 1 つの値の断片（`RL_DMA_MIN`）は DMA が空いていれば代わりに DMA へ：`rl_word`（値 2 回）からの塗りつぶし（DMACTRL $04）でページ `rl_page` へ。$C000 ページにある（場所のため $8000 から移動）。 | 3 700 / 8 900 |
+| `line_bank` | `render_line` | ライン生成後の状態で C++ 移植の `lineBankColour`：道路の行を映しうるスロットがある間 `FIRST_SLOT` から下へ（y ≤ $5E：y はスロットを下るほど大きい）；橋ならその道路の行 y + 高さ − $5E、色は $B4E5 の表から；それ以外は `bank_colour`（緑）。前のラインと同じ色ならそれで終わり；違えば `bank_cols` 内の位置 × 4 を `rl_set`（一式の上位バイト）へ。1 ラインあたり約 250。 | 250 / 550（＋ `bank_colour` 400 / 600） |
+| `bank_init` | `init_video` | 岸の色を 1 回ずつ：$D2、$D6、そして道路の 20 行の色（`bank_cols`、`bank_n`、最大 8）；グループ 0 の CRAM 番号は 1、そして 9–15（`cram_set`）；次に `pix_sets`。 | 1 回 |
+| `pix_sets` | `bank_init` | 4 ページ（`PIX_PAGE`）を $0000 に：色ごとに 4 ページの一式（一式 i は 4i × 256）：ページ k のバイト b は b の k 番目の点、両ニブルがその番号（0、2、3 はそのまま、1 は色 i の番号：1、そして 9..）。ウィンドウ 0 を INIT_PAGE に戻す。 | 1 回 |
 
 ## sprites.asm：川のスプライト
 
@@ -282,8 +277,8 @@ Wild Commander は .spg をフォルダも DOS もなしで起動するので、
 - **共通のコード**：ゲームへの変更（ロジック、生成器、display、衝突）は、まず C++ 版、次に Next の `src/`、最後にここのコピーへ（`diff ../src/X.asm src/X.asm` は上に挙げた変更だけを示す）。TS-Conf での見せ方に関する変更はここに留まる。
 - **窓 1** は、`render_line`、`panel_draw`、起動コードが別のページをマップしている間を除いて WORK_PAGE です。どれも WORK_PAGE に戻します（SPANS とバッファがそこにある）。
 - **$E000 の FM 窓**は常に開いています：$E000–$E3FF への書き込みは CRAM と SFILE へ行く（下の RAM にも行き、`apply` はそれで読み返す）。そこに他のものを置かないこと。
-- **割り込みのイベント**は 2 つのバッファ（`ev_a`、`ev_b`）にあります：`build_events` は `ev_show` が指していない方に書き、`apply` が DI の下でそれを有効にする。
-- **行末で取り込まれるレジスタ**（PALSEL、VPAGE、GYOFFS、GXOFFS）は、1 行前の割り込みで設定すること。割り込みは HSINT 208（右端）で来るので、3.5–14 MHz で時間は足ります。
+- **割り込みのリスト**は 1 つ（`ev_panel`）：`apply` がスクロール文字の X を書き込み、DI の下でセットする。その割り込みはその後、表示中のフレームで来る。
+- **行末で取り込まれるレジスタ**（VPAGE、GYOFFS、GXOFFS）は、1 行前の割り込みで設定すること。割り込みは HSINT 208（右端）で来るので、3.5–14 MHz で時間は足ります。
 - **DMA** は画面の消去（`clear_layer2_page`）とパネルの文字（`pc_put`）が共有します：DMA が使用中なら `pc_put` はプロセッサで描く。SFILE のコピー（`sfile_put`）と新しい行の長いラン（`render_line`）も使い、使用中ならそれぞれプロセッサで行う。
-- **検証**：`make check`（3 000 フレーム、`FRAMES=`）、さらに bot、`-stress`、TSBRIDGE、TSSPEED=1（7 MHz）、TSGS=neo または 0 で、[README.ja.md](README.ja.md) の通り。変更のたびに毎フレーム：状態、行ごとの岸の色（`ev_built`）、General Sound のレジスタ、マシンの画像をピクセル単位で。
+- **検証**：`make check`（3 000 フレーム、`FRAMES=`）、さらに bot、`-stress`、TSBRIDGE、TSSPEED=1（7 MHz）、TSGS=neo または 0 で、[README.ja.md](README.ja.md) の通り。変更のたびに毎フレーム：状態、行ごとの岸の色、General Sound のレジスタ、マシンの画像をピクセル単位で。
 - **計測**：`TSHISTALL=ファイル`（実行全体の各命令の時間、起動、割り込み、待ちを含む）、次に `python3 ../tools/prof.py build/test.sym ファイル 60`。処理の平均と最大は tscheck の最後の行にあります。`TSMSHOT=k` で k 以降のマシンの各フレームを書き出す（32 枚、遅れたフレームの 2 枚目も）。`TSBORDER=1` で T をオン。`TSSHOT=k` と `TSFULL=1` で k 以降のフレームをボーダー付きで書き出す（実行の最後の画像はボーダーが 1 色だけ：実行は `apply_done` で止まる）。`TSTIME=N` はフレーム N−2..N+2 の処理を表示。`TSVOL=1`：フレームごとの POKEY の音量の合計とカードの最高レベル（255 以下でなければならない）。

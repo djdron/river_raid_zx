@@ -19,11 +19,11 @@ Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert i
 - Der Fluss: der 16-Farben-Modus, 320x240, eine Bildzeile 256 Bytes (160 an ihrem Anfang), 512
   Zeilen als Ring, von der Hardware gescrollt (GYOFFS); eine neue Flusszeile wird direkt in
   ihre Reihe geschrieben (`render.asm`), ohne Kopien.
-- Die Uferfarbe pro Zeile: Jede Farbe, die das Ufer hatte, hat eine eigene Palette (PALSEL 0-7:
-  ihre Farbe 1 diese Farbe, einmal gesetzt; 2 und 3 Kante und Wasser, in jedem Bild). Der
-  Bild-INT, im Bild von Wechsel zu Wechsel nach unten verschoben (`build_events`, `irq`), setzt
-  PALSEL eine Zeile vor dem Wechsel; das Register wird am Zeilenende übernommen, also ist der
-  Wechsel bei jedem CPU-Takt genau.
+- Die Uferfarbe pro Zeile: eine Palette (PALSEL 0) hält die Uferfarben, die zwei Grüntöne
+  und die Straßenfarben an der Brücke (Einträge 1 und 9-15, einmal beim Start gesetzt), dazu 2
+  und 3 Kante und Wasser; die Uferpunkte jeder neuen Zeile werden im Eintrag ihrer Farbe
+  gezeichnet (`line_bank`, ein Satz Punkttabellen pro Farbe), so geht die Farbe mit der Zeile:
+  kein INT pro Wechsel, nichts zu setzen, während das Bild gezeigt wird.
 - Die Objekte, das Flugzeug, sein Geschoss, der Panzer und die Raketen: Sprites
   (`sprites.asm`), ihre Bilder beim Start aus den Formen der Cartridge gemacht, jedes Objekt
   16, 32 und 64 Punkte breit (die Sprites haben keine Skalierung).
