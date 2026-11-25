@@ -36,7 +36,7 @@
 带 General Sound，所以噪声不占主处理器的时间。两次运行：
 
 - **A**：bot 1，从开始起 3 000 帧：工作量平均每帧约 68 000，最多约 120 000；
-- **B**：从第 80 座桥开始的 `-stress`，6 000 帧（`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`：所有槽位都被占用、全速、一直开火）：平均约 107 000，最多约 145 000。
+- **B**：从第 80 座桥开始的 `-stress`，6 000 帧（`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`：所有槽位都被占用、全速、一直开火）：平均约 106 000，最多约 144 000。
 
 工作量从 `apply_done` 计到 `frame_done`（不计等待帧中断）；下面的各部分还包括 `apply` 和中断（约 7 000）。
 
@@ -45,7 +45,7 @@
 | 部分 | A | B |
 |---|---|---|
 | display：物体摆放与碰撞（`display`、`ds_*`、`dh_*`、`sp_*`、`hit_*`） | 38 300 | 51 000 |
-| 河流的新行（`river_gen`、`render_line`、`span_line`、`line_done`、`push_line`） | 14 400 | 33 900 |
+| 河流的新行（`river_gen`、`render_line`、`span_line`、`line_done`、`push_line`） | 14 400 | 33 800 |
 | 精灵（`build_sprites`、`ob_*`、`pl_*`、`obj_lookup`、`sfile_put`） | 9 300 | 13 900 |
 | `apply`、面板和中断（`apply`、`panel_frame`、`panel_draw`、`pc_*`、`irq`、面板打印） | 6 200 | 5 800 |
 | 声音（`sound_driver`、`snd_*`、`gs_*`；没有卡时 `ay_*`：A 中约 5 800） | 3 400 | 3 500 |
@@ -59,7 +59,7 @@
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 700 | 8 900 | render |
+| `render_line` | 3 700 | 8 700 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -76,7 +76,7 @@
 | `apply`（自身代码） | 800 | 800 | river_raid |
 | `hit_setup` | 500 | 700 | display_hits |
 
-在 7 MHz（`TSSPEED=1`，每帧约 143 400 周期）下工作量是同样的指令：`-stress` 平均约 92 000，最多约
+在 7 MHz（`TSSPEED=1`，每帧约 143 400 周期）下工作量是同样的指令：`-stress` 平均约 91 000，最多约
 122 000，刚好放得下；3.5 MHz 下不够。`gs_send` 要等卡读走每个字节（14 MHz 下每字节约 300 周期）。
 
 （`prof.py` 用地址下方最近的全局标号作为例程名。低于 $4000 的地址是 INIT_PAGE 中的启动工作：不计。）
@@ -87,7 +87,7 @@
 
 | 窗口 | 地址 | 平时 | 被谁换页 |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：位于原版地址的 Atari 内存 | 启动时：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` 在那里运行）；`render_line`：4（`PIX_PAGE`，它的点表；随后恢复 ATARI_PAGE） |
+| 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：位于原版地址的 Atari 内存 | 启动时：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` 在那里运行） |
 | 1 | $4000–$7FFF | 5（`WORK_PAGE`）：从 $4000 起是各行的色段（`SPANS`，32 字节 × 256 行），从 $6000 起是缓冲区（`scan_*`、`edge_runs`、`ring_*`、`ds_objs`、`ov_exp2/4`、`eg_*`、`bg_*`、`line_*`、`edge_lo/hi`、`rnd_tab`），$7D00 处是系统字体 | `render_line`：河流图像的一页（32–47）；`panel_draw`/`pc_*`：面板图像（64–79）；启动时 tile 映射（7）、tile（8）、精灵图像（24–31）；之后总是换回 5 |
 | 2 | $8000–$BFFF | 2（`CODE_PAGE`）：代码到约 $9FBF，从 $A000 起是卡带 | — |
 | 3 | $C000–$FFFF | 6（`HIGH_PAGE`）：代码到约 $D7EC，然后 $E000 处是 FM 窗口（`CRAM_SHADOW`：CRAM $E000–$E1FF，SFILE $E200–$E3FF；写入同时也写到下面的 RAM），表和变量到约 $FD65，栈，$FE00 处的 IM 2 向量 | — |
@@ -153,10 +153,10 @@ $E400–$E4FF 是它的寄存器（`palette_lo` 在那里，只读）。
 
 | 例程 | 调用 | 做什么、怎么做 | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | 先调 `line_bank`（这一行的那组表），再把第 4 页（`PIX_PAGE`）映射到窗口 0 供查表。把该行的颜色时钟 20–179 写进画面行 HL（0–511）：第 `VID_PAGE` + 行 / 64 页映射到窗口 1，行在 $4000 + (行 & 63) × 256；与 Next 一样按 `dl_seg` 的片段：单值片段是该组第一页中的字节，每字节写 4 次（`.fill`：`ld (hl),a / inc l`），边缘的字节（ROM 的表）和装饰的一行经该组的 4 页查表，各出 4 个字节。每行沿行写 160 次（Next 沿列向下写 320 次，跨 10 页）。结束时恢复 WORK_PAGE 和 ATARI_PAGE。5 字节或更长的单值片段（`RL_DMA_MIN`）在 DMA 空闲时改交给 DMA：从 `rl_word`（该值两次）填充（DMACTRL $04）到 `rl_page` 页。位于 $C000 页（为腾空间从 $8000 移来）。 | 3 700 / 8 900 |
-| `line_bank` | `render_line` | 按该行之后的状态做 C++ 移植的 `lineBankColour`：从 `FIRST_SLOT` 往下查槽位，只要某个还可能显示道路的一行（y ≤ $5E：y 沿槽位往下增大）；若是桥，其道路行为 y + 高度 − $5E，颜色取自 $B4E5 处的表；否则 `bank_colour`（绿色）。与上一行颜色相同就到此为止；否则其在 `bank_cols` 中的位置 × 4 存入 `rl_set`（该组的高字节）。每行约 250。 | 250 / 550（另 `bank_colour` 400 / 600） |
+| `render_line` | `line_done` | 先调 `line_bank`。把该行的颜色时钟 20–179 写进画面行 HL（0–511）：第 `VID_PAGE` + 行 / 64 页映射到窗口 1，行在 $4000 + (行 & 63) × 256；与 Next 一样按 `dl_seg` 的片段：单值片段是从 `rl_k1` 取的颜色，每字节写 4 次（`.fill`：`ld (hl),a / inc l`），边缘的字节（ROM 的表）和装饰的一行经该行的那组点表（`rl_set`：某种绿色的），各出 4 个字节；道路行（`.table_k`）经第一种绿色的表，其河岸点换成道路的项（`rl_sub`）。每行沿行写 160 次（Next 沿列向下写 320 次，跨 10 页）。结束时恢复 WORK_PAGE。5 字节或更长的单值片段（`RL_DMA_MIN`）在 DMA 空闲时改交给 DMA：从 `rl_word`（该值两次）填充（DMACTRL $04）到 `rl_page` 页。位于 $C000 页（为腾空间从 $8000 移来）。 | 3 700 / 8 700 |
+| `line_bank` | `render_line` | C++ 移植的 `lineBankColour`，只在可能改变时才计算：过了桥的道路（`road_row` $7F）什么都不做；过道路后的第一行（`road_row` $7E）取一次新的绿色（`bank_colour`）；道路行取 $B4E5 处表中的颜色；道路之前（`road_row` 为负）调 `bank_colour`。颜色与上一行不同时：把其项写入 `rl_k1` + $55 和 `rl_sub`，设 `rl_set`（`pix_set0` 或 `pix_set1`），以及第 0/2 类片段的跳转（`render_line.kind`：`.table`，道路颜色时为 `.table_k`）。放桥（`place_object`）或恢复桥（`restore_checkpoint`：$4A + 高度 − $5E）时 `road_row` 设为 $FF，在 `scroll_objects` 中每行加一，直到桥的高度。 | 50 / 100 |
 | `bank_init` | `init_video` | 河岸的颜色，每种一次：$D2、$D6，然后是 20 行道路的颜色（`bank_cols`、`bank_n`，最多 8 种）；它们在第 0 组的 CRAM 项：1，然后 9–15（`cram_set`）；再调 `pix_sets`。 | 一次 |
-| `pix_sets` | `bank_init` | 第 4 页（`PIX_PAGE`）在 $0000：每种颜色一组 4 页（第 i 组在 4i × 256）：第 k 页的字节 b 是 b 的第 k 个点，两个半字节都是它的项（0、2、3 不变，1 为颜色 i 的项：1，然后 9..）。窗口 0 恢复为 INIT_PAGE。 | 一次 |
+| `pix_sets` | `bank_init` | 两种绿色的点表，各 4 页（`pix_set0` 在 $E700，`pix_set1` 在 $DC00）：第 k 页的字节 b 是 b 的第 k 个点，两个半字节都是它的项（0、2、3 不变，1 为该绿色的：1、9）；`rl_k1`（在 $DB00）：片段的值 0、$AA、$FF 对应的颜色（$55 由 `line_bank` 设置）。 | 一次 |
 
 ## sprites.asm：河流的精灵
 

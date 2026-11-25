@@ -39,7 +39,7 @@ przez liczbę klatek), na wersji testowej (`-DTEST`: z pamięcią ekranu Atari, 
 nie kosztują głównego procesora. Dwa przebiegi:
 
 - **A**: bot 1, 3 000 klatek od startu: praca średnio ~68 000 na klatkę, najwyżej ~120 000;
-- **B**: `-stress` od mostu 80, 6 000 klatek (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~107 000, najwyżej ~145 000.
+- **B**: `-stress` od mostu 80, 6 000 klatek (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~106 000, najwyżej ~144 000.
 
 Praca to odcinek od `apply_done` do `frame_done` (czekanie na przerwanie klatki niewliczone);
 części niżej liczą też `apply` i przerwania (~7 000).
@@ -49,7 +49,7 @@ Według części (A / B):
 | część | A | B |
 |---|---|---|
 | wyświetlanie: rozmieszczanie obiektów i kolizje (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| nowe linie rzeki (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 900 |
+| nowe linie rzeki (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 800 |
 | sprite'y (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
 | `apply`, panel i przerwania (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, wypisywanie panelu) | 6 200 | 5 800 |
 | dźwięk (`sound_driver`, `snd_*`, `gs_*`; bez karty `ay_*`: ~5 800 w A) | 3 400 | 3 500 |
@@ -63,7 +63,7 @@ Najdroższe procedury (A / B):
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 700 | 8 900 | render |
+| `render_line` | 3 700 | 8 700 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -81,7 +81,7 @@ Najdroższe procedury (A / B):
 | `hit_setup` | 500 | 700 | display_hits |
 
 Przy 7 MHz (`TSSPEED=1`, ~143 400 taktów na klatkę) praca to te same instrukcje: `-stress`
-średnio ~92 000, najwyżej ~122 000, mieści się na styk; przy 3,5 MHz nie nadąża. `gs_send`
+średnio ~91 000, najwyżej ~122 000, mieści się na styk; przy 3,5 MHz nie nadąża. `gs_send`
 czeka, aż karta przeczyta każdy bajt (~300 taktów na bajt przy 14 MHz).
 
 (`prof.py` bierze nazwę procedury z najbliższej globalnej etykiety poniżej adresu. Adresy poniżej
@@ -93,7 +93,7 @@ Okna 16K i strony w nich (strony 16K płyty):
 
 | okno | adres | zwykle | kto przemapowuje |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): RAM Atari pod adresami oryginału | przy starcie: 3 (`INIT_PAGE`: tam działają `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`); `render_line`: 4 (`PIX_PAGE`, jego tablice punktów; ATARI_PAGE z powrotem) |
+| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): RAM Atari pod adresami oryginału | przy starcie: 3 (`INIT_PAGE`: tam działają `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): odcinki linii od $4000 (`SPANS`, 32 bajty × 256 linii), bufory od $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), czcionka systemu pod $7D00 | `render_line`: strona obrazu rzeki (32–47); `panel_draw`/`pc_*`: obraz panelu (64–79); przy starcie mapa kafelków (7), kafelki (8), obrazki sprite'ów (24–31); zawsze z powrotem 5 |
 | 2 | $8000–$BFFF | 2 (`CODE_PAGE`): kod do ~$9FBF, kartridż od $A000 | — |
 | 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): kod do ~$D7EC, potem pod $E000 okno FM (`CRAM_SHADOW`: CRAM $E000–$E1FF, SFILE $E200–$E3FF; zapisy idą też do RAM pod nim), tablice i zmienne do ~$FD65, stos, wektory IM 2 pod $FE00 | — |
@@ -162,10 +162,10 @@ zmienne i bufory.
 
 | procedura | wywołanie | co i jak | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Najpierw `line_bank` (zestaw tablic linii), potem strona 4 (`PIX_PAGE`) w okno 0 dla tablic. Takty kolorów 20–179 linii do linii obrazu HL (0–511): strona `VID_PAGE` + linia / 64 w okno 1, linia pod $4000 + (linia & 63) × 256; z kawałków `dl_seg` jak na Next: kawałek jednej wartości to jego bajt z pierwszej strony zestawu, 4 razy na bajt (`.fill`: `ld (hl),a / inc l`), bajty krawędzi (tablica w ROM) i wiersz dekoracji przez 4 strony zestawu, po 4 bajty wyjścia. 160 zapisów na linię wzdłuż wiersza (Next pisze 320 w dół kolumn, 10 stron). Na końcu WORK_PAGE i ATARI_PAGE z powrotem. Kawałek jednej wartości od 5 bajtów (`RL_DMA_MIN`) idzie zamiast tego do DMA, gdy jest wolne: wypełnienie (DMACTRL $04) z `rl_word` (wartość dwa razy) do strony `rl_page`. W stronie $C000 (przeniesione z $8000 dla miejsca). | 3 700 / 8 900 |
-| `line_bank` | `render_line` | `lineBankColour` portu C++ na stanie po linii: sloty od `FIRST_SLOT` w dół, dopóki któryś może pokazać wiersz drogi (y ≤ $5E: y rośnie w dół slotów); przy moście jego wiersz drogi y + wysokość − $5E, kolor z tablicy pod $B4E5; inaczej `bank_colour` (zieleń). Ten sam kolor co linia przed: nic więcej; inaczej jego miejsce w `bank_cols` × 4 do `rl_set` (starszy bajt zestawu). ~250 na linię. | 250 / 550 (+ `bank_colour` 400 / 600) |
+| `render_line` | `line_done` | Najpierw `line_bank`. Takty kolorów 20–179 linii do linii obrazu HL (0–511): strona `VID_PAGE` + linia / 64 w okno 1, linia pod $4000 + (linia & 63) × 256; z kawałków `dl_seg` jak na Next: kawałek jednej wartości to jego kolor z `rl_k1`, 4 razy na bajt (`.fill`: `ld (hl),a / inc l`), bajty krawędzi (tablica w ROM) i wiersz dekoracji przez zestaw tablic punktów linii (`rl_set`: jednej z zieleni), po 4 bajty wyjścia; na linii drogi (`.table_k`) przez tablice pierwszej zieleni, punkty brzegu w pozycji drogi (`rl_sub`). 160 zapisów na linię wzdłuż wiersza (Next pisze 320 w dół kolumn, 10 stron). Na końcu WORK_PAGE z powrotem. Kawałek jednej wartości od 5 bajtów (`RL_DMA_MIN`) idzie zamiast tego do DMA, gdy jest wolne: wypełnienie (DMACTRL $04) z `rl_word` (wartość dwa razy) do strony `rl_page`. W stronie $C000 (przeniesione z $8000 dla miejsca). | 3 700 / 8 700 |
+| `line_bank` | `render_line` | `lineBankColour` portu C++, liczony tylko wtedy, gdy może się zmienić: za drogą mostu (`road_row` $7F) nic; na pierwszej linii za nią (`road_row` $7E) raz nowa zieleń (`bank_colour`); na wierszu drogi jego kolor z tablicy pod $B4E5; przed drogą (`road_row` ujemny) `bank_colour`. Kolor inny niż linii przed: jego pozycja do `rl_k1` + $55 i `rl_sub`, `rl_set` (`pix_set0` lub `pix_set1`), skok dla kawałków rodzaju 0/2 (`render_line.kind`: `.table` albo, dla koloru drogi, `.table_k`). `road_row` = $FF, gdy most jest stawiany (`place_object`) lub przywracany (`restore_checkpoint`: $4A + wysokość − $5E), przesuwany o linię w `scroll_objects` do wysokości mostu. | 50 / 100 |
 | `bank_init` | `init_video` | Kolory brzegu, każdy raz: $D2, $D6, potem 20 wierszy drogi (`bank_cols`, `bank_n`, najwyżej 8); ich pozycje CRAM w grupie 0: 1, potem 9–15 (`cram_set`); potem `pix_sets`. | raz |
-| `pix_sets` | `bank_init` | Strona 4 (`PIX_PAGE`) pod $0000: zestaw 4 stron na kolor (zestaw i pod 4i × 256): bajt b strony k to punkt k bajtu b, oba półbajty jego pozycja (0, 2, 3 same, 1 koloru i: 1, potem 9..). Okno 0 z powrotem na INIT_PAGE. | raz |
+| `pix_sets` | `bank_init` | Tablice punktów dwóch zieleni, po 4 strony (`pix_set0` pod $E700, `pix_set1` pod $DC00): bajt b strony k to punkt k bajtu b, oba półbajty jego pozycja (0, 2, 3 same, 1 zieleni: 1, 9); `rl_k1` (pod $DB00): wartość kawałka 0, $AA, $FF jako jego kolor ($55 ustawia `line_bank`). | raz |
 
 ## sprites.asm: sprite'y rzeki
 

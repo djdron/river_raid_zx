@@ -20,8 +20,8 @@ The source routine by routine, what changed in the Next's shared code, and a tab
   its row (`render.asm`), no copies.
 - The bank's colour by line: one palette (PALSEL 0) holds the bank's colours, the two greens
   and the bridge road's (entries 1 and 9-15, set once at the start), with 2 and 3 the edge and
-  the water; each new line's bank dots are drawn in its own colour's entry (`line_bank`, a set
-  of dot tables per colour), so the colour goes with the line: no INT per change, nothing to
+  the water; each new line's bank dots are drawn in its own colour's entry (`line_bank`, worked
+  out only by a bridge; nothing switched per line), so the colour goes with the line: no INT per change, nothing to
   set while the picture is shown.
 - The objects, the plane, its bullet, the tank and the missiles: sprites (`sprites.asm`), their
   pictures made at the start from the cartridge's shapes, each object at 16, 32 and 64 dots

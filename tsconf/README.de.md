@@ -22,7 +22,7 @@ Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert i
 - Die Uferfarbe pro Zeile: eine Palette (PALSEL 0) hält die Uferfarben, die zwei Grüntöne
   und die Straßenfarben an der Brücke (Einträge 1 und 9-15, einmal beim Start gesetzt), dazu 2
   und 3 Kante und Wasser; die Uferpunkte jeder neuen Zeile werden im Eintrag ihrer Farbe
-  gezeichnet (`line_bank`, ein Satz Punkttabellen pro Farbe), so geht die Farbe mit der Zeile:
+  gezeichnet (`line_bank`, nur an einer Brücke ausgerechnet; pro Zeile wird nichts umgeschaltet), so geht die Farbe mit der Zeile:
   kein INT pro Wechsel, nichts zu setzen, während das Bild gezeigt wird.
 - Die Objekte, das Flugzeug, sein Geschoss, der Panzer und die Raketen: Sprites
   (`sprites.asm`), ihre Bilder beim Start aus den Formen der Cartridge gemacht, jedes Objekt

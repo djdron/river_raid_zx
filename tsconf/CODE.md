@@ -40,7 +40,7 @@ which the game does not have: `line_done` and `draw_line` are ~1 000–2 000 hea
 the game). With a General Sound, so the noises cost the main CPU nothing. Two runs:
 
 - **A**: bot 1, 3 000 frames from the start: the work ~68 000 a frame on average, ~120 000 at most;
-- **B**: `-stress` from bridge 80, 6 000 frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: all slots taken, full speed, always firing): ~107 000 on average, ~145 000 at most.
+- **B**: `-stress` from bridge 80, 6 000 frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: all slots taken, full speed, always firing): ~106 000 on average, ~144 000 at most.
 
 The work is from `apply_done` to `frame_done` (the frame INT's waits not counted); the parts
 below also count `apply` and the INTs (~7 000).
@@ -50,7 +50,7 @@ By part (A / B):
 | part | A | B |
 |---|---|---|
 | the display: objects' placement and collisions (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| new river lines (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 900 |
+| new river lines (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 800 |
 | sprites (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
 | `apply`, the panel and the INTs (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, the panel's printing) | 6 200 | 5 800 |
 | sound (`sound_driver`, `snd_*`, `gs_*`; without a card `ay_*`: ~5 800 in A) | 3 400 | 3 500 |
@@ -64,7 +64,7 @@ The most expensive routines (A / B):
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 700 | 8 900 | render |
+| `render_line` | 3 700 | 8 700 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -82,7 +82,7 @@ The most expensive routines (A / B):
 | `hit_setup` | 500 | 700 | display_hits |
 
 At 7 MHz (`TSSPEED=1`, ~143 400 ticks a frame) the work is the same instructions: `-stress`
-~92 000 on average, ~122 000 at most, just fitting; at 3.5 MHz it does not keep up.
+~91 000 on average, ~122 000 at most, just fitting; at 3.5 MHz it does not keep up.
 `gs_send` waits for the card to read each byte (~300 ticks a byte at 14 MHz).
 
 (`prof.py` takes a routine's name from the nearest global label below the address. Addresses
@@ -94,7 +94,7 @@ below $4000 are the start's work in INIT_PAGE: leave them out.)
 
 | window | address | normally | remapped by |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): the Atari's RAM at the original's addresses | at the start: 3 (`INIT_PAGE`: `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm` run there); `render_line`: 4 (`PIX_PAGE`, its dots' tables; ATARI_PAGE back) |
+| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): the Atari's RAM at the original's addresses | at the start: 3 (`INIT_PAGE`: `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm` run there) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): the lines' runs at $4000 (`SPANS`, 32 bytes × 256 lines), buffers at $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), the OS font at $7D00 | `render_line`: a page of the river's picture (32–47); `panel_draw`/`pc_*`: the panel's picture (64–79); at the start the tile map (7), the tiles (8), the sprites' pictures (24–31); always put back to 5 |
 | 2 | $8000–$BFFF | 2 (`CODE_PAGE`): code to ~$9FBF, the cartridge at $A000 | — |
 | 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): code to ~$D7EC, then at $E000 the FM window (`CRAM_SHADOW`: CRAM $E000–$E1FF, the SFILE $E200–$E3FF; the writes also go to the RAM under it), tables and variables to ~$FD65, the stack, the IM 2 vectors at $FE00 | — |
@@ -163,10 +163,10 @@ the river's palettes, variables and buffers.
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | `line_bank` first (the line's set of tables), then page 4 (`PIX_PAGE`) into window 0 for the tables. Colour clocks 20–179 of the line into the picture's line HL (0–511): page `VID_PAGE` + line / 64 into window 1, the line at $4000 + (line & 63) × 256; from `dl_seg`'s pieces as the Next's: a piece of one value is its byte from the set's first page 4 times a byte (`.fill`: `ld (hl),a / inc l`), an edge's bytes (the ROM's table) and a decoration's row through the set's 4 pages, 4 output bytes each. 160 writes a line along the row (the Next writes 320 down columns, 10 pages). WORK_PAGE and ATARI_PAGE back at the end. A piece of one value 5 bytes or longer (`RL_DMA_MIN`) goes to the DMA instead while it is free: a fill (DMACTRL $04) from `rl_word` (the value twice), into page `rl_page`. In page $C000 (moved from $8000 for room). | 3 700 / 8 900 |
-| `line_bank` | `render_line` | The C++ port's `lineBankColour` on the state after the line: the slots from `FIRST_SLOT` down while one may show a road row (y ≤ $5E: y grows down the slots); a bridge's: its road row y + height − $5E, the colour from the table at $B4E5; else `bank_colour` (the green). The same colour as the line before: nothing more; else its place in `bank_cols` × 4 into `rl_set` (the set's high byte). ~250 a line. | 250 / 550 (+ `bank_colour` 400 / 600) |
+| `render_line` | `line_done` | `line_bank` first. Colour clocks 20–179 of the line into the picture's line HL (0–511): page `VID_PAGE` + line / 64 into window 1, the line at $4000 + (line & 63) × 256; from `dl_seg`'s pieces as the Next's: a piece of one value is its colour from `rl_k1` 4 times a byte (`.fill`: `ld (hl),a / inc l`), an edge's bytes (the ROM's table) and a decoration's row through the line's set of dot tables (`rl_set`: a green's), 4 output bytes each; on a road line (`.table_k`) through the first green's, its bank dots in the road's entry (`rl_sub`). 160 writes a line along the row (the Next writes 320 down columns, 10 pages). WORK_PAGE back at the end. A piece of one value 5 bytes or longer (`RL_DMA_MIN`) goes to the DMA instead while it is free: a fill (DMACTRL $04) from `rl_word` (the value twice), into page `rl_page`. In page $C000 (moved from $8000 for room). | 3 700 / 8 700 |
+| `line_bank` | `render_line` | The C++ port's `lineBankColour`, worked out only when it can change: past a bridge's road (`road_row` $7F) nothing; on the first line past it (`road_row` $7E) the new green (`bank_colour`) once; on a road row its colour from the table at $B4E5; before the road (`road_row` negative) `bank_colour`. A colour other than the line before's: its entry into `rl_k1` + $55 and `rl_sub`, `rl_set` (`pix_set0` or `pix_set1`), the kind-0/2 jump (`render_line.kind`: `.table` or, for a road colour, `.table_k`). `road_row` is set to $FF when the bridge is placed (`place_object`) or put back (`restore_checkpoint`: $4A + height − $5E) and moved a line on in `scroll_objects` up to the bridge's height. | 50 / 100 |
 | `bank_init` | `init_video` | The bank's colours, each once: $D2, $D6, then the 20 road rows' (`bank_cols`, `bank_n`, at most 8); their CRAM entries in group 0: 1, then 9–15 (`cram_set`); then `pix_sets`. | once |
-| `pix_sets` | `bank_init` | Page 4 (`PIX_PAGE`) at $0000: a set of 4 pages per colour (set i at 4i × 256): page k's byte b is b's dot k with both nibbles its entry (0, 2, 3 themselves, 1 colour i's: 1, then 9..). Window 0 back to INIT_PAGE. | once |
+| `pix_sets` | `bank_init` | The two greens' dot tables, 4 pages each (`pix_set0` at $E700, `pix_set1` at $DC00): page k's byte b is b's dot k with both nibbles its entry (0, 2, 3 themselves, 1 the green's: 1, 9); `rl_k1` (at $DB00): a run's value 0, $AA, $FF as its colour ($55 by `line_bank`). | once |
 
 ## sprites.asm: the river's sprites
 

@@ -9,13 +9,13 @@ TS-Conf 移植独自のノート（ボード、Copper の代わりの割り込�
 ## メモリ
 | Z80 | 8K ページ | 内容 |
 |---|---|---|
-| $0000–$3FFF | 30, 31 | Atari の RAM をオリジナルのアドレスに（状態、スロット $0500、キャラクタセット $0600–$09FF、player-missile メモリ $0B00–$0FFF、パネル $1000、画面メモリ $2000–$2EFF と $3000–$3EFF、$3F04 最上行のアドレス、$3FB3 スクロール文字列）；`render_line` が描く間：29 ページを $0000 に、その点のテーブル（`pix_sets`） |
+| $0000–$3FFF | 30, 31 | Atari の RAM をオリジナルのアドレスに（状態、スロット $0500、キャラクタセット $0600–$09FF、player-missile メモリ $0B00–$0FFF、パネル $1000、画面メモリ $2000–$2EFF と $3000–$3EFF、$3F04 最上行のアドレス、$3FB3 スクロール文字列） |
 | $4000–$5FFF | 18–27 / 10, 11 / 7 | ウィンドウ：Layer 2（render_line、消去）、バンク 5（tilemap、panel_frame） |
-| $6000–$7FFF | 12 | scan_bank（`-DBEAM` のときだけ埋まる）、ring_lo/hi（画面メモリの行：チェック用ビルド）、edge_runs（縁の各片のラン：span_line）、sprite_list、ds_objs、copper_list（2K）、ov_exp2/ov_exp4（1 バイトの点を広げたもの：hit_wide）、eg_*（行ごとの縁のすき間：ds_edge_test、dh_pf）、$7C00 の DAC リング |
+| $6000–$7FFF | 12 | scan_bank（`-DBEAM` のときだけ埋まる）、ring_lo/hi（画面メモリの行：チェック用ビルド）、edge_runs（縁の各片のラン：span_line）、sprite_list、ds_objs、copper_list（256）、rl_k1、pix_set1、ov_exp2/ov_exp4（1 バイトの点を広げたもの：hit_wide）、eg_*（行ごとの縁のすき間：ds_edge_test、dh_pf）、$7C00 の DAC リング |
 | $8000–$9FFF | 4 | ヘッダとフレームループ、川の生成器、描画、パレット、乱数マップ、play.asm（空き約 1.6K） |
 | $A000–$BFFF | 5 | カートリッジ（SD カードから読み込み；esxDOS F_OPEN/F_READ、長い名前、次に RIVER_~1.ROM；確認：8192 バイト、$BFFA = $A000） |
 | $C000–$DFFF | 6 | game.asm、display.asm、sprites.asm、render.asm、bank_colours.asm（空き約 10 バイト） |
-| $E000–$FFFF | 1 | 変数（line_buf は画面メモリありのときだけ）、edge_lo/hi、span_class、span_masks、obj_head/obj_e、rnd_tab、bg_*（行ごとの岸のすき間：dh_pf、4 ページ）、スタック |
+| $E000–$FFFF | 1 | 変数（line_buf は画面メモリありのときだけ）、edge_lo/hi、span_class、span_masks、obj_head/obj_e、rnd_tab、pix_set0, bg_*（行ごとの岸のすき間：dh_pf、4 ページ）、スタック |
 
 ページ 7 が $6000 にマップされるのは、起動時に `load_rom` と `panel_init` が動いている間だけ。`obj_pics` がそこに続く。NEX には 16K バンク 2 と 3（ページ 4–7）が入っている。
 

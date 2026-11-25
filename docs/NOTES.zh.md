@@ -9,13 +9,13 @@ TS-Conf 移植自己的笔记（主板、代替 Copper 的中断、General Sound
 ## 内存
 | Z80 | 8K 页 | 内容 |
 |---|---|---|
-| $0000–$3FFF | 30, 31 | Atari 的 RAM，位于原版的地址（状态、槽位 $0500、字符集 $0600–$09FF、player-missile 内存 $0B00–$0FFF、面板 $1000、屏幕内存 $2000–$2EFF 和 $3000–$3EFF、$3F04 顶行地址、$3FB3 滚动字幕文本）；`render_line` 绘制时：第 29 页在 $0000，它的点表（`pix_sets`） |
+| $0000–$3FFF | 30, 31 | Atari 的 RAM，位于原版的地址（状态、槽位 $0500、字符集 $0600–$09FF、player-missile 内存 $0B00–$0FFF、面板 $1000、屏幕内存 $2000–$2EFF 和 $3000–$3EFF、$3F04 顶行地址、$3FB3 滚动字幕文本） |
 | $4000–$5FFF | 18–27 / 10, 11 / 7 | 一个窗口：Layer 2（render_line、清除）、bank 5（tilemap、panel_frame） |
-| $6000–$7FFF | 12 | scan_bank（只有 `-DBEAM` 填充）、ring_lo/hi（屏幕内存的行：检查构建）、edge_runs（每段边缘的连续段：span_line）、sprite_list、ds_objs、copper_list（2K）、ov_exp2/ov_exp4（加宽后的一个字节的点：hit_wide）、eg_*（每行边缘的空隙：ds_edge_test、dh_pf）、$7C00 的 DAC 环形缓冲 |
+| $6000–$7FFF | 12 | scan_bank（只有 `-DBEAM` 填充）、ring_lo/hi（屏幕内存的行：检查构建）、edge_runs（每段边缘的连续段：span_line）、sprite_list、ds_objs、copper_list（256）、rl_k1、pix_set1、ov_exp2/ov_exp4（加宽后的一个字节的点：hit_wide）、eg_*（每行边缘的空隙：ds_edge_test、dh_pf）、$7C00 的 DAC 环形缓冲 |
 | $8000–$9FFF | 4 | 头部和帧循环、河流生成器、渲染、调色板、随机映射、play.asm（约 1.6K 空闲） |
 | $A000–$BFFF | 5 | 卡带（从 SD 卡加载；esxDOS F_OPEN/F_READ，先长文件名再 RIVER_~1.ROM；已检查：8192 字节，$BFFA = $A000） |
 | $C000–$DFFF | 6 | game.asm、display.asm、sprites.asm、render.asm、bank_colours.asm（约 10 字节空闲） |
-| $E000–$FFFF | 1 | 变量（line_buf 仅在有屏幕内存时）、edge_lo/hi、span_class、span_masks、obj_head/obj_e、rnd_tab、bg_*（每行河岸的空隙：dh_pf，4 页）、栈 |
+| $E000–$FFFF | 1 | 变量（line_buf 仅在有屏幕内存时）、edge_lo/hi、span_class、span_masks、obj_head/obj_e、rnd_tab、pix_set0, bg_*（每行河岸的空隙：dh_pf，4 页）、栈 |
 
 页 7 只在启动时 `load_rom` 和 `panel_init` 运行期间映射到 $6000；`obj_pics` 紧随其后放在那里。NEX 包含 16K bank 2 和 3（页 4–7）。
 

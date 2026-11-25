@@ -9,13 +9,13 @@ Die eigenen Notizen des TS-Conf-Ports (die Platine, der Interrupt statt Copper, 
 ## Speicher
 | Z80 | 8K-Seite | Was |
 |---|---|---|
-| $0000–$3FFF | 30, 31 | das RAM des Atari an den Adressen des Originals (Zustand, $0500 Slots, $0600–$09FF Zeichensätze, $0B00–$0FFF Player-Missile-Speicher, $1000 Anzeige, $2000–$2EFF und $3000–$3EFF Bildschirmspeicher, $3F04 die Adresse der obersten Zeile, $3FB3 der Text der Laufschrift); während `render_line` zeichnet: Seite 29 bei $0000, seine Punkttabellen (`pix_sets`) |
+| $0000–$3FFF | 30, 31 | das RAM des Atari an den Adressen des Originals (Zustand, $0500 Slots, $0600–$09FF Zeichensätze, $0B00–$0FFF Player-Missile-Speicher, $1000 Anzeige, $2000–$2EFF und $3000–$3EFF Bildschirmspeicher, $3F04 die Adresse der obersten Zeile, $3FB3 der Text der Laufschrift) |
 | $4000–$5FFF | 18–27 / 10, 11 / 7 | ein Fenster: Layer 2 (render_line, Löschen), Bank 5 (Tilemap, panel_frame) |
-| $6000–$7FFF | 12 | scan_bank (füllt nur `-DBEAM`), ring_lo/hi (die Zeilen des Bildschirmspeichers: Builds der Prüfung), edge_runs (die Läufe jedes Kantenstücks: span_line), sprite_list, ds_objs, copper_list (2K), ov_exp2/ov_exp4 (die Punkte eines Bytes verbreitert: hit_wide), eg_* (die Lücken der Kante pro Zeile: ds_edge_test, dh_pf), der Ring des DAC an $7C00 |
+| $6000–$7FFF | 12 | scan_bank (füllt nur `-DBEAM`), ring_lo/hi (die Zeilen des Bildschirmspeichers: Builds der Prüfung), edge_runs (die Läufe jedes Kantenstücks: span_line), sprite_list, ds_objs, copper_list (256), rl_k1, pix_set1, ov_exp2/ov_exp4 (die Punkte eines Bytes verbreitert: hit_wide), eg_* (die Lücken der Kante pro Zeile: ds_edge_test, dh_pf), der Ring des DAC an $7C00 |
 | $8000–$9FFF | 4 | Header und Bildschleife, Flussgenerator, render, Palette, Random-Tabellen, play.asm (~1,6K frei) |
 | $A000–$BFFF | 5 | die Cartridge (von der SD-Karte geladen; esxDOS F_OPEN/F_READ, langer Name, dann RIVER_~1.ROM; geprüft: 8192 Bytes, $BFFA = $A000) |
 | $C000–$DFFF | 6 | game.asm, display.asm, sprites.asm, render.asm, bank_colours.asm (~10 Bytes frei) |
-| $E000–$FFFF | 1 | Variablen (line_buf nur mit Bildschirmspeicher), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, bg_* (die Lücken des Ufers pro Zeile: dh_pf, 4 Seiten), Stack |
+| $E000–$FFFF | 1 | Variablen (line_buf nur mit Bildschirmspeicher), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, pix_set0, bg_* (die Lücken des Ufers pro Zeile: dh_pf, 4 Seiten), Stack |
 
 Seite 7 liegt nur an $6000, solange beim Start `load_rom` und `panel_init` laufen; `obj_pics` folgt ihnen dort. Die NEX enthält die 16K-Bänke 2 und 3 (Seiten 4–7).
 

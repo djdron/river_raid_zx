@@ -9,13 +9,13 @@ Le note proprie del port per TS-Conf (la scheda, l'interrupt al posto del Copper
 ## Memoria
 | Z80 | Pagina da 8K | Cosa |
 |---|---|---|
-| $0000–$3FFF | 30, 31 | la RAM dell'Atari, agli indirizzi dell'originale (stato, slot $0500, set di caratteri $0600–$09FF, memoria player-missile $0B00–$0FFF, pannello $1000, memoria dello schermo $2000–$2EFF e $3000–$3EFF, $3F04 l'indirizzo della riga in alto, $3FB3 il testo della scritta scorrevole); mentre `render_line` disegna: pagina 29 a $0000, le sue tabelle dei punti (`pix_sets`) |
+| $0000–$3FFF | 30, 31 | la RAM dell'Atari, agli indirizzi dell'originale (stato, slot $0500, set di caratteri $0600–$09FF, memoria player-missile $0B00–$0FFF, pannello $1000, memoria dello schermo $2000–$2EFF e $3000–$3EFF, $3F04 l'indirizzo della riga in alto, $3FB3 il testo della scritta scorrevole) |
 | $4000–$5FFF | 18–27 / 10, 11 / 7 | una finestra: Layer 2 (render_line, pulizia), banco 5 (tilemap, panel_frame) |
-| $6000–$7FFF | 12 | scan_bank (lo riempie solo `-DBEAM`), ring_lo/hi (le righe della memoria dello schermo: build di verifica), edge_runs (le sequenze di ogni pezzo di bordo: span_line), sprite_list, ds_objs, copper_list (2K), ov_exp2/ov_exp4 (i punti di un byte allargati: hit_wide), eg_* (i varchi del bordo per riga: ds_edge_test, dh_pf), l'anello del DAC a $7C00 |
+| $6000–$7FFF | 12 | scan_bank (lo riempie solo `-DBEAM`), ring_lo/hi (le righe della memoria dello schermo: build di verifica), edge_runs (le sequenze di ogni pezzo di bordo: span_line), sprite_list, ds_objs, copper_list (256), rl_k1, pix_set1, ov_exp2/ov_exp4 (i punti di un byte allargati: hit_wide), eg_* (i varchi del bordo per riga: ds_edge_test, dh_pf), l'anello del DAC a $7C00 |
 | $8000–$9FFF | 4 | intestazione e ciclo del fotogramma, generatore del fiume, render, palette, mappe random, play.asm (~1,6K liberi) |
 | $A000–$BFFF | 5 | la cartuccia (caricata dalla scheda SD; esxDOS F_OPEN/F_READ, nome lungo poi RIVER_~1.ROM; verificata: 8192 byte, $BFFA = $A000) |
 | $C000–$DFFF | 6 | game.asm, display.asm, sprites.asm, render.asm, bank_colours.asm (~10 byte liberi) |
-| $E000–$FFFF | 1 | variabili (line_buf solo con la memoria dello schermo), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, bg_* (i varchi della riva per riga: dh_pf, 4 pagine), stack |
+| $E000–$FFFF | 1 | variabili (line_buf solo con la memoria dello schermo), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, pix_set0, bg_* (i varchi della riva per riga: dh_pf, 4 pagine), stack |
 
 La pagina 7 è mappata a $6000 solo mentre all'avvio girano `load_rom` e `panel_init`; `obj_pics` li segue lì. Il NEX contiene i banchi da 16K 2 e 3 (pagine 4–7).
 

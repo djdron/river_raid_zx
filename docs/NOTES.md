@@ -9,13 +9,13 @@ The TS-Conf port's own notes (its board, the INT for the Copper, the General Sou
 ## Memory
 | Z80 | 8K page | What |
 |---|---|---|
-| $0000–$3FFF | 30, 31 | the Atari's RAM, at the original's addresses (state, $0500 slots, $0600–$09FF character sets, $0B00–$0FFF player-missile memory, $1000 panel, $2000–$2EFF and $3000–$3EFF screen memory, $3F04 the top line's address, $3FB3 the scrolling line's text); while `render_line` draws: page 29 at $0000, its dots' tables (`pix_sets`) |
+| $0000–$3FFF | 30, 31 | the Atari's RAM, at the original's addresses (state, $0500 slots, $0600–$09FF character sets, $0B00–$0FFF player-missile memory, $1000 panel, $2000–$2EFF and $3000–$3EFF screen memory, $3F04 the top line's address, $3FB3 the scrolling line's text) |
 | $4000–$5FFF | 18–27 / 10, 11 / 7 | a window: Layer 2 (render_line, clearing), bank 5 (tilemap, panel_frame) |
-| $6000–$7FFF | 12 | scan_bank (only `-DBEAM` fills it), ring_lo/hi (screen memory's lines: check builds), edge_runs (each edge piece's runs: span_line), sprite_list, ds_objs, copper_list (2K), ov_exp2/ov_exp4 (a byte's dots widened: hit_wide), eg_* (the edge's gaps per line: ds_edge_test, dh_pf), the DAC's ring at $7C00 |
+| $6000–$7FFF | 12 | scan_bank (only `-DBEAM` fills it), ring_lo/hi (screen memory's lines: check builds), edge_runs (each edge piece's runs: span_line), sprite_list, ds_objs, copper_list (256), rl_k1, pix_set1, ov_exp2/ov_exp4 (a byte's dots widened: hit_wide), eg_* (the edge's gaps per line: ds_edge_test, dh_pf), the DAC's ring at $7C00 |
 | $8000–$9FFF | 4 | header and frame loop, river generator, render, palette, random maps, play.asm (~1.6K free) |
 | $A000–$BFFF | 5 | the cartridge (loaded from the SD card; esxDOS F_OPEN/F_READ, long name then RIVER_~1.ROM; checked: 8192 bytes, $BFFA = $A000) |
 | $C000–$DFFF | 6 | game.asm, display.asm, sprites.asm, render.asm, bank_colours.asm (~10 bytes free) |
-| $E000–$FFFF | 1 | variables (line_buf only with screen memory), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, bg_* (the bank's gaps per line: dh_pf, 4 pages), stack |
+| $E000–$FFFF | 1 | variables (line_buf only with screen memory), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, pix_set0, bg_* (the bank's gaps per line: dh_pf, 4 pages), stack |
 
 Page 7 is mapped at $6000 only while `load_rom` and `panel_init` run at the start; `obj_pics` follows them there. The NEX holds 16K banks 2 and 3 (pages 4–7).
 

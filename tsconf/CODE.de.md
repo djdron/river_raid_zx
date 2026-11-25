@@ -41,7 +41,7 @@ Bildschirmspeicher des Atari, den das Spiel nicht hat: `line_done` und `draw_lin
 Hauptprozessor nichts. Zwei Läufe:
 
 - **A**: Bot 1, 3 000 Frames ab dem Start: die Arbeit im Mittel ~68 000 pro Frame, höchstens ~120 000;
-- **B**: `-stress` ab Brücke 80, 6 000 Frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~107 000, höchstens ~145 000.
+- **B**: `-stress` ab Brücke 80, 6 000 Frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~106 000, höchstens ~144 000.
 
 Die Arbeit reicht von `apply_done` bis `frame_done` (das Warten auf den Frame-Interrupt nicht
 gezählt); die Teile unten zählen auch `apply` und die Interrupts (~7 000).
@@ -51,7 +51,7 @@ Nach Teilen (A / B):
 | Teil | A | B |
 |---|---|---|
 | das Display: Platzieren der Objekte und Kollisionen (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| neue Flusszeilen (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 900 |
+| neue Flusszeilen (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 800 |
 | Sprites (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
 | `apply`, das Panel und die Interrupts (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, das Drucken des Panels) | 6 200 | 5 800 |
 | Ton (`sound_driver`, `snd_*`, `gs_*`; ohne Karte `ay_*`: ~5 800 in A) | 3 400 | 3 500 |
@@ -65,7 +65,7 @@ Die teuersten Routinen (A / B):
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 700 | 8 900 | render |
+| `render_line` | 3 700 | 8 700 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -83,7 +83,7 @@ Die teuersten Routinen (A / B):
 | `hit_setup` | 500 | 700 | display_hits |
 
 Bei 7 MHz (`TSSPEED=1`, ~143 400 Takte pro Frame) ist die Arbeit dieselben Befehle: `-stress`
-im Mittel ~92 000, höchstens ~122 000, es passt gerade noch; bei 3,5 MHz kommt es nicht mit.
+im Mittel ~91 000, höchstens ~122 000, es passt gerade noch; bei 3,5 MHz kommt es nicht mit.
 `gs_send` wartet, bis die Karte jedes Byte gelesen hat (~300 Takte pro Byte bei 14 MHz).
 
 (`prof.py` nimmt den Namen einer Routine vom nächsten globalen Label unterhalb der Adresse.
@@ -95,7 +95,7 @@ Adressen unter $4000 sind die Arbeit des Starts in INIT_PAGE: weglassen.)
 
 | Fenster | Adresse | normalerweise | umgemappt von |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): das RAM des Atari an den Adressen des Originals | beim Start: 3 (`INIT_PAGE`: dort laufen `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`); `render_line`: 4 (`PIX_PAGE`, seine Punkttabellen; ATARI_PAGE zurück) |
+| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): das RAM des Atari an den Adressen des Originals | beim Start: 3 (`INIT_PAGE`: dort laufen `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): die Läufe der Zeilen ab $4000 (`SPANS`, 32 Byte × 256 Zeilen), Puffer ab $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), die OS-Schrift bei $7D00 | `render_line`: eine Seite des Flussbilds (32–47); `panel_draw`/`pc_*`: das Bild des Panels (64–79); beim Start die Kachelkarte (7), die Kacheln (8), die Bilder der Sprites (24–31); immer zurück auf 5 |
 | 2 | $8000–$BFFF | 2 (`CODE_PAGE`): Code bis ~$9FBF, die Cartridge ab $A000 | — |
 | 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): Code bis ~$D7EC, dann bei $E000 das FM-Fenster (`CRAM_SHADOW`: CRAM $E000–$E1FF, das SFILE $E200–$E3FF; die Schreibzugriffe gehen auch ins RAM darunter), Tabellen und Variablen bis ~$FD65, der Stack, die IM-2-Vektoren bei $FE00 | — |
@@ -165,10 +165,10 @@ Interrupt, `apply`, die Paletten des Flusses, Variablen und Puffer.
 
 | Routine | aufgerufen | was und wie | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Zuerst `line_bank` (der Tabellensatz der Zeile), dann Seite 4 (`PIX_PAGE`) in Fenster 0 für die Tabellen. Farbtakte 20–179 der Zeile in die Bildzeile HL (0–511): Seite `VID_PAGE` + Zeile / 64 in Fenster 1, die Zeile bei $4000 + (Zeile & 63) × 256; aus den Stücken von `dl_seg` wie beim Next: ein Stück eines Werts ist sein Byte aus der ersten Seite des Satzes, 4-mal pro Byte (`.fill`: `ld (hl),a / inc l`), die Bytes einer Kante (die Tabelle im ROM) und die Zeile einer Dekoration über die 4 Seiten des Satzes, je 4 Ausgabebytes. 160 Schreibzugriffe pro Zeile entlang der Reihe (der Next schreibt 320 die Spalten hinunter, 10 Seiten). Am Ende WORK_PAGE und ATARI_PAGE zurück. Ein Stück eines Werts ab 5 Bytes (`RL_DMA_MIN`) geht stattdessen an den DMA, solange er frei ist: eine Füllung (DMACTRL $04) aus `rl_word` (der Wert zweimal) in Seite `rl_page`. In Seite $C000 (von $8000 verschoben, aus Platzgründen). | 3 700 / 8 900 |
-| `line_bank` | `render_line` | `lineBankColour` des C++-Ports auf dem Zustand nach der Zeile: die Slots ab `FIRST_SLOT` abwärts, solange einer eine Straßenzeile zeigen kann (y ≤ $5E: y wächst die Slots hinunter); bei einer Brücke ihre Straßenzeile y + Höhe − $5E, die Farbe aus der Tabelle bei $B4E5; sonst `bank_colour` (das Grün). Dieselbe Farbe wie die Zeile davor: nichts weiter; sonst ihr Platz in `bank_cols` × 4 nach `rl_set` (das High-Byte des Satzes). ~250 pro Zeile. | 250 / 550 (+ `bank_colour` 400 / 600) |
+| `render_line` | `line_done` | Zuerst `line_bank`. Farbtakte 20–179 der Zeile in die Bildzeile HL (0–511): Seite `VID_PAGE` + Zeile / 64 in Fenster 1, die Zeile bei $4000 + (Zeile & 63) × 256; aus den Stücken von `dl_seg` wie beim Next: ein Stück eines Werts ist seine Farbe aus `rl_k1`, 4-mal pro Byte (`.fill`: `ld (hl),a / inc l`), die Bytes einer Kante (die Tabelle im ROM) und die Zeile einer Dekoration über den Punkttabellensatz der Zeile (`rl_set`: der eines Grüns), je 4 Ausgabebytes; auf einer Straßenzeile (`.table_k`) über den des ersten Grüns, ihre Uferpunkte im Eintrag der Straße (`rl_sub`). 160 Schreibzugriffe pro Zeile entlang der Reihe (der Next schreibt 320 die Spalten hinunter, 10 Seiten). Am Ende WORK_PAGE zurück. Ein Stück eines Werts ab 5 Bytes (`RL_DMA_MIN`) geht stattdessen an den DMA, solange er frei ist: eine Füllung (DMACTRL $04) aus `rl_word` (der Wert zweimal) in Seite `rl_page`. In Seite $C000 (von $8000 verschoben, aus Platzgründen). | 3 700 / 8 700 |
+| `line_bank` | `render_line` | `lineBankColour` des C++-Ports, nur ausgerechnet, wenn sie sich ändern kann: nach der Straße einer Brücke (`road_row` $7F) nichts; auf der ersten Zeile danach (`road_row` $7E) einmal das neue Grün (`bank_colour`); auf einer Straßenzeile ihre Farbe aus der Tabelle bei $B4E5; vor der Straße (`road_row` negativ) `bank_colour`. Eine andere Farbe als die der Zeile davor: ihr Eintrag nach `rl_k1` + $55 und `rl_sub`, `rl_set` (`pix_set0` oder `pix_set1`), der Sprung für Stücke der Art 0/2 (`render_line.kind`: `.table` oder, für eine Straßenfarbe, `.table_k`). `road_row` wird $FF, wenn die Brücke gesetzt (`place_object`) oder wiederhergestellt wird (`restore_checkpoint`: $4A + Höhe − $5E), und in `scroll_objects` eine Zeile weiter gesetzt bis zur Höhe der Brücke. | 50 / 100 |
 | `bank_init` | `init_video` | Die Uferfarben, jede einmal: $D2, $D6, dann die der 20 Straßenzeilen (`bank_cols`, `bank_n`, höchstens 8); ihre CRAM-Einträge in Gruppe 0: 1, dann 9–15 (`cram_set`); dann `pix_sets`. | einmal |
-| `pix_sets` | `bank_init` | Seite 4 (`PIX_PAGE`) bei $0000: ein Satz aus 4 Seiten pro Farbe (Satz i bei 4i × 256): Byte b der Seite k ist der Punkt k von b, beide Nibbles sein Eintrag (0, 2, 3 sie selbst, 1 der der Farbe i: 1, dann 9..). Fenster 0 zurück auf INIT_PAGE. | einmal |
+| `pix_sets` | `bank_init` | Die Punkttabellen der zwei Grüntöne, je 4 Seiten (`pix_set0` bei $E700, `pix_set1` bei $DC00): Byte b der Seite k ist der Punkt k von b, beide Nibbles sein Eintrag (0, 2, 3 sie selbst, 1 der des Grüns: 1, 9); `rl_k1` (bei $DB00): der Wert eines Stücks 0, $AA, $FF als seine Farbe ($55 setzt `line_bank`). | einmal |
 
 ## sprites.asm: die Sprites des Flusses
 

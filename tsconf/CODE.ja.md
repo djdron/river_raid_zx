@@ -38,7 +38,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 2 回の実行：
 
 - **A**：bot 1、開始から 3 000 フレーム：処理は平均 1 フレーム約 68 000、最大約 120 000。
-- **B**：橋 80 からの `-stress`、6 000 フレーム（`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`：全スロット使用、全速、撃ちっぱなし）：平均約 107 000、最大約 145 000。
+- **B**：橋 80 からの `-stress`、6 000 フレーム（`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`：全スロット使用、全速、撃ちっぱなし）：平均約 106 000、最大約 144 000。
 
 処理は `apply_done` から `frame_done` まで（フレーム割り込みを待つ時間は数えない）。下の部分には `apply` と割り込み
 （約 7 000）も含みます。
@@ -48,7 +48,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 | 部分 | A | B |
 |---|---|---|
 | display：物体の配置と衝突（`display`、`ds_*`、`dh_*`、`sp_*`、`hit_*`） | 38 300 | 51 000 |
-| 川の新しい行（`river_gen`、`render_line`、`span_line`、`line_done`、`push_line`） | 14 400 | 33 900 |
+| 川の新しい行（`river_gen`、`render_line`、`span_line`、`line_done`、`push_line`） | 14 400 | 33 800 |
 | スプライト（`build_sprites`、`ob_*`、`pl_*`、`obj_lookup`、`sfile_put`） | 9 300 | 13 900 |
 | `apply`、パネル、割り込み（`apply`、`panel_frame`、`panel_draw`、`pc_*`、`irq`、パネル表示） | 6 200 | 5 800 |
 | 音（`sound_driver`、`snd_*`、`gs_*`。カードなしなら `ay_*`：A で約 5 800） | 3 400 | 3 500 |
@@ -62,7 +62,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 700 | 8 900 | render |
+| `render_line` | 3 700 | 8 700 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -79,7 +79,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 | `apply`（自身のコード） | 800 | 800 | river_raid |
 | `hit_setup` | 500 | 700 | display_hits |
 
-7 MHz（`TSSPEED=1`、1 フレーム約 143 400 サイクル）でも処理は同じ命令です：`-stress` で平均約 92 000、最大約
+7 MHz（`TSSPEED=1`、1 フレーム約 143 400 サイクル）でも処理は同じ命令です：`-stress` で平均約 91 000、最大約
 122 000、ぎりぎり収まります。3.5 MHz では足りません。`gs_send` はカードが各バイトを読むのを待ちます（14 MHz で
 1 バイト約 300 サイクル）。
 
@@ -92,7 +92,7 @@ TS-Conf 版のコードを読みたい、あるいは速くしたい Z80 プロ�
 
 | 窓 | アドレス | 通常 | 切り替える者 |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：元のアドレスに置いた Atari の RAM | 起動時：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` がそこで動く）；`render_line`：4（`PIX_PAGE`、その点のテーブル；ATARI_PAGE に戻す） |
+| 0 | $0000–$3FFF | 1（`ATARI_PAGE`）：元のアドレスに置いた Atari の RAM | 起動時：3（`INIT_PAGE`：`sprite_pics.asm`、`gs_load.asm`、`load_rom.asm` がそこで動く） |
 | 1 | $4000–$7FFF | 5（`WORK_PAGE`）：$4000 から各行のラン（`SPANS`、32 バイト × 256 行）、$6000 からバッファ（`scan_*`、`edge_runs`、`ring_*`、`ds_objs`、`ov_exp2/4`、`eg_*`、`bg_*`、`line_*`、`edge_lo/hi`、`rnd_tab`）、$7D00 にシステムフォント | `render_line`：川の画像の 1 ページ（32–47）。`panel_draw`/`pc_*`：パネルの画像（64–79）。起動時にタイルマップ（7）、タイル（8）、スプライトの画像（24–31）。必ず 5 に戻す |
 | 2 | $8000–$BFFF | 2（`CODE_PAGE`）：約 $9FBF までコード、$A000 からカートリッジ | — |
 | 3 | $C000–$FFFF | 6（`HIGH_PAGE`）：約 $D7EC までコード、次に $E000 に FM 窓（`CRAM_SHADOW`：CRAM $E000–$E1FF、SFILE $E200–$E3FF。書き込みは下の RAM にも行く）、約 $FD65 までテーブルと変数、スタック、$FE00 に IM 2 のベクタ | — |
@@ -159,10 +159,10 @@ $E000–$E3FF は他に使えず、$E400–$E4FF はそのレジスタです（`
 
 | ルーチン | 呼び出し | 何をどうする | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | まず `line_bank`（そのラインのテーブル一式）、次にテーブル用に 4 ページ（`PIX_PAGE`）をウィンドウ 0 へ。ラインのカラークロック 20–179 を画像のライン HL（0–511）へ：`VID_PAGE` + ライン / 64 ページをウィンドウ 1 に、ラインは $4000 + (ライン & 63) × 256；Next と同じく `dl_seg` の断片から：1 つの値の断片は一式の最初のページのバイトを 1 バイトに 4 回（`.fill`：`ld (hl),a / inc l`）、縁のバイト（ROM の表）と装飾の 1 行は一式の 4 ページを通して、それぞれ出力 4 バイト。1 ラインに行に沿って 160 回の書き込み（Next は列を下へ 320 回、10 ページ）。最後に WORK_PAGE と ATARI_PAGE を戻す。5 バイト以上の 1 つの値の断片（`RL_DMA_MIN`）は DMA が空いていれば代わりに DMA へ：`rl_word`（値 2 回）からの塗りつぶし（DMACTRL $04）でページ `rl_page` へ。$C000 ページにある（場所のため $8000 から移動）。 | 3 700 / 8 900 |
-| `line_bank` | `render_line` | ライン生成後の状態で C++ 移植の `lineBankColour`：道路の行を映しうるスロットがある間 `FIRST_SLOT` から下へ（y ≤ $5E：y はスロットを下るほど大きい）；橋ならその道路の行 y + 高さ − $5E、色は $B4E5 の表から；それ以外は `bank_colour`（緑）。前のラインと同じ色ならそれで終わり；違えば `bank_cols` 内の位置 × 4 を `rl_set`（一式の上位バイト）へ。1 ラインあたり約 250。 | 250 / 550（＋ `bank_colour` 400 / 600） |
+| `render_line` | `line_done` | まず `line_bank`。ラインのカラークロック 20–179 を画像のライン HL（0–511）へ：`VID_PAGE` + ライン / 64 ページをウィンドウ 1 に、ラインは $4000 + (ライン & 63) × 256；Next と同じく `dl_seg` の断片から：1 つの値の断片は `rl_k1` の色を 1 バイトに 4 回（`.fill`：`ld (hl),a / inc l`）、縁のバイト（ROM の表）と装飾の 1 行はラインの点のテーブル一式（`rl_set`：どちらかの緑）を通して、それぞれ出力 4 バイト；道路のライン（`.table_k`）は最初の緑のテーブルを通し、岸の点を道路の番号に（`rl_sub`）。1 ラインに行に沿って 160 回の書き込み（Next は列を下へ 320 回、10 ページ）。最後に WORK_PAGE を戻す。5 バイト以上の 1 つの値の断片（`RL_DMA_MIN`）は DMA が空いていれば代わりに DMA へ：`rl_word`（値 2 回）からの塗りつぶし（DMACTRL $04）でページ `rl_page` へ。$C000 ページにある（場所のため $8000 から移動）。 | 3 700 / 8 700 |
+| `line_bank` | `render_line` | C++ 移植の `lineBankColour`、変わりうるときだけ計算：橋の道路を過ぎたら（`road_row` $7F）何もしない；過ぎた最初のライン（`road_row` $7E）で新しい緑（`bank_colour`）を一度；道路の行では $B4E5 の表の色；道路の前（`road_row` が負）は `bank_colour`。前のラインと違う色なら：その番号を `rl_k1` + $55 と `rl_sub` へ、`rl_set`（`pix_set0` か `pix_set1`）、種類 0/2 の断片のジャンプ（`render_line.kind`：`.table`、道路の色なら `.table_k`）。`road_row` は橋を置いたとき（`place_object`）と戻したとき（`restore_checkpoint`：$4A + 高さ − $5E）に $FF にし、`scroll_objects` で橋の高さまで 1 行ずつ進める。 | 50 / 100 |
 | `bank_init` | `init_video` | 岸の色を 1 回ずつ：$D2、$D6、そして道路の 20 行の色（`bank_cols`、`bank_n`、最大 8）；グループ 0 の CRAM 番号は 1、そして 9–15（`cram_set`）；次に `pix_sets`。 | 1 回 |
-| `pix_sets` | `bank_init` | 4 ページ（`PIX_PAGE`）を $0000 に：色ごとに 4 ページの一式（一式 i は 4i × 256）：ページ k のバイト b は b の k 番目の点、両ニブルがその番号（0、2、3 はそのまま、1 は色 i の番号：1、そして 9..）。ウィンドウ 0 を INIT_PAGE に戻す。 | 1 回 |
+| `pix_sets` | `bank_init` | 2 つの緑の点のテーブル、各 4 ページ（`pix_set0` は $E700、`pix_set1` は $DC00）：ページ k のバイト b は b の k 番目の点、両ニブルがその番号（0、2、3 はそのまま、1 は緑の番号：1、9）；`rl_k1`（$DB00）：断片の値 0、$AA、$FF の色（$55 は `line_bank` が設定）。 | 1 回 |
 
 ## sprites.asm：川のスプライト
 

@@ -9,13 +9,13 @@ Własne notatki portu na TS-Conf (płyta, przerwanie zamiast Coppera, General So
 ## Pamięć
 | Z80 | Strona 8K | Co |
 |---|---|---|
-| $0000–$3FFF | 30, 31 | RAM Atari pod adresami oryginału (stan, sloty $0500, zestawy znaków $0600–$09FF, pamięć player-missile $0B00–$0FFF, panel $1000, pamięć ekranu $2000–$2EFF i $3000–$3EFF, $3F04 adres górnej linii, $3FB3 tekst przewijanego napisu); gdy rysuje `render_line`: strona 29 pod $0000, jego tablice punktów (`pix_sets`) |
+| $0000–$3FFF | 30, 31 | RAM Atari pod adresami oryginału (stan, sloty $0500, zestawy znaków $0600–$09FF, pamięć player-missile $0B00–$0FFF, panel $1000, pamięć ekranu $2000–$2EFF i $3000–$3EFF, $3F04 adres górnej linii, $3FB3 tekst przewijanego napisu) |
 | $4000–$5FFF | 18–27 / 10, 11 / 7 | okno: Layer 2 (render_line, czyszczenie), bank 5 (tilemap, panel_frame) |
-| $6000–$7FFF | 12 | scan_bank (wypełnia go tylko `-DBEAM`), ring_lo/hi (linie pamięci ekranu: wersje testowe), edge_runs (przebiegi każdego kawałka krawędzi: span_line), sprite_list, ds_objs, copper_list (2K), ov_exp2/ov_exp4 (punkty bajtu poszerzone: hit_wide), eg_* (przerwy krawędzi w każdej linii: ds_edge_test, dh_pf), pierścień DAC pod $7C00 |
+| $6000–$7FFF | 12 | scan_bank (wypełnia go tylko `-DBEAM`), ring_lo/hi (linie pamięci ekranu: wersje testowe), edge_runs (przebiegi każdego kawałka krawędzi: span_line), sprite_list, ds_objs, copper_list (256), rl_k1, pix_set1, ov_exp2/ov_exp4 (punkty bajtu poszerzone: hit_wide), eg_* (przerwy krawędzi w każdej linii: ds_edge_test, dh_pf), pierścień DAC pod $7C00 |
 | $8000–$9FFF | 4 | nagłówek i pętla klatki, generator rzeki, render, paleta, mapy random, play.asm (~1,6K wolne) |
 | $A000–$BFFF | 5 | kartridż (wczytany z karty SD; esxDOS F_OPEN/F_READ, długa nazwa, potem RIVER_~1.ROM; sprawdzane: 8192 bajty, $BFFA = $A000) |
 | $C000–$DFFF | 6 | game.asm, display.asm, sprites.asm, render.asm, bank_colours.asm (~10 bajtów wolne) |
-| $E000–$FFFF | 1 | zmienne (line_buf tylko z pamięcią ekranu), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, bg_* (przerwy brzegu w każdej linii: dh_pf, 4 strony), stos |
+| $E000–$FFFF | 1 | zmienne (line_buf tylko z pamięcią ekranu), edge_lo/hi, span_class, span_masks, obj_head/obj_e, rnd_tab, pix_set0, bg_* (przerwy brzegu w każdej linii: dh_pf, 4 strony), stos |
 
 Strona 7 jest pod $6000 tylko wtedy, gdy przy starcie działają `load_rom` i `panel_init`; zaraz po nich jest tam `obj_pics`. NEX zawiera 16K banki 2 i 3 (strony 4–7).
 

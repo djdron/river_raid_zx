@@ -41,7 +41,7 @@ più pesanti che nel gioco). Con una General Sound, quindi i rumori non costano 
 processore principale. Due esecuzioni:
 
 - **A**: bot 1, 3 000 fotogrammi dall'inizio: il lavoro ~68 000 a fotogramma in media, al massimo ~120 000;
-- **B**: `-stress` dal ponte 80, 6 000 fotogrammi (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: tutti gli slot occupati, tutta velocità, sempre sparando): ~107 000 in media, al massimo ~145 000.
+- **B**: `-stress` dal ponte 80, 6 000 fotogrammi (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: tutti gli slot occupati, tutta velocità, sempre sparando): ~106 000 in media, al massimo ~144 000.
 
 Il lavoro va da `apply_done` a `frame_done` (l'attesa dell'interrupt del fotogramma non contata);
 le parti sotto contano anche `apply` e gli interrupt (~7 000).
@@ -51,7 +51,7 @@ Per parti (A / B):
 | parte | A | B |
 |---|---|---|
 | il display: posizionamento degli oggetti e collisioni (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| nuove righe del fiume (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 900 |
+| nuove righe del fiume (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 800 |
 | sprite (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
 | `apply`, il pannello e gli interrupt (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, la stampa del pannello) | 6 200 | 5 800 |
 | suono (`sound_driver`, `snd_*`, `gs_*`; senza scheda `ay_*`: ~5 800 in A) | 3 400 | 3 500 |
@@ -65,7 +65,7 @@ Le routine più costose (A / B):
 | `dh_pf` | 8 700 | 9 800 | display_hits |
 | `span_line` | 3 900 | 9 500 | spans |
 | `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 700 | 8 900 | render |
+| `render_line` | 3 700 | 8 700 | render |
 | `ds_obj` | 5 300 | 6 200 | display_objs |
 | `dh_obj` | 4 400 | 5 500 | display_hits |
 | `ob_attr` | 2 500 | 5 100 | sprites |
@@ -83,7 +83,7 @@ Le routine più costose (A / B):
 | `hit_setup` | 500 | 700 | display_hits |
 
 A 7 MHz (`TSSPEED=1`, ~143 400 cicli a fotogramma) il lavoro sono le stesse istruzioni:
-`-stress` ~92 000 in media, al massimo ~122 000, ci sta appena; a 3,5 MHz non regge. `gs_send`
+`-stress` ~91 000 in media, al massimo ~122 000, ci sta appena; a 3,5 MHz non regge. `gs_send`
 aspetta che la scheda legga ogni byte (~300 cicli per byte a 14 MHz).
 
 (`prof.py` prende il nome di una routine dall'etichetta globale più vicina sotto l'indirizzo. Gli
@@ -95,7 +95,7 @@ Finestre da 16K e le pagine al loro interno (le pagine da 16K della scheda):
 
 | finestra | indirizzo | normalmente | rimappata da |
 |---|---|---|---|
-| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): la RAM dell'Atari agli indirizzi dell'originale | all'avvio: 3 (`INIT_PAGE`: lì girano `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`); `render_line`: 4 (`PIX_PAGE`, le sue tabelle dei punti; ATARI_PAGE rimessa) |
+| 0 | $0000–$3FFF | 1 (`ATARI_PAGE`): la RAM dell'Atari agli indirizzi dell'originale | all'avvio: 3 (`INIT_PAGE`: lì girano `sprite_pics.asm`, `gs_load.asm`, `load_rom.asm`) |
 | 1 | $4000–$7FFF | 5 (`WORK_PAGE`): le sequenze delle righe da $4000 (`SPANS`, 32 byte × 256 righe), buffer da $6000 (`scan_*`, `edge_runs`, `ring_*`, `ds_objs`, `ov_exp2/4`, `eg_*`, `bg_*`, `line_*`, `edge_lo/hi`, `rnd_tab`), il font del sistema a $7D00 | `render_line`: una pagina dell'immagine del fiume (32–47); `panel_draw`/`pc_*`: l'immagine del pannello (64–79); all'avvio la mappa dei tile (7), i tile (8), le immagini degli sprite (24–31); sempre rimessa a 5 |
 | 2 | $8000–$BFFF | 2 (`CODE_PAGE`): codice fino a ~$9FBF, la cartuccia da $A000 | — |
 | 3 | $C000–$FFFF | 6 (`HIGH_PAGE`): codice fino a ~$D7EC, poi a $E000 la finestra FM (`CRAM_SHADOW`: CRAM $E000–$E1FF, lo SFILE $E200–$E3FF; le scritture vanno anche nella RAM sotto), tabelle e variabili fino a ~$FD65, lo stack, i vettori IM 2 a $FE00 | — |
@@ -165,10 +165,10 @@ l'interrupt, `apply`, le palette del fiume, variabili e buffer.
 
 | routine | chiamata | cosa e come | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | Prima `line_bank` (il set di tabelle della riga), poi la pagina 4 (`PIX_PAGE`) nella finestra 0 per le tabelle. I clock di colore 20–179 della riga nella riga dell'immagine HL (0–511): pagina `VID_PAGE` + riga / 64 nella finestra 1, la riga a $4000 + (riga & 63) × 256; dai pezzi di `dl_seg` come il Next: un pezzo di un valore è il suo byte dalla prima pagina del set, 4 volte per byte (`.fill`: `ld (hl),a / inc l`), i byte di un bordo (la tabella della ROM) e la riga di una decorazione attraverso le 4 pagine del set, 4 byte di uscita ciascuno. 160 scritture per riga lungo la riga (il Next ne scrive 320 giù per le colonne, 10 pagine). Alla fine WORK_PAGE e ATARI_PAGE rimesse. Un pezzo di un valore da 5 byte in su (`RL_DMA_MIN`) va invece al DMA quando è libero: un riempimento (DMACTRL $04) da `rl_word` (il valore due volte) nella pagina `rl_page`. Nella pagina $C000 (spostata da $8000 per spazio). | 3 700 / 8 900 |
-| `line_bank` | `render_line` | `lineBankColour` del port in C++ sullo stato dopo la riga: gli slot da `FIRST_SLOT` in giù finché uno può mostrare una riga di strada (y ≤ $5E: y cresce giù per gli slot); per un ponte la sua riga di strada y + altezza − $5E, il colore dalla tabella a $B4E5; altrimenti `bank_colour` (il verde). Lo stesso colore della riga prima: niente altro; altrimenti il suo posto in `bank_cols` × 4 in `rl_set` (il byte alto del set). ~250 per riga. | 250 / 550 (+ `bank_colour` 400 / 600) |
+| `render_line` | `line_done` | Prima `line_bank`. I clock di colore 20–179 della riga nella riga dell'immagine HL (0–511): pagina `VID_PAGE` + riga / 64 nella finestra 1, la riga a $4000 + (riga & 63) × 256; dai pezzi di `dl_seg` come il Next: un pezzo di un valore è il suo colore da `rl_k1`, 4 volte per byte (`.fill`: `ld (hl),a / inc l`), i byte di un bordo (la tabella della ROM) e la riga di una decorazione attraverso il set di tabelle dei punti della riga (`rl_set`: quello di un verde), 4 byte di uscita ciascuno; su una riga di strada (`.table_k`) attraverso quello del primo verde, i punti di riva nella voce della strada (`rl_sub`). 160 scritture per riga lungo la riga (il Next ne scrive 320 giù per le colonne, 10 pagine). Alla fine WORK_PAGE rimessa. Un pezzo di un valore da 5 byte in su (`RL_DMA_MIN`) va invece al DMA quando è libero: un riempimento (DMACTRL $04) da `rl_word` (il valore due volte) nella pagina `rl_page`. Nella pagina $C000 (spostata da $8000 per spazio). | 3 700 / 8 700 |
+| `line_bank` | `render_line` | `lineBankColour` del port in C++, calcolato solo quando può cambiare: dopo la strada di un ponte (`road_row` $7F) niente; sulla prima riga dopo (`road_row` $7E) una volta il nuovo verde (`bank_colour`); su una riga di strada il suo colore dalla tabella a $B4E5; prima della strada (`road_row` negativo) `bank_colour`. Un colore diverso da quello della riga prima: la sua voce in `rl_k1` + $55 e `rl_sub`, `rl_set` (`pix_set0` o `pix_set1`), il salto per i pezzi di tipo 0/2 (`render_line.kind`: `.table` o, per un colore di strada, `.table_k`). `road_row` vale $FF quando il ponte è messo (`place_object`) o rimesso (`restore_checkpoint`: $4A + altezza − $5E), e va avanti di una riga in `scroll_objects` fino all'altezza del ponte. | 50 / 100 |
 | `bank_init` | `init_video` | I colori della riva, ciascuno una volta: $D2, $D6, poi quelli delle 20 righe di strada (`bank_cols`, `bank_n`, al massimo 8); le loro voci di CRAM nel gruppo 0: 1, poi 9–15 (`cram_set`); poi `pix_sets`. | una volta |
-| `pix_sets` | `bank_init` | Pagina 4 (`PIX_PAGE`) a $0000: un set di 4 pagine per colore (set i a 4i × 256): il byte b della pagina k è il punto k di b, entrambi i nibble la sua voce (0, 2, 3 se stessi, 1 quella del colore i: 1, poi 9..). Finestra 0 di nuovo a INIT_PAGE. | una volta |
+| `pix_sets` | `bank_init` | Le tabelle dei punti dei due verdi, 4 pagine ciascuna (`pix_set0` a $E700, `pix_set1` a $DC00): il byte b della pagina k è il punto k di b, entrambi i nibble la sua voce (0, 2, 3 se stessi, 1 quella del verde: 1, 9); `rl_k1` (a $DB00): il valore di un pezzo 0, $AA, $FF come suo colore ($55 lo mette `line_bank`). | una volta |
 
 ## sprites.asm: gli sprite del fiume
 

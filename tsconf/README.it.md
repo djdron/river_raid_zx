@@ -23,7 +23,7 @@ Il sorgente routine per routine, cosa è cambiato nel codice in comune con il Ne
 - Il colore della riva per riga: una palette (PALSEL 0) tiene i colori della riva, i due verdi
   e quelli della strada al ponte (voci 1 e 9-15, impostate una volta all'avvio), con 2 e 3 bordo
   e acqua; i punti di riva di ogni nuova riga sono disegnati nella voce del suo colore
-  (`line_bank`, un set di tabelle dei punti per colore), così il colore va con la riga: nessun
+  (`line_bank`, calcolato solo a un ponte; per riga non si commuta niente), così il colore va con la riga: nessun
   INT per cambio, niente da impostare mentre l'immagine è mostrata.
 - Gli oggetti, l'aereo, il suo proiettile, il carro armato e i missili: sprite (`sprites.asm`),
   le loro immagini create all'avvio dalle forme della cartuccia, ogni oggetto largo 16, 32 e 64

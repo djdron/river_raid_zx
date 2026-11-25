@@ -22,7 +22,7 @@ El código fuente rutina a rutina, qué cambió en el código compartido con el 
 - El color de la orilla por línea: una paleta (PALSEL 0) guarda los colores de la orilla, los
   dos verdes y los de la carretera del puente (entradas 1 y 9-15, puestas una vez al arrancar),
   con 2 y 3 el borde y el agua; los puntos de orilla de cada línea nueva se dibujan en la
-  entrada de su color (`line_bank`, un juego de tablas de puntos por color), así el color va
+  entrada de su color (`line_bank`, calculado solo en un puente; por línea no se conmuta nada), así el color va
   con la línea: ninguna INT por cambio, nada que poner mientras se muestra la imagen.
 - Los objetos, el avión, su bala, el tanque y los misiles: sprites (`sprites.asm`), sus
   imágenes hechas al arrancar a partir de las formas del cartucho, cada objeto de 16, 32 y 64

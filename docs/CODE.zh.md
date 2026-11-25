@@ -195,9 +195,9 @@ Copper 负责。
 
 | 例程 | 调用 | 做什么、怎么做 | A / B |
 |---|---|---|---|
-| `render_line` | `line_done` | 先调 `line_bank`（这一行的那组表），其间把第 29 页（`PIX_PAGE`）映射到槽 0。把该行的颜色时钟 20–179（`WINDOW_FIRST`）写入 Layer 2 的第 A 行，按 `dl_seg` 的片段（没有行缓冲）。Layer 2 按列存放（字节 x·256 + y，每 8K 页 32 列），所以这一行沿各列往下写（`inc h` = 下一列），10 页轮流映射到槽 2（`rl_next`）。单值片段：其颜色从该组的第一页取一次，然后 `rl_fill`（每字节 8 列，逐页；`rl_fill`、`rl_next` 在第 6 页的 spans.asm）；边缘的字节（来自 ROM 的表）和装饰的一行（来自 ROM 中的位图）：每字节由该组的 4 页给出每时钟 2 个点，各写两次；窗口之前的字节在数据中跳过。每行写 320 次。结束时槽 0 恢复为 Atari 的内存。位于第 6 页（为腾空间从第 4 页移来）。 | 4 100 + 3 800 / 10 000 + 8 300 |
-| `line_bank` | `render_line` | 按该行之后的状态做 C++ 移植的 `lineBankColour`：从 `FIRST_SLOT` 往下查槽位，只要某个还可能显示道路的一行（y ≤ $5E：y 沿槽位往下增大）；若是桥，其道路行为 y + 高度 − $5E，颜色取自 $B4E5 处的表；否则 `bank_colour`（绿色）。与上一行颜色相同就到此为止；否则其在 `bank_cols` 中的位置 × 4 存入 `rl_set`（该组的高字节）。在 bank_colours.asm（第 6 页）。 | 240 / 510（另 `bank_colour` 370 / 580） |
-| `bank_init`、`pix_sets` | `start`（第 7 页，在 `panel_init` 之后） | 河岸的颜色，每种一次：$D2、$D6、20 行道路的颜色（`bank_cols`、`bank_n`，最多 8 种），Layer 2 的第 1 项，然后 4–10（`bank_set`）；第 29 页映射到槽 0：每种颜色一组 4 页（第 i 组在 4i × 256），第 k 页的字节 b 是 b 的第 k 个点在 Layer 2 中的值（0、2、3 不变，1 为颜色 i 的项）。 | 一次 |
+| `render_line` | `line_done` | 先调 `line_bank`。把该行的颜色时钟 20–179（`WINDOW_FIRST`）写入 Layer 2 的第 A 行，按 `dl_seg` 的片段（没有行缓冲）。Layer 2 按列存放（字节 x·256 + y，每 8K 页 32 列），所以这一行沿各列往下写（`inc h` = 下一列），10 页轮流映射到槽 2（`rl_next`）。单值片段：其颜色取自 `rl_k1`，然后 `rl_fill`（每字节 8 列，逐页；`rl_fill`、`rl_next` 在第 6 页的 spans.asm）；边缘的字节（来自 ROM 的表）和装饰的一行（来自 ROM 中的位图）：每字节由该行的那组点表（`rl_set`：某种绿色的）给出每时钟 2 个点，各写两次；道路行（`.table_k`）用第一种绿色的表，其河岸点换成道路的项（`rl_sub`）；窗口之前的字节在数据中跳过。每行写 320 次。位于第 6 页（为腾空间从第 4 页移来）。 | 4 100 + 3 800 / 10 000 + 8 300 |
+| `line_bank` | `render_line` | 与 TS-Conf 的相同（tsconf/CODE.zh.md）：C++ 移植的 `lineBankColour`，只在可能改变时、即在桥边才计算（`road_row`，由 `place_object`、`restore_checkpoint` 和 `scroll_objects` 维护）；新颜色设置 `rl_k1` + $55、`rl_sub`、`rl_set`（`pix_set0` 或 `pix_set1`）以及第 0/2 类片段的跳转（`render_line.kind`：`.table` 或 `.table_k`）。项为 1，然后 4–10。在 bank_colours.asm（第 6 页）。 | 50（过桥后：30） |
+| `bank_init`、`pix_sets` | `start`（第 7 页，在 `panel_init` 之后） | 河岸的颜色，每种一次：$D2、$D6、20 行道路的颜色（`bank_cols`、`bank_n`，最多 8 种），Layer 2 的第 1 项，然后 4–10（`bank_set`）；两种绿色的点表，各 4 页（`pix_set0` 在第 1 页的 $F700，`pix_set1` 在第 12 页的 $6C00，经槽 2 写入）：第 k 页的字节 b 是 b 的第 k 个点在 Layer 2 中的值（0、2、3 不变，1 为该绿色的项）；`rl_k1`（$6B00）：片段的值 0、$AA、$FF 对应的颜色（$55 由 `line_bank` 设置）。 | 一次 |
 | `bank_set` | `bank_init`、`apply` | Layer 2 的河岸各项：它们的颜色（E = 1）或黑色（E = 0，颜色关闭：`show_bank` 改变时由 `apply` 调用，`ap_bank_on`）。 | |
 
 ## spans.asm：用于与 playfield 碰撞的行色段

@@ -21,7 +21,7 @@ Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, 
 - Kolor brzegu linia po linii: jedna paleta (PALSEL 0) trzyma kolory brzegu, dwie zielenie
   i kolory drogi przy moście (pozycje 1 i 9-15, ustawiane raz na starcie), a 2 i 3 to
   krawędź i woda; punkty brzegu każdej nowej linii są rysowane w pozycji jej koloru
-  (`line_bank`, zestaw tablic punktów na kolor), więc kolor jedzie z linią: żadnego
+  (`line_bank`, liczony tylko przy moście; na linię nic się nie przełącza), więc kolor jedzie z linią: żadnego
   przerwania na zmianę, nic do ustawiania, gdy obraz jest pokazywany.
 - Obiekty, samolot, jego pocisk, czołg i pociski rakietowe: sprite'y (`sprites.asm`), ich
   obrazy tworzone przy starcie z kształtów w kartridżu, każdy obiekt o szerokości 16, 32 i 64
