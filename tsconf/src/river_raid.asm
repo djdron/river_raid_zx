@@ -117,7 +117,6 @@ EV_PANEL	equ 1			; the INT's events: the panel's picture from its row (VPAGE,
 EV_GX		equ 2			; GXOFFS,
 EV_END		equ $FF			; the frame's INT after them
 BANK_COLS	equ 8			; the bank's colours at most: entries 1, 9-15
-PIX_PAGE	equ 4			; render_line's dots' tables, a set per bank colour (pix_sets)
 PAL_RIVER	equ 0			; PALSEL: the river's palette (CRAM group 0: 1 and 9-15 the
 PAL_BLACK	equ 1			; bank's colours, 2 the edge, 3 the water, 4-8 the panel's),
 					; or one black but for the panel's (the picture being
@@ -971,7 +970,10 @@ random_columns:
 	include "display_objs.asm"
 
 	display "page $C000 end: ",$
-	assert $ <= $E000
+	assert $ <= $DB00
+	org $DB00
+rl_k1:		ds 256			; render_line: a run's value as its colour (pix_sets, line_bank)
+pix_set1:	ds 4 * 256		; the second green's dots' tables (pix_sets)
 
 ; ------------------------------------------------------------------------------------------
 ; Buffers and variables ($E000)
@@ -983,7 +985,8 @@ palette_lo:				; Atari colour -> CRAM word: low bytes, then high
 	ifdef SCREEN_MEMORY		; the generated line's bytes (48; the drawing wraps at 256),
 line_buf:	ds 256			; for screen memory only
 	endif
-lfn_space:	ds 4 * 256		; (free after the start: load_rom's long names)
+pix_set0:	ds 4 * 256		; render_line's dots' tables for the first green (pix_sets; at the
+lfn_space	equ pix_set0		; start load_rom's long names)
 span_class:	ds 256			; span_line: a byte's colour if its pixels are one, $FF if not
 span_masks:	ds 64			; pf_find: bits i..j of a sprite's byte at 8i + j
 span_tmp:	ds 32			; span_line: the edge's runs
@@ -1015,6 +1018,7 @@ bank_cols:	ds BANK_COLS		; bank_init: the bank's Atari colours, in their entries
 bank_n:		ds 1			; how many
 rl_set:		ds 1			; line_bank: the line's set of tables (pix_sets: high byte), and
 rl_colour:	ds 1			; its bank colour
+rl_sub:		ds 1			; line_bank: the bank's entry (both nibbles), for .table_k
 road_row:	ds 1			; the bridge's road row on the newest line (bit 7: none yet; $7E, $7F: past)
 pf_gx:		ds 2			; panel_frame: the scrolling line's X (GXOFFS)
 pf_ring:	ds 1			; its text's first character in the ring

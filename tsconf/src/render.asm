@@ -2,8 +2,8 @@
 ; the playfield (0 the background, 1 the bank, 2 the bank edge, 3 the water), two dots per
 ; colour clock (a byte: both nibbles the index), colour clocks WINDOW_FIRST..WINDOW_FIRST +
 ; 159 of the 192: 160 bytes at the start of the line's 256. One palette (PAL_RIVER): 2 the
-; edge, 3 the water (apply), the bank in its colour's entry (1 or 9.., bank_init): the dots
-; from the line's set of tables (line_bank, pix_sets).
+; edge, 3 the water (apply), the bank in its colour's entry (1 or 9.., bank_init), set by
+; line_bank only when the line's colour changes (by a bridge): nothing switched per line.
 
 WINDOW_FIRST	equ 20		; the first colour clock shown (the water never comes nearer)
 
@@ -13,15 +13,11 @@ RL_DMA_MIN	equ 5		; a run of one value this long or longer: filled by the DMA
 ; By draw_line's pieces (dl_seg): bytes of one value are one colour, 8 dots each; an edge's
 ; bytes (from its piece in the table at $B800) and a decoration's row (from its bitmap)
 ; through the line's set of tables (its values both nibbles). Into the picture's line HL (0-511,
-; more wraps), through window 1 (put back to WORK_PAGE at the end; the tables through window 0,
-; ATARI_PAGE back).
+; more wraps), through window 1 (put back to WORK_PAGE at the end).
 render_line:
 	push ix
 	push hl
 	call line_bank
-	ld bc,PAGE0			; the dots' tables at $0000 meanwhile (pix_sets)
-	ld a,PIX_PAGE
-	out (c),a
 	pop hl
 	ld a,h				; the page: VID_PAGE + line / 64
 	and 1
@@ -72,9 +68,8 @@ render_line:
 	ld c,a				; C: its bytes in the window
 	ld a,(iy+1)
 	dec a
-	jr nz,.table			; (kind 1: one value, E)
-	ld a,(rl_set)			; (the bank in its colour's entry: the line's set)
-	ld d,a
+.kind	jp nz,.table			; (kind 1: one value, E; .table or .table_k: line_bank)
+	ld d,high rl_k1			; (its colour: the bank's the line's, line_bank)
 	ld a,(de)
 	ld b,a
 	ld a,c				; a long run by the DMA (a fill from rl_word), while it is
@@ -158,11 +153,35 @@ render_line:
 	ld (rl_count),a
 	jr nz,.byte
 	jp .next
+.table_k
+	ld a,(iy+1)			; a road line: an edge's bytes through the first green's set,
+	or a				; its bank dots in the road colour's entry (rl_sub)
+	jr nz,1F
+	ld d,high ROM_EDGE_PIECES
+1:	ld a,c
+	ld (rl_count),a
+	ld a,(rl_sub)
+	ld ixh,a
+.tkb	ld a,(de)
+	ld c,a
+	inc de
+	ld b,high pix_set0
+	rept 4
+	ld a,(bc)
+	cp $11
+	jr nz,$ + 4
+	ld a,ixh
+	ld (hl),a
+	inc l
+	inc b
+	endr
+	ld a,(rl_count)
+	dec a
+	ld (rl_count),a
+	jr nz,.tkb
+	jp .next
 .end	ld bc,PAGE1
 	ld a,WORK_PAGE
-	out (c),a
-	ld b,high PAGE0			; (the Atari's RAM back)
-	ld a,ATARI_PAGE
 	out (c),a
 	pop ix
 	ret
@@ -191,12 +210,12 @@ line_bank:
 .past	ld a,$7F
 	ld (road_row),a
 	call bank_colour
-.entry	ld hl,rl_colour			; the same colour as the line before: the same set
+.entry	ld hl,rl_colour			; the same colour as the line before: nothing to change
 	cp (hl)
 	ret z
 	ld (hl),a
-	ld hl,bank_cols			; its place in bank_cols: its set (none: the first; bank_init
-	ld bc,(bank_n - 1)		; has them all)
+	ld hl,bank_cols			; its place in bank_cols (none: the first; bank_init has them
+	ld bc,(bank_n - 1)		; all), its entry: 1, then 9..
 	ld c,0
 .find	cp (hl)
 	jr z,.found
@@ -205,9 +224,32 @@ line_bank:
 	djnz .find
 	ld c,0
 .found	ld a,c
+	or a
+	ld b,1
+	jr z,1F
+	add a,8
+	ld b,a
+1:	ld a,b				; both nibbles
 	add a,a
 	add a,a
+	add a,a
+	add a,a
+	or b
+	ld (rl_k1 + $55),a		; the bank's runs in it
+	ld (rl_sub),a
+	ld a,c				; the edges' and decorations' bytes: the greens' own sets,
+	ld hl,render_line.table		; a road colour's through the first green's (.table_k)
+	ld b,high pix_set0
+	or a
+	jr z,3F
+	ld b,high pix_set1
+	dec a
+	jr z,3F
+	ld b,high pix_set0
+	ld hl,render_line.table_k
+3:	ld a,b
 	ld (rl_set),a
+	ld (render_line.kind + 1),hl
 	ret
 
 ; The bank's colours into the river's palette (CRAM group 0): the two greens ($D2, $D6), then
@@ -259,25 +301,25 @@ bank_init:
 	xor a				; (group 0)
 	jp cram_set
 
-; The dots' tables, a set per bank colour (bank_cols' order), in PIX_PAGE (at $0000 while they
-; are made, then while render_line draws): set i at 4 i x 256, its page k byte b's dot k (bits
-; 7-6 first) as the picture has it (both nibbles): 0, 2, 3 themselves, 1 colour i's entry
-; (1, then 9..). At the start (from init_video: window 0 back to INIT_PAGE)
+; The dots' tables of the two greens (bank_cols' first two), always there: pix_set0 and
+; pix_set1, 4 pages each: page k's byte b is b's dot k as the picture has it (both nibbles): 0,
+; 2, 3 themselves, 1 the green's entry (1, 9). rl_k1: a run's value (0, $55, $AA, $FF) as its
+; colour, the bank's set by line_bank. At the start (bank_init)
 pix_sets:
-	ld bc,PAGE0
-	ld a,PIX_PAGE
-	out (c),a
-	ld hl,0
-	ld a,(bank_n)
-	ld ixh,a			; IXH: the sets left, IXL: the set
-	ld ixl,0
-.set	ld a,ixl			; E: its entry
 	ld e,1
-	or a
-	jr z,1F
-	add a,8
-	ld e,a
-1:	ld c,0				; C: the dot
+	ld h,high pix_set0
+	call .one
+	ld e,9
+	ld h,high pix_set1
+	call .one
+	ld hl,rl_k1
+	ld (hl),0
+	ld l,$AA
+	ld (hl),$22
+	ld l,$FF
+	ld (hl),$33
+	ret
+.one	ld c,0				; C: the dot
 .page	ld l,0
 .byte	ld a,l
 	ld b,c
@@ -303,10 +345,4 @@ pix_sets:
 	ld a,c
 	cp 4
 	jr c,.page
-	inc ixl
-	dec ixh
-	jr nz,.set
-	ld bc,PAGE0
-	ld a,INIT_PAGE
-	out (c),a
 	ret

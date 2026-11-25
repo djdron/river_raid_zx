@@ -1,8 +1,8 @@
 ; A generated line as Layer 2 shows it: the 2-bit colour indices of the playfield (0 the
 ; background, 1 the bank, 2 the bank edge, 3 the water), two dots per colour clock, colour
 ; clocks WINDOW_FIRST..WINDOW_FIRST + 159 of the 192. The colours are Layer 2's palette's: 2 the
-; edge, 3 the water (apply), the bank in its colour's entry (1 or 4.., bank_init): the dots from
-; the line's set of tables (line_bank, pix_sets: page PIX_PAGE at $0000 while it draws).
+; edge, 3 the water (apply), the bank in its colour's entry (1 or 4.., bank_init), set by
+; line_bank only when the line's colour changes (by a bridge): nothing switched per line.
 
 WINDOW_FIRST	equ 20		; the first colour clock shown (the water never comes nearer)
 
@@ -15,10 +15,8 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	push ix				; 32 columns per 8K page)
 	push af
 	call line_bank
-	nextreg $50,PIX_PAGE		; the dots' tables at $0000 meanwhile (pix_sets)
 	pop af
 	call .go
-	nextreg $50,ATARI_RAM_PAGE
 	pop ix
 	ret
 .go	ld (wr_row),a
@@ -60,9 +58,8 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	ld c,a				; C: its bytes in the window
 	ld a,(iy+1)
 	dec a
-	jr nz,.table			; (kind 1: one value, E)
-	ld a,(rl_set)			; (the bank in its colour's entry: the line's set)
-	ld d,a
+.kind	jp nz,.table			; (kind 1: one value, E; .table or .table_k: line_bank)
+	ld d,high rl_k1			; (its colour: the bank's the line's, line_bank)
 	ld a,(de)
 	ld e,a				; E: the colour
 .chunk	ld a,$60			; bytes to the page's end (1-4)
@@ -124,4 +121,32 @@ render_line:				; into Layer 2's row A (stored by columns: byte x * 256 + y,
 	call nz,rl_next
 	dec ixl
 	jr nz,.byte
+	jp .next
+.table_k
+	ld a,(iy+1)			; a road line: an edge's bytes through the first green's set,
+	or a				; its bank dots in the road colour's entry (rl_sub)
+	jr nz,1F
+	ld d,high ROM_EDGE_PIECES
+1:	ld ixl,c
+	ld a,(rl_sub)
+	ld ixh,a
+.tkb	ld a,(de)
+	ld c,a
+	inc de
+	ld b,high pix_set0
+	rept 4
+	ld a,(bc)
+	cp 1
+	jr nz,$ + 4
+	ld a,ixh
+	ld (hl),a
+	inc h
+	ld (hl),a
+	inc h
+	inc b
+	endr
+	bit 5,h
+	call nz,rl_next
+	dec ixl
+	jr nz,.tkb
 	jp .next

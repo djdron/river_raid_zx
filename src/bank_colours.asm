@@ -26,12 +26,12 @@ line_bank:
 .past	ld a,$7F
 	ld (road_row),a
 	call bank_colour
-.entry	ld hl,rl_colour			; the same colour as the line before: the same set
+.entry	ld hl,rl_colour			; the same colour as the line before: nothing to change
 	cp (hl)
 	ret z
 	ld (hl),a
-	ld hl,bank_cols			; its place in bank_cols: its set (none: the first; bank_init
-	ld bc,(bank_n - 1)		; has them all)
+	ld hl,bank_cols			; its place in bank_cols (none: the first; bank_init has them
+	ld bc,(bank_n - 1)		; all), its entry: 1, then 4..
 	ld c,0
 .find	cp (hl)
 	jr z,.found
@@ -40,9 +40,27 @@ line_bank:
 	djnz .find
 	ld c,0
 .found	ld a,c
-	add a,a
-	add a,a
+	or a
+	ld b,1
+	jr z,1F
+	add a,3
+	ld b,a
+1:	ld a,b
+	ld (rl_k1 + $55),a		; the bank's runs in it
+	ld (rl_sub),a
+	ld a,c				; the edges' and decorations' bytes: the greens' own sets,
+	ld hl,render_line.table		; a road colour's through the first green's (.table_k)
+	ld b,high pix_set0
+	or a
+	jr z,3F
+	ld b,high pix_set1
+	dec a
+	jr z,3F
+	ld b,high pix_set0
+	ld hl,render_line.table_k
+3:	ld a,b
 	ld (rl_set),a
+	ld (render_line.kind + 1),hl
 	ret
 
 ; Layer 2's bank entries: their colours (E = 1), or black (E = 0)

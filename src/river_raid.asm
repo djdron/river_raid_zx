@@ -63,7 +63,6 @@ L2_FIRST_PAGE	equ L2_BANK * 2
 L2_PAGES	equ 10			; 320x256 bytes
 RIVER_LINES	equ 160
 BANK_COLS	equ 8			; the bank's colours at most: Layer 2's entries 1, 4-10
-PIX_PAGE	equ 29			; render_line's dots' tables, a set per bank colour (pix_sets)
 RIVER_TOP	equ 40			; Layer 2 row (of 256) of the river's top line
 WAIT_LINE_NTSC	equ 208			; raster line (ULA numbering) where a frame's work starts:
 WAIT_LINE_PAL	equ 220			; below the scrolling line
@@ -541,7 +540,9 @@ ring_hi:	ds 256
 sprite_list:	ds 5 * SPRITES_MAX	; the sprites' attributes for apply
 ds_objs:	ds 8 * DS_OBJS		; display: the objects' rows (display_simple.asm)
 	align 256
-copper_list:	ds 2048
+copper_list:	ds 256			; (the panel's part and copper_start: ~140 bytes)
+rl_k1:		ds 256			; render_line: a run's value as its colour (pix_sets, line_bank)
+pix_set1:	ds 4 * 256		; render_line's dots' tables for the second green (pix_sets)
 ov_exp2:	ds 2 * 256		; dh_obj: a byte's dots doubled (2 bytes: pages), and
 ov_exp4:	ds 4 * 256		; quadrupled (4)
 eg_e1:		ds 256			; per span record (line), the water's gaps between its
@@ -770,6 +771,7 @@ bank_cols:	ds BANK_COLS		; bank_init: the bank's Atari colours, in their entries
 bank_n:		ds 1			; how many
 rl_set:		ds 1			; line_bank: the line's set of tables (pix_sets: high byte),
 rl_colour:	ds 1			; and its bank colour
+rl_sub:		ds 1			; line_bank: the bank's entry, for .table_k
 road_row:	ds 1			; the bridge's road row on the newest line (bit 7: none yet; $7E, $7F: past)
 ap_shown:	ds 1
 	align 256
@@ -847,6 +849,8 @@ bg_e1:		ds 256			; per span record (line), its two widest gaps between runs
 bg_s2:		ds 256			; of bank pixels (dh_pf; spans.asm)
 bg_e3:		ds 256
 bg_s4:		ds 256
+	align 256
+pix_set0:	ds 4 * 256		; render_line's dots' tables for the first green (pix_sets)
 G4_TAB		equ $FD00 - 465		; pk_g4: per state of the 5-bit and 4-bit counters (m: m mod 31,
 	assert $ <= G4_TAB		; m mod 15), $FF a pulse not let through, else the 4-bit
 	org G4_TAB			; counter's bit; twice, so that a step lands in the second

@@ -365,22 +365,26 @@ bank_init:
 	ld (bank_n),a
 	ret
 
-; The dots' tables, a set per bank colour (bank_cols' order), in PIX_PAGE (at $0000 while they
-; are made, then while render_line draws): set i at 4 i x 256, its page k byte b's dot k (bits
-; 7-6 first) as Layer 2 has it: 0, 2, 3 themselves, 1 colour i's entry (1, then 4..)
+; The dots' tables of the two greens (bank_cols' first two), always there: pix_set0 (page 1)
+; and pix_set1 (page 12, at $4000 while they are made), 4 pages each: page k's byte b is b's
+; dot k as Layer 2 has it: 0, 2, 3 themselves, 1 the green's entry (1, 4). rl_k1 (page 12): a
+; run's value (0, $55, $AA, $FF) as its colour, the bank's set by line_bank
 pix_sets:
-	nextreg $50,PIX_PAGE
-	ld hl,0
-	ld a,(bank_n)
-	ld ixh,a			; IXH: the sets left, IXL: the set
-	ld ixl,0
-.set	ld a,ixl			; E: its entry
+	nextreg $52,DATA_PAGE
 	ld e,1
-	or a
-	jr z,1F
-	add a,3
-	ld e,a
-1:	ld c,0				; C: the dot
+	ld h,high pix_set0
+	call .one
+	ld e,4
+	ld h,high pix_set1 - $20
+	call .one
+	ld hl,rl_k1 - $2000
+	ld (hl),0
+	ld l,$AA
+	ld (hl),2
+	ld l,$FF
+	ld (hl),3
+	ret
+.one	ld c,0				; C: the dot
 .page	ld l,0
 .byte	ld a,l
 	ld b,c
@@ -400,8 +404,4 @@ pix_sets:
 	ld a,c
 	cp 4
 	jr c,.page
-	inc ixl
-	dec ixh
-	jr nz,.set
-	nextreg $50,ATARI_RAM_PAGE
 	ret
