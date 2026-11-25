@@ -940,7 +940,17 @@ scroll_objects:
 	or a
 	jr z,.moved
 	dec (hl)
-.moved	ld hl,TANK_Y
+.moved	ld hl,road_row			; the bridge's road row a line on ($7F: past it)
+	ld a,(hl)
+	cp $7F
+	jr z,.road
+	inc (hl)
+	jp m,.road
+	ld a,(ROM_OBJECT_HEIGHT + $0E)
+	cp (hl)
+	jr nc,.road
+	ld (hl),$7F
+.road	ld hl,TANK_Y
 	inc (hl)
 	ld hl,SHELL_Y
 	inc (hl)
@@ -1241,6 +1251,8 @@ place_object:
 	and $04
 	or $D2
 	ld (SECTION_BANK_COLOUR),a
+	ld a,$FF			; (its road from the next line: line_bank)
+	ld (road_row),a
 	ld a,7
 	ld (WIDE_OBJECT),a
 	ld a,$0E
@@ -1616,6 +1628,9 @@ restore_checkpoint:
 	ld (ENTERING_LINES),a
 	ld a,$4A
 	ld (SLOT_Y + SLOTS - 1),a
+	ld a,(ROM_OBJECT_HEIGHT + $0E)	; its road's row on the next line - 1: y + height - $5E
+	add a,$4A - $5E
+	ld (road_row),a
 	ld a,(LEVEL)
 	and 1
 	ld a,$D2

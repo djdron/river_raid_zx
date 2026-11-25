@@ -2,52 +2,23 @@
 ; entry of Layer 2's palette (render.asm), as the C++ port's Game::lineBank; the Copper's
 ; list, which no longer changes it by line.
 
-; The bank's colour of the line just generated (the C++ port's lineBankColour, from the state
-; after it): a bridge's road colour by the row the line shows (y + height - $5E), else the
-; frame's (bank_colour); rl_set its set of tables (pix_sets)
+; The bank's colour of the line just generated (the C++ port's lineBankColour): the bridge's
+; road colour by the row the line shows (road_row: set when the bridge is placed or put back,
+; a line on with each line, scroll_objects), else the frame's (bank_colour); rl_set its set
+; of tables (pix_sets)
 line_bank:
-	ld a,(FIRST_SLOT)		; the slots from the top while one may show a road row on the
-	cp NO_SLOT			; new line (y <= $5E; y grows down the slots)
-	jr nc,.green
-	ld e,a
-	ld d,0
-	ld hl,SLOT_Y
-	add hl,de
-.slot	ld a,(hl)
-	cp $5F
-	jr nc,.green
-	push hl
-	ld bc,SLOT_FLAGS - SLOT_Y
-	add hl,bc
-	bit 7,(hl)			; a bridge
-	jr z,.nx
-	ld c,a				; C: its y
-	ld hl,SLOT_TYPE
-	add hl,de
-	ld a,(hl)
-	add a,low ROM_OBJECT_HEIGHT
-	ld l,a
-	ld a,high ROM_OBJECT_HEIGHT
-	adc a,0
-	ld h,a
-	ld a,c
-	add a,(hl)
-	sub $5E				; the row: y + height - $5E (y <= $5E: at most the height)
-	jr c,.nx			; (none yet)
+	ld a,(road_row)
+	or a
+	jp m,.green
+	cp $7F
+	jr z,.green
 	add a,low ROM_ROAD_COLOURS
 	ld l,a
 	ld a,high ROM_ROAD_COLOURS
 	adc a,0
 	ld h,a
 	ld a,(hl)
-	pop hl
 	jr .entry
-.nx	pop hl
-	inc hl
-	inc e
-	ld a,e
-	cp NO_SLOT
-	jr c,.slot
 .green	call bank_colour
 .entry	ld hl,rl_colour			; the same colour as the line before: the same set
 	cp (hl)
