@@ -280,24 +280,55 @@ dh_pf:
 	ld (.x1b + 1),a
 	ld (.x1c + 1),a
 	ld (.x1d + 1),a
-	ld b,(ix + 6)
-.l	ld a,b
-	cp RIVER_FIRST + RIVER_LINES
-	jp nc,.no
-	cp RIVER_FIRST
-	jp c,.n
-	push bc
-	ld (bm_line),a
-	add a,(ix + 0)			; the row's byte (as dh_bits: no dots, nothing)
-	ld l,a
+	ld b,(ix + 6)			; B: the line, DE: its row's byte (as dh_bits), C: the rows
+	ld a,b				; left, cut to the river's lines
+	add a,(ix + 0)
+	ld e,a
 	ld a,(ix + 9)
 	adc a,0
-	ld h,a
-	ld a,(hl)
-	and (ix + 1)
-	jr z,.n0
+	ld d,a
+	ld a,(ix + 1)
+	ld (.mask + 1),a
+	ld a,b
+	sub RIVER_FIRST
+	jr nc,.in
+	neg				; (k lines above the river: skipped)
+	cp c
+	jr nc,.no
+	ld l,a
+	ld a,c
+	sub l
+	ld c,a
+	ld a,b
+	add a,l
+	ld b,a
+	ld a,e
+	add a,l
+	ld e,a
+	jr nc,1F
+	inc d
+1:	xor a
+.in	cp RIVER_LINES
+	jr nc,.no
+	sub RIVER_LINES
+	neg
+	cp c
+	jr nc,.l
+	ld c,a
+.l	ld a,(de)
+.mask	and 0				; (no dots: nothing)
+	jr nz,.dots
+.n	inc de
+	inc b
+	dec c
+	jp nz,.l
+.no	xor a
+	ret
+.dots	push bc
+	push de
 	ld (.raw + 1),a
-	ld a,(bm_line)
+	ld a,b
+	ld (bm_line),a
 	sub RIVER_FIRST			; the line's span record (its gaps' index); the box against
 	ld hl,span_top			; the gaps first, the dots looked at only if it is not inside
 	add a,(hl)			; one (most lines: the plane over the water)
@@ -349,15 +380,13 @@ dh_pf:
 .fn	call 0
 	or a
 	jr z,.n0
+	pop de
 	pop bc
 	or 1
 	ret
-.n0	pop bc
-.n	inc b
-	dec c
-	jp nz,.l
-.no	xor a
-	ret
+.n0	pop de
+	pop bc
+	jp .n
 
 ; NZ: sprite IX touches the current object's rows (display: ds_rowp, the first on the
 ; scanline of X = ds_counter, ds_rows of them going down in memory, at the slot's X and size: IY + 22, + 33), bit

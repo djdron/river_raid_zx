@@ -1197,20 +1197,9 @@ hit_w:		ds 1
 hit_a:		ds 5
 hit_b:		ds 5
 	assert high hit_a == high (hit_b + 4)
-ds_le:		ds 1
-ds_bridge:	ds 1
-ds_bullet:	ds 1
-ds_hits:	ds 1
-ds_edge:	ds 1
 ds_obj_n:	ds 1
-ds_obj_over:	ds 1
-ds_obj_t:	ds 1
-ds_objf:	ds DS_OBJS
-ob_fptr:	ds 2
-ds_obj_slot:	ds 1
-ds_obj_last:	ds 2
+ds_obj_p:	ds 2			; ds_obj: the next object's 8 bytes in ds_objs
 ds_edge_kind:	ds 1
-ds_edge_skip:	ds 1
 sb_count:	ds 1
 pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
 dh_desc:	ds 5 * DH_SIZE		; the sprites

@@ -1,98 +1,56 @@
 ; (page 4: display_simple.asm's page is full)
 
-; The object's rows for the sprites (build_sprites): the scanline of its first row, how many,
-; the address of the first row's byte (DE) and colour (IY), its position and size. 8 bytes
-; in ds_objs. DE, BC (the colour's address), IY (the slot's fields) kept.
+; The object's rows for the sprites (ob_list): the line of its first row, the low bytes of
+; the first row's shape and colour addresses (E, C), its position and size, into ds_objs
+; (8 bytes an object, at ds_obj_p: bytes 1, 3 and 5, the Next's rows and high bytes, not
+; used here; nor the Next's ds_objf). An object whose first line is at or above line 28 (the
+; river's top) is moved up by k = start - y rows, its addresses on by k, so that its sprite
+; is its whole shape and the clip window cuts it. DE, BC, IY kept.
 ds_obj:
 	ld a,(ds_obj_n)
 	cp DS_OBJS
-	jr c,1F
-	ld (ds_obj_over),a		; (too many: the sprites from the scanlines)
-	ret
-1:	inc a
-	ld (ds_obj_n),a
-	ld a,(ds_current)
-	ld (ds_obj_slot),a
-	ld a,(ds_obj_n)
-	dec a
-	push de
-	add a,a
-	add a,a
-	add a,a
-	add a,low ds_objs
-	ld l,a
-	adc a,high ds_objs
-	sub l
-	ld h,a
-	ld (ds_obj_last),hl
-	push bc				; (BC: the colour's address)
-	ld a,(ds_counter)
-	sub $44
-	cp RIVER_FIRST + 1		; its first row on the river's first line or above: the rows
-	jr nc,2F			; the DLI did not get to (start - y) on the lines above, as
-	push hl				; the sprite's rows too, from the object's top row (the clip
-	ld hl,ds_start			; window hides them): the same pattern while it comes in
-	ld a,(ds_y)
-	sub (hl)
-	neg				; (k = start - y)
-	ld l,a
-	ld h,0
-	add hl,de
-	ex de,hl
-	ld l,a
-	ld h,0
-	add hl,bc
-	ld b,h
-	ld c,l
-	ld l,a
-	ld a,(ds_rows)
-	add a,l
-	ld (ds_obj_t),a
-	ld a,(ds_counter)
-	sub $44
-	sub l
-	pop hl
-	ld (hl),a
-	inc hl
-	ld a,(ds_obj_t)
-	jr 3F
-2:	ld (hl),a
-	inc hl
-	ld a,(ds_rows)
-3:	ld (hl),a
-	push hl				; the rows for the sprites (ds_objf): all of them, also
-	push af				; those past the river's end, which the DLI did not get to
-	ld a,(ds_obj_n)			; (the sprites' window hides them: copper_panel), so an
-	add a,low (ds_objf - 1)		; object's pattern stays the same while it goes out
-	ld l,a
-	adc a,high (ds_objf - 1)
-	sub l
-	ld h,a
-	ld a,(ds_row)
+	ret nc				; (too many: not drawn)
 	inc a
-	push hl
-	ld hl,ds_rows
-	sub (hl)
-	pop hl
+	ld (ds_obj_n),a
+	ld hl,(ds_obj_p)
+	ld a,(ds_counter)
+	sub $44
+	cp RIVER_FIRST + 1
+	jr nc,.in
+	push bc				; at the top: k rows more
+	ld b,a
+	ld a,(ds_y)
+	ld c,a
+	ld a,(ds_start)
+	sub c
+	ld c,a				; C: k
+	ld a,b
+	sub c
 	ld (hl),a
-	pop af
-	add a,(hl)
+	inc hl
+	inc hl
+	ld a,e
+	add a,c
 	ld (hl),a
-	pop hl
+	ld a,c
+	pop bc
+	add a,c
+	jr .col
+.in	ld (hl),a
+	inc hl
 	inc hl
 	ld (hl),e
+	ld a,c
+.col	inc hl
 	inc hl
-	ld (hl),d
+	ld (hl),a
 	inc hl
-	ld (hl),c
 	inc hl
-	ld (hl),b
-	inc hl
-	pop bc
 	ld a,(iy + 22)			; (IY: the slot's fields, display)
 	ld (hl),a
 	inc hl
 	ld a,(iy + 33)
 	ld (hl),a
-	pop de
+	inc hl
+	ld (ds_obj_p),hl
 	ret

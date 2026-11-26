@@ -455,6 +455,9 @@ int main(int argc, char **argv) {
 	// ones; their number printed), each instruction's time from one frame_done to the next
 	const long long histMin = std::getenv("TSHISTMIN") ? std::atoll(std::getenv("TSHISTMIN")) : -1;
 	static long long histFrame[0x10000];
+	// TSHISTN=file (with TSHISTALL): how many times each instruction ran, over the same frames
+	const char *histNPath = std::getenv("TSHISTN");
+	static long long histN[0x10000], histFrameN[0x10000];
 	std::vector<uint16_t> histTouched;
 	long histFrames = 0;
 	// TSMSHOT=k: each machine's frame from frame k on (32 of them), to /tmp/tsm_N.ppm (a late
@@ -478,10 +481,11 @@ int main(int argc, char **argv) {
 				}
 			}
 			if (histAllPath) {
-				if (histMin < 0) histAll[pc] += comp->tickTotal - t;
+				if (histMin < 0) { histAll[pc] += comp->tickTotal - t; histN[pc]++; }
 				else {
 					if (!histFrame[pc]) histTouched.push_back(pc);
 					histFrame[pc] += comp->tickTotal - t;
+					histFrameN[pc]++;
 				}
 			}
 			if (comp->cpu->regPC == hook) return true;
@@ -540,12 +544,12 @@ int main(int argc, char **argv) {
 			workSum += w;
 			if (w > workMax) { workMax = w; workMaxFrame = f; }
 			if (histMin >= 0 && w >= histMin) {
-				for (uint16_t a : histTouched) histAll[a] += histFrame[a];
+				for (uint16_t a : histTouched) { histAll[a] += histFrame[a]; histN[a] += histFrameN[a]; }
 				histFrames++;
 			}
 		}
 		if (histMin >= 0) {
-			for (uint16_t a : histTouched) histFrame[a] = 0;
+			for (uint16_t a : histTouched) histFrame[a] = histFrameN[a] = 0;
 			histTouched.clear();
 		}
 		// the machine's last whole frame (bufSwaps of them) shows the apply of the frame whose
@@ -772,6 +776,12 @@ int main(int argc, char **argv) {
 		for (int a = 0; a < 0x10000; a++)
 			if (histAll[a]) std::fprintf(hf, "%04X %lld\n", a, histAll[a]);
 		std::fclose(hf);
+		if (histNPath) {
+			FILE *nf = std::fopen(histNPath, "w");
+			for (int a = 0; a < 0x10000; a++)
+				if (histN[a]) std::fprintf(nf, "%04X %lld\n", a, histN[a]);
+			std::fclose(nf);
+		}
 	}
 	if (std::getenv("TSVOL")) { std::printf("the volumes' sum: "); for (int v = 0; v < 61; v++) if (volHist[v]) std::printf("%d:%ld ", v, volHist[v]); std::printf("\nthe card's highest level: %d (of 255); the Next's DAC channels' sum at most %d (31 its limit)\n", levelMax, dacMax); }
 	std::printf("%d frames compared: %s\n", frames, errors ? "with differences" : "the same");
