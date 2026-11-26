@@ -19,8 +19,8 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 `python3 tools/prof.py build/test.sym 文件 60`，再除以帧数），用的是不带屏幕内存的校验构建，与游戏
 本身一致（`-DNOSCREEN`、`NXNOSCREEN=1`）。两次运行：
 
-- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 102 000，最多约 158 000；
-- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 159 000，最多约 198 000（NTSC 约 160 000 / 约 202 000；14 MHz NTSC 约 131 000 / 约 165 000，满额约 240 000）。
+- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 93 000，最多约 149 000；
+- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 149 000，最多约 193 000（NTSC 约 145 000 / 约 186 000；14 MHz NTSC 约 131 000 / 约 165 000，满额约 240 000）。
 
 一帧在 PAL 下约有 567 000 个周期，NTSC 下约 481 000（14 MHz 时减半）。`apply`（以及其中的
 `panel_frame`）在被测量的工作之后运行（在滚动字幕下方），不计入这些数字：每帧约 7 400。一个例程的时间
@@ -30,7 +30,7 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 40 400 | 54 300 |
+| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 31 700 | 45 600 |
 | 声音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
 | 河流的新行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 500 | 45 400 |
 | 精灵和 Copper 列表（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 9 900 | 15 000 |
@@ -40,16 +40,16 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 
 | 例程 | A | B | 文件 |
 |---|---|---|---|
-| `display`（自身代码） | 10 900 | 12 600 | display_simple |
+| `pk_g4` | 0 | 1 400 （导弹发声的那一帧约 9 000） | sound_pulses |
+| `display`（自身代码） | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
-| `dh_obj` | 4 900 | 6 100 | display_hits |
+| `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
@@ -60,11 +60,11 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 | `pk_channel` | 1 200 | 2 700 | sound_pulses |
 | `pokey_frame`（自身代码） | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
-| `pk_g4` | 0 | 1 400 （导弹发声的那一帧约 9 000） | sound_pulses |
+| `dh_obj` | 1 400 | 1 800 | display_hits |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-B 中最重的一帧（约 198 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
+B 中最重的一帧（约 193 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
 （`display`、`ds_obj`、`ds_edge_test`）约 30 000，碰撞（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）约
 25 000，河流新行约 25 000。
 
@@ -79,7 +79,7 @@ B 中最重的一帧（约 198 000）：声音最高约 60 000（DAC 上的噪�
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31：位于原版地址的 Atari 内存 | `pokey_frame`：生成采样时换成 14–15，即 POKEY 的 17 位计数器（`poly17.bin`） |
 | 2 | $4000–$5FFF | 不固定：没有固定的页 | `render_line`：18–27（Layer 2，每 32 列一页）；`display`、`span_line`、`spans_clear`：28（`SPAN_PAGE`，各行的色段）；`panel_frame`：11（tilemap 的映射）；`panel_init`：10、11 |
-| 3 | $6000–$7FFF | 12：缓冲区（`copper_list`、`ds_objs`、`sprite_list`、`ov_exp2`/`ov_exp4`（展宽后的单字节点，`dh_obj` 用）、河岸缝隙 `eg_*`（`ds_edge_test` 用）、$7C00 处的 DAC 环形缓冲） | 仅在启动时：7（`panel_init`、`sound_init7`、`load_rom`）。**发声时绝不能换**：DMA 通过这个槽读取环形缓冲 |
+| 3 | $6000–$7FFF | 12：缓冲区（`copper_list`、`ds_objs`、`sprite_list`、`ov_exp2`/`ov_exp4`（展宽后的单字节点，`dh_obj` 用）、河岸缝隙 `eg_*`（`ds_edge_test` 用）、$7C00 处的 DAC 环形缓冲）；`dh_pf` 在 $7A00（`P12_CODE`，启动时从第 7 页复制过来：第 6 页没有空间） | 仅在启动时：7（`panel_init`、`sound_init7`、`load_rom`）。**发声时绝不能换**：DMA 通过这个槽读取环形缓冲 |
 | 4 | $8000–$9FFF | 4：代码 | — |
 | 5 | $A000–$BFFF | 5：卡带，从 River_Raid.rom 读入 | — |
 | 6 | $C000–$DFFF | 6：代码 | — |
@@ -258,7 +258,7 @@ Copper 负责。
 |---|---|---|---|
 | `dh_lists` | `display` 开头 | 各描述符的行数、位置和基址；然后各自的结束（字段 2）。 | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF，然后在以下情况置 HIT 0：坦克碰到边缘（P1PF），飞机碰到河岸（P2PF），导弹和子弹碰到河岸或边缘（M0PF、M2PF）：`dh_pf`；飞机与坦克炮弹（P2PL 第 0 位）、导弹与飞机（M0PL）：`dh_pair`。 | |
-| `dh_pf` | `dh_sprites` | NZ：精灵 IX 的行碰到 playfield（DE：`sp_edge`、`sp_bank`、`sp_under`）。对每一条河流行：先取掩码下该行的字节（没有点：下一行），再看其方框（X 到 X + 其色钟数）是否落在该行的缝隙内（A：第 0 位为边缘的 `eg_*`，第 1 位为河岸的 `bg_*`）；在内则无事；否则用该行两端与色段比较（`sp_*` 函数）。遇到第一次接触即停止。 | 10 200 / 11 200 |
+| `dh_pf` | `dh_sprites` | 在第 12 页（`dh_pf.asm`，与 TS-Conf 的相同）。先在精灵的所有行上一次性用盒子对照间隙（`DH_GAP`）：每一行都在里面，就什么都没有；否则逐行，行的字节从 DE 取，掩码写进指令。NZ：精灵 IX 的行碰到 playfield（DE：`sp_edge`、`sp_bank`、`sp_under`）。对每一条河流行：先取掩码下该行的字节（没有点：下一行），再看其方框（X 到 X + 其色钟数）是否落在该行的缝隙内（A：第 0 位为边缘的 `eg_*`，第 1 位为河岸的 `bg_*`）；在内则无事；否则用该行两端与色段比较（`sp_*` 函数）。遇到第一次接触即停止。 | 4 400 / 6 000 |
 | `sp_edge`、`sp_bank`、`sp_under` | `dh_pf` | 精灵的一行与该扫描行的边缘（棕色）、河岸（绿色）或两者的色段比较，与 C++ 移植版的 `spanTouches` 一样：它的第一个和最后一个点（`sp_ends`：`edge_lo`、`edge_hi`、按尺寸的宽度，加 X）与色段比较（`sp_runs`），两点之间有色段即为接触；该行的记录经 `sp_rec` 取得。 | |
 | `dh_pair` | `dh_sprites` | NZ：两个精灵的行相遇：对它们的色钟做 `hit_setup`，然后在两者都有的每一行上，把各自的位（`dh_bits`，按尺寸 `hit_wide`）放入 `hit_a`、`hit_b`，再 `hit_line`。 | |
 | `dh_bits`、`dh_end` | `dh_pf`、`dh_pair`、`dh_obj` | 精灵 IX 在第 A 行上的位：掩码下该行的字节，已在高位（Z：没有）；其最后一行之后的那一行（由 `dh_lists` 每帧一次写入字段 2）。 | 400 / 500 |

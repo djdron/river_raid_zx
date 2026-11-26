@@ -23,8 +23,8 @@ nxcheck (`NXHISTALL=file`, poi `python3 tools/prof.py build/test.sym file 60`, d
 fotogrammi), sulla build di verifica senza memoria dello schermo, come la ha il gioco
 (`-DNOSCREEN`, `NXNOSCREEN=1`). Due esecuzioni:
 
-- **A**: PAL, bot 1, 3 000 fotogrammi dall'inizio (il solito inizio di partita): ~102 000 a fotogramma in media, al massimo ~158 000;
-- **B**: `-stress` dal ponte 80, PAL, 6 000 fotogrammi (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: tutti gli slot occupati, tutta velocità, sempre sparando): ~159 000 in media, al massimo ~198 000 (NTSC ~160 000 / ~202 000; a 14 MHz NTSC ~131 000 / ~165 000 su ~240 000).
+- **A**: PAL, bot 1, 3 000 fotogrammi dall'inizio (il solito inizio di partita): ~93 000 a fotogramma in media, al massimo ~149 000;
+- **B**: `-stress` dal ponte 80, PAL, 6 000 fotogrammi (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: tutti gli slot occupati, tutta velocità, sempre sparando): ~149 000 in media, al massimo ~193 000 (NTSC ~145 000 / ~186 000; a 14 MHz NTSC ~131 000 / ~165 000 su ~240 000).
 
 Un fotogramma ha ~567 000 cicli in PAL e ~481 000 in NTSC (la metà a 14 MHz). `apply` (e quindi
 `panel_frame`) gira dopo il lavoro misurato (sotto la scritta scorrevole) e non è in questi
@@ -35,7 +35,7 @@ Per parti (A / B):
 
 | parte | A | B |
 |---|---|---|
-| il display: posizionamento degli oggetti e collisioni (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 40 400 | 54 300 |
+| il display: posizionamento degli oggetti e collisioni (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 31 700 | 45 600 |
 | suono (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
 | nuove righe del fiume (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
 | sprite e lista del Copper (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
@@ -45,16 +45,15 @@ Le routine più costose (A / B):
 
 | routine | A | B | file |
 |---|---|---|---|
-| `display` (codice proprio) | 10 900 | 12 600 | display_simple |
+| `display` (codice proprio) | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
-| `dh_obj` | 4 900 | 6 100 | display_hits |
+| `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
@@ -65,11 +64,12 @@ Le routine più costose (A / B):
 | `pk_channel` | 1 200 | 2 700 | sound_pulses |
 | `pokey_frame` (codice proprio) | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
+| `dh_obj` | 1 400 | 1 800 | display_hits |
 | `pk_g4` | 0 | 1 400 (~9 000 in un fotogramma in cui suona il missile) | sound_pulses |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-Il fotogramma più pesante di B (~198 000): il suono fino a ~60 000 (il rumore e il missile sul
+Il fotogramma più pesante di B (~193 000): il suono fino a ~60 000 (il rumore e il missile sul
 DAC, ~180 impulsi), il posizionamento e le verifiche del bordo (`display`, `ds_obj`,
 `ds_edge_test`) ~30 000, le collisioni (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, le nuove
 righe del fiume ~25 000.
@@ -87,7 +87,7 @@ Slot da 8K ($0000, $2000, … $E000) e le pagine al loro interno:
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31: la RAM dell'Atari agli indirizzi dell'originale | `pokey_frame`: 14–15, il contatore a 17 bit di POKEY (`poly17.bin`), mentre fa i campioni |
 | 2 | $4000–$5FFF | varia: nessuna pagina fissa | `render_line`: 18–27 (Layer 2, una pagina ogni 32 colonne); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, le sequenze delle righe); `panel_frame`: 11 (la mappa della tilemap); `panel_init`: 10, 11 |
-| 3 | $6000–$7FFF | 12: buffer (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (i punti di un byte allargati, `dh_obj`), i varchi del bordo `eg_*` (`ds_edge_test`), l'anello del DAC a $7C00) | solo all'avvio: 7 (`panel_init`, `sound_init7`, `load_rom`). **Mai mentre suona il suono**: il DMA legge l'anello attraverso questo slot |
+| 3 | $6000–$7FFF | 12: buffer (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (i punti di un byte allargati, `dh_obj`), i varchi del bordo `eg_*` (`ds_edge_test`), l'anello del DAC a $7C00); `dh_pf` a $7A00 (`P12_CODE`, copiato dalla pagina 7 all'avvio: nella pagina 6 non c'è spazio) | solo all'avvio: 7 (`panel_init`, `sound_init7`, `load_rom`). **Mai mentre suona il suono**: il DMA legge l'anello attraverso questo slot |
 | 4 | $8000–$9FFF | 4: codice | — |
 | 5 | $A000–$BFFF | 5: la cartuccia, letta da River_Raid.rom | — |
 | 6 | $C000–$DFFF | 6: codice | — |
@@ -279,7 +279,7 @@ prossimo `prepare`) nessuna riga.
 |---|---|---|---|
 | `dh_lists` | inizio di `display` | Righe, posizioni e basi dei descrittori; poi la fine di ciascuno (campo 2). | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF, poi HIT 0 dove: il carro incontra il bordo (P1PF), l'aereo la riva (P2PF), il missile e il proiettile la riva o il bordo (M0PF, M2PF): `dh_pf`; l'aereo e il colpo del carro (P2PL bit 0), il missile e l'aereo (M0PL): `dh_pair`. | |
-| `dh_pf` | `dh_sprites` | NZ: le righe dello sprite IX incontrano il playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Per riga del fiume: prima il byte della riga sotto la maschera (nessun punto: la riga successiva), poi il suo riquadro (da X a X + i suoi cicli) nei varchi della riga (A: bit 0 gli `eg_*` del bordo, bit 1 i `bg_*` della riva); dentro, nulla; altrimenti le estremità della riga contro le sequenze (la funzione `sp_*`). Si ferma al primo contatto. | 10 200 / 11 200 |
+| `dh_pf` | `dh_sprites` | Nella pagina 12 (`dh_pf.asm`, come quello del TS-Conf). Prima il riquadro contro i varchi su tutte le righe dello sprite insieme (`DH_GAP`): dentro su ognuna, niente; altrimenti riga per riga, il byte della riga da DE con la maschera nell'istruzione. NZ: le righe dello sprite IX incontrano il playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Per riga del fiume: prima il byte della riga sotto la maschera (nessun punto: la riga successiva), poi il suo riquadro (da X a X + i suoi cicli) nei varchi della riga (A: bit 0 gli `eg_*` del bordo, bit 1 i `bg_*` della riva); dentro, nulla; altrimenti le estremità della riga contro le sequenze (la funzione `sp_*`). Si ferma al primo contatto. | 4 400 / 6 000 |
 | `sp_edge`, `sp_bank`, `sp_under` | `dh_pf` | La riga di uno sprite contro le sequenze della riga di bordo (marrone), riva (verde) o entrambi, come lo `spanTouches` del port in C++: il suo primo e ultimo punto (`sp_ends`: `edge_lo`, `edge_hi`, la larghezza della dimensione, più X) contro le sequenze (`sp_runs`), una sequenza in mezzo è un contatto; il record della riga tramite `sp_rec`. | |
 | `dh_pair` | `dh_sprites` | NZ: le righe di due sprite si incontrano: `hit_setup` sui loro cicli, poi per ogni riga che hanno entrambi i bit di ciascuno (`dh_bits`, `hit_wide` secondo la sua dimensione) in `hit_a`, `hit_b`, e `hit_line`. | |
 | `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | I bit dello sprite IX sulla riga A: il byte della riga sotto la maschera, già in alto (Z: nessuno); la riga dopo la sua ultima (`dh_lists` la mette nel campo 2 una volta per fotogramma). | 400 / 500 |

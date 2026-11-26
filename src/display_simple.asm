@@ -10,6 +10,17 @@
 
 DS_OBJS		equ 16			; the objects' rows kept for the sprites (ds_objs)
 
+; (display) To `skip` if the object's lines (E to D) and sprite s's (dh_desc) cannot meet
+	macro TS_MEET s, skip
+	ld a,e
+	ld hl,dh_desc + s + 2
+	cp (hl)				; the object's first past the sprite's last
+	jr nc,skip
+	ld a,(dh_desc + s + 6)
+	cp d				; the sprite's first past the object's last
+	jr nc,skip
+	endm
+
 display:
 	nextreg $52,SPAN_PAGE		; the lines' runs of bank and edge (pf_under)
 	call dh_lists			; the other sprites' rows, and their collisions
@@ -154,20 +165,27 @@ display:
 	jr nc,1F
 	ld a,255
 1:	ld (ds_l2),a
-	ld ix,dh_desc + DH_BULLET	; the bullet, the shell (not a bridge) and the plane against
-	call dh_obj			; its rows
+	assert ds_l2 == ds_l1 + 1
+	ld de,(ds_l1)			; the bullet, the shell (not a bridge) and the plane against
+	TS_MEET DH_BULLET, 1F		; its rows: dh_obj only if their lines can meet (E: the
+	ld ix,dh_desc + DH_BULLET	; object's first, D: past its last; the sprite's first, +6,
+	call dh_obj			; and past its last, +2: dh_obj's own test, without the
+	ld de,(ds_l1)			; call)
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_BULLET_OBJECT),a
 1:	ld a,(ds_flags)
 	and $80
 	jr nz,1F
+	TS_MEET DH_SHELL, 1F
 	ld ix,dh_desc + DH_SHELL
 	call dh_obj
+	ld de,(ds_l1)
 	jr z,1F
 	ld a,(ds_current)
 	ld (HIT_SHELL_OBJECT),a
-1:	ld ix,dh_desc + DH_PLANE
+1:	TS_MEET DH_PLANE, .next
+	ld ix,dh_desc + DH_PLANE
 	call dh_obj
 	jr z,.next
 	ld a,(ds_current)

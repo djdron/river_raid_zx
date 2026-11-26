@@ -20,8 +20,8 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 （`NXHISTALL=ファイル`、次に `python3 tools/prof.py build/test.sym ファイル 60`、フレーム数で割る）から取りました。
 ゲームと同じく画面メモリなしの検証ビルド（`-DNOSCREEN`、`NXNOSCREEN=1`）です。2 回の実行：
 
-- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 102 000、最大約 158 000。
-- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 159 000、最大約 198 000（NTSC 約 160 000 / 約 202 000、14 MHz NTSC では約 240 000 のうち約 131 000 / 約 165 000）。
+- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 93 000、最大約 149 000。
+- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 149 000、最大約 193 000（NTSC 約 145 000 / 約 186 000、14 MHz NTSC では約 240 000 のうち約 131 000 / 約 165 000）。
 
 1 フレームは PAL で約 567 000 サイクル、NTSC で約 481 000（14 MHz ではその半分）。`apply`（とその中の
 `panel_frame`）は計測される処理の後（スクロールテキストの下）で動き、この数値には入りません：1 フレーム約 7 400。
@@ -31,7 +31,7 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 40 400 | 54 300 |
+| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 31 700 | 45 600 |
 | 音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
 | 川の新しい行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 500 | 45 400 |
 | スプライトと Copper リスト（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 9 900 | 15 000 |
@@ -41,16 +41,16 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 
 | ルーチン | A | B | ファイル |
 |---|---|---|---|
-| `display`（自身のコード） | 10 900 | 12 600 | display_simple |
+| `pk_g4` | 0 | 1 400 （ミサイルが鳴るフレームでは約 9 000） | sound_pulses |
+| `display`（自身のコード） | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
-| `dh_obj` | 4 900 | 6 100 | display_hits |
+| `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
@@ -61,11 +61,11 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 | `pk_channel` | 1 200 | 2 700 | sound_pulses |
 | `pokey_frame`（自身のコード） | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
-| `pk_g4` | 0 | 1 400 （ミサイルが鳴るフレームでは約 9 000） | sound_pulses |
+| `dh_obj` | 1 400 | 1 800 | display_hits |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-B で最も重いフレーム（約 198 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
+B で最も重いフレーム（約 193 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
 岸の判定（`display`、`ds_obj`、`ds_edge_test`）約 30 000、衝突（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）約
 25 000、川の新しい行約 25 000。
 
@@ -81,7 +81,7 @@ B で最も重いフレーム（約 198 000）：音が最大約 60 000（DAC �
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31：元のアドレスに置いた Atari の RAM | `pokey_frame`：サンプル生成中は 14–15、POKEY の 17 ビットカウンタ（`poly17.bin`） |
 | 2 | $4000–$5FFF | 不定：固定ページなし | `render_line`：18–27（Layer 2、32 列ごとに 1 ページ）；`display`、`span_line`、`spans_clear`：28（`SPAN_PAGE`、各行のラン）；`panel_frame`：11（tilemap のマップ）；`panel_init`：10、11 |
-| 3 | $6000–$7FFF | 12：バッファ（`copper_list`、`ds_objs`、`sprite_list`、`ov_exp2`/`ov_exp4`（1 バイトの点を広げたもの、`dh_obj` 用）、岸の隙間 `eg_*`（`ds_edge_test` 用）、$7C00 の DAC リング） | 起動時のみ：7（`panel_init`、`sound_init7`、`load_rom`）。**音が鳴っている間は絶対に切り替えない**：DMA がこのスロットを通してリングを読む |
+| 3 | $6000–$7FFF | 12：バッファ（`copper_list`、`ds_objs`、`sprite_list`、`ov_exp2`/`ov_exp4`（1 バイトの点を広げたもの、`dh_obj` 用）、岸の隙間 `eg_*`（`ds_edge_test` 用）、$7C00 の DAC リング）。`dh_pf` は $7A00（`P12_CODE`、起動時にページ 7 からコピー：ページ 6 に空きがない） | 起動時のみ：7（`panel_init`、`sound_init7`、`load_rom`）。**音が鳴っている間は絶対に切り替えない**：DMA がこのスロットを通してリングを読む |
 | 4 | $8000–$9FFF | 4：コード | — |
 | 5 | $A000–$BFFF | 5：River_Raid.rom から読んだカートリッジ | — |
 | 6 | $C000–$DFFF | 6：コード | — |
@@ -260,7 +260,7 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 |---|---|---|---|
 | `dh_lists` | `display` の最初 | 記述子の行数、位置、ベース。そのあと各々の終わり（フィールド 2）。 | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF、次に以下で HIT 0：戦車が縁に（P1PF）、飛行機が岸に（P2PF）、ミサイルと弾が岸か縁に（M0PF、M2PF）：`dh_pf`。飛行機と戦車の砲弾（P2PL ビット 0）、ミサイルと飛行機（M0PL）：`dh_pair`。 | |
-| `dh_pf` | `dh_sprites` | NZ：スプライト IX の行が playfield に触れる（DE：`sp_edge`、`sp_bank`、`sp_under`）。川の行ごとに、まずマスクをかけた行のバイト（点がなければ次の行）、次にその箱（X から X + クロック数）がその行の隙間に入るか（A：ビット 0 は縁の `eg_*`、ビット 1 は岸の `bg_*`）。入れば何もなし。そうでなければ行の両端をランと比べる（`sp_*` 関数）。最初の接触で止まる。 | 10 200 / 11 200 |
+| `dh_pf` | `dh_sprites` | ページ 12 にある（`dh_pf.asm`、TS-Conf と同じ）。まずスプライトの全ラインで一度に箱を隙間と比べる（`DH_GAP`）：どのラインでも内側なら何もなし。そうでなければライン順に、行のバイトは DE から、マスクは命令に書き込み。NZ：スプライト IX の行が playfield に触れる（DE：`sp_edge`、`sp_bank`、`sp_under`）。川の行ごとに、まずマスクをかけた行のバイト（点がなければ次の行）、次にその箱（X から X + クロック数）がその行の隙間に入るか（A：ビット 0 は縁の `eg_*`、ビット 1 は岸の `bg_*`）。入れば何もなし。そうでなければ行の両端をランと比べる（`sp_*` 関数）。最初の接触で止まる。 | 4 400 / 6 000 |
 | `sp_edge`、`sp_bank`、`sp_under` | `dh_pf` | スプライトの 1 行をその走査行の縁（茶）、岸（緑）、または両方のランと比べる。C++ 版の `spanTouches` と同じ：最初と最後の点（`sp_ends`：`edge_lo`、`edge_hi`、サイズの幅、X を足す）をラン（`sp_runs`）と比べ、間にランがあれば接触。行のレコードは `sp_rec` で取る。 | |
 | `dh_pair` | `dh_sprites` | NZ：2 つのスプライトの行が重なる：そのクロックで `hit_setup`、次に両方が持つ各行で、それぞれのビット（`dh_bits`、サイズに応じて `hit_wide`）を `hit_a`、`hit_b` へ入れて `hit_line`。 | |
 | `dh_bits`、`dh_end` | `dh_pf`、`dh_pair`、`dh_obj` | A 行目でのスプライト IX のビット：マスクをかけた行のバイト、すでに上位にある（Z：なし）。最後の行の次の行（`dh_lists` がフレームに一度フィールド 2 に入れる）。 | 400 / 500 |

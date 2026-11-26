@@ -24,8 +24,8 @@ Zeiten sind Takte des Next-Kerns bei 28 MHz pro Frame, gemittelt, aus dem Histog
 Frames), auf dem Prüf-Build ohne Bildschirmspeicher, wie das Spiel ihn hat (`-DNOSCREEN`,
 `NXNOSCREEN=1`). Zwei Läufe:
 
-- **A**: PAL, Bot 1, 3 000 Frames ab dem Start (der übliche frühe Spielverlauf): im Mittel ~102 000 pro Frame, höchstens ~158 000;
-- **B**: `-stress` ab Brücke 80, PAL, 6 000 Frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~159 000, höchstens ~198 000 (NTSC ~160 000 / ~202 000; bei 14 MHz NTSC ~131 000 / ~165 000 von ~240 000).
+- **A**: PAL, Bot 1, 3 000 Frames ab dem Start (der übliche frühe Spielverlauf): im Mittel ~93 000 pro Frame, höchstens ~149 000;
+- **B**: `-stress` ab Brücke 80, PAL, 6 000 Frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~149 000, höchstens ~193 000 (NTSC ~145 000 / ~186 000; bei 14 MHz NTSC ~131 000 / ~165 000 von ~240 000).
 
 Ein Frame hat ~567 000 Takte bei PAL und ~481 000 bei NTSC (bei 14 MHz die Hälfte). `apply` (und
 damit `panel_frame`) läuft nach der gemessenen Arbeit (unter der Laufschrift) und ist nicht in
@@ -36,7 +36,7 @@ Nach Teilen (A / B):
 
 | Teil | A | B |
 |---|---|---|
-| das Display: Platzieren der Objekte und Kollisionen (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 40 400 | 54 300 |
+| das Display: Platzieren der Objekte und Kollisionen (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 31 700 | 45 600 |
 | Ton (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
 | neue Flusszeilen (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
 | Sprites und die Liste des Coppers (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
@@ -46,16 +46,15 @@ Die teuersten Routinen (A / B):
 
 | Routine | A | B | Datei |
 |---|---|---|---|
-| `display` (eigener Code) | 10 900 | 12 600 | display_simple |
+| `display` (eigener Code) | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
-| `dh_obj` | 4 900 | 6 100 | display_hits |
+| `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
@@ -66,11 +65,12 @@ Die teuersten Routinen (A / B):
 | `pk_channel` | 1 200 | 2 700 | sound_pulses |
 | `pokey_frame` (eigener Code) | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
+| `dh_obj` | 1 400 | 1 800 | display_hits |
 | `pk_g4` | 0 | 1 400 (~9 000 in einem Frame, in dem die Rakete klingt) | sound_pulses |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-Das schwerste Frame von B (~198 000): der Ton bis ~60 000 (das Rauschen und die Rakete auf dem
+Das schwerste Frame von B (~193 000): der Ton bis ~60 000 (das Rauschen und die Rakete auf dem
 DAC, ~180 Impulse), Platzieren und Kantentests (`display`, `ds_obj`, `ds_edge_test`) ~30 000,
 die Kollisionen (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, die neuen Flusszeilen ~25 000.
 
@@ -87,7 +87,7 @@ läuft.)
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31: das RAM des Atari an den Adressen des Originals | `pokey_frame`: 14–15, POKEYs 17-Bit-Zähler (`poly17.bin`), während es Samples macht |
 | 2 | $4000–$5FFF | wechselnd: keine feste Seite | `render_line`: 18–27 (Layer 2, eine Seite pro 32 Spalten); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, die Läufe der Zeilen); `panel_frame`: 11 (die Karte der Tilemap); `panel_init`: 10, 11 |
-| 3 | $6000–$7FFF | 12: Puffer (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (die Punkte eines Bytes verbreitert, `dh_obj`), die Lücken der Kante `eg_*` (`ds_edge_test`), der Ring des DAC bei $7C00) | nur beim Start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Nie, während der Ton spielt**: Der DMA liest den Ring durch diesen Slot |
+| 3 | $6000–$7FFF | 12: Puffer (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (die Punkte eines Bytes verbreitert, `dh_obj`), die Lücken der Kante `eg_*` (`ds_edge_test`), der Ring des DAC bei $7C00); `dh_pf` bei $7A00 (`P12_CODE`, beim Start aus Page 7 kopiert: in Page 6 kein Platz) | nur beim Start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Nie, während der Ton spielt**: Der DMA liest den Ring durch diesen Slot |
 | 4 | $8000–$9FFF | 4: Code | — |
 | 5 | $A000–$BFFF | 5: die Cartridge, aus River_Raid.rom gelesen | — |
 | 6 | $C000–$DFFF | 6: Code | — |
@@ -279,7 +279,7 @@ gesetzt) unter ihren Masken, schon in der Vorlage auf die Plätze der Punkte ged
 |---|---|---|---|
 | `dh_lists` | Anfang von `display` | Zeilen, Positionen und Basen der Deskriptoren; dann das Ende jedes (Feld 2). | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF, dann HIT 0, wo: der Panzer die Kante trifft (P1PF), das Flugzeug das Ufer (P2PF), Rakete und Kugel Ufer oder Kante (M0PF, M2PF): `dh_pf`; das Flugzeug und die Granate (P2PL Bit 0), die Rakete und das Flugzeug (M0PL): `dh_pair`. | |
-| `dh_pf` | `dh_sprites` | NZ: Die Zeilen von Sprite IX treffen das Playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Pro Flusszeile: zuerst das Byte der Zeile unter der Maske (keine Punkte: die nächste Zeile), dann sein Rechteck (X bis X + seine Takte) in den Lücken der Zeile (A: Bit 0 die `eg_*` der Kante, Bit 1 die `bg_*` des Ufers); darin nichts; sonst die Enden der Zeile gegen die Läufe (die `sp_*`-Funktion). Hält bei der ersten Berührung an. | 10 200 / 11 200 |
+| `dh_pf` | `dh_sprites` | In Page 12 (`dh_pf.asm`, wie beim TS-Conf). Zuerst der Kasten gegen die Lücken auf allen Zeilen des Sprites auf einmal (`DH_GAP`): auf jeder drinnen, nichts; sonst Zeile für Zeile, das Byte der Reihe aus DE mit gepatchter Maske. NZ: Die Zeilen von Sprite IX treffen das Playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Pro Flusszeile: zuerst das Byte der Zeile unter der Maske (keine Punkte: die nächste Zeile), dann sein Rechteck (X bis X + seine Takte) in den Lücken der Zeile (A: Bit 0 die `eg_*` der Kante, Bit 1 die `bg_*` des Ufers); darin nichts; sonst die Enden der Zeile gegen die Läufe (die `sp_*`-Funktion). Hält bei der ersten Berührung an. | 4 400 / 6 000 |
 | `sp_edge`, `sp_bank`, `sp_under` | `dh_pf` | Eine Zeile eines Sprites gegen die Läufe der Zeile von Kante (braun), Ufer (grün) oder beidem, wie `spanTouches` des C++-Ports: ihr erster und letzter Punkt (`sp_ends`: `edge_lo`, `edge_hi`, die Breite der Größe, plus X) gegen die Läufe (`sp_runs`), ein Lauf dazwischen eine Berührung; der Datensatz der Zeile über `sp_rec`. | |
 | `dh_pair` | `dh_sprites` | NZ: Die Zeilen zweier Sprites treffen sich: `hit_setup` auf ihren Takten, dann pro Zeile, die beide haben, die Bits jedes (`dh_bits`, `hit_wide` nach seiner Größe) in `hit_a`, `hit_b` und `hit_line`. | |
 | `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Die Bits von Sprite IX auf Zeile A: das Byte der Zeile unter der Maske, schon oben (Z: keine); die Zeile nach seiner letzten (`dh_lists` legt sie einmal pro Frame in Feld 2). | 400 / 500 |

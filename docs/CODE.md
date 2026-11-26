@@ -23,8 +23,8 @@ Times are the Next core's ticks at 28 MHz, per frame, averaged, from nxcheck's h
 frames), on the check's build without screen memory as the game has it (`-DNOSCREEN`,
 `NXNOSCREEN=1`). Two runs:
 
-- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~102 000 a frame on average, ~158 000 at most;
-- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~159 000 on average, ~198 000 at most (NTSC ~160 000 / ~202 000; at 14 MHz NTSC ~131 000 / ~165 000 of ~240 000).
+- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~93 000 a frame on average, ~149 000 at most;
+- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~149 000 on average, ~193 000 at most (NTSC ~145 000 / ~186 000; at 14 MHz NTSC ~131 000 / ~165 000 of ~240 000).
 
 A frame has ~567 000 ticks on PAL and ~481 000 on NTSC (half that at 14 MHz). `apply` (and
 so `panel_frame`) runs after the measured work (below the scrolling line) and is not in these
@@ -35,7 +35,7 @@ By part (A / B):
 
 | part | A | B |
 |---|---|---|
-| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 40 400 | 54 300 |
+| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 31 700 | 45 600 |
 | sound (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
 | new river lines (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
 | sprites and the Copper's list (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
@@ -45,16 +45,15 @@ The most expensive routines (A / B):
 
 | routine | A | B | file |
 |---|---|---|---|
-| `display` (own code) | 10 900 | 12 600 | display_simple |
+| `display` (own code) | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `dh_pf` | 10 200 | 11 200 | display_hits |
 | `span_line` | 4 200 | 10 300 | spans |
 | `ds_edge_test` | 3 200 | 10 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
 | `snd_sum` | 8 600 | 8 600 | sound |
 | `rl_fill` | 3 800 | 8 300 | spans |
 | `ds_obj` | 5 300 | 6 100 | display_objs |
-| `dh_obj` | 4 900 | 6 100 | display_hits |
+| `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
@@ -65,11 +64,12 @@ The most expensive routines (A / B):
 | `pk_channel` | 1 200 | 2 700 | sound_pulses |
 | `pokey_frame` (own code) | 2 500 | 2 700 | sound |
 | `draw_line` | 900 | 2 300 | river_gen |
+| `dh_obj` | 1 400 | 1 800 | display_hits |
 | `pk_g4` | 0 | 1 400 (~9 000 in a frame when the missile sounds) | sound_pulses |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-The heaviest frame of B (~198 000): the sound up to ~60 000 (the noise and the missile on the
+The heaviest frame of B (~193 000): the sound up to ~60 000 (the noise and the missile on the
 DAC, ~180 pulses), the placement and edge tests (`display`, `ds_obj`, `ds_edge_test`) ~30 000,
 the collisions (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, the river's new lines ~25 000.
 
@@ -85,7 +85,7 @@ stand for `panel_init` in page 7 at the same addresses, which runs once at the s
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31: the Atari's RAM at the original's addresses | `pokey_frame`: 14–15, POKEY's 17-bit counter (`poly17.bin`), while it makes samples |
 | 2 | $4000–$5FFF | varies: there is no fixed page | `render_line`: 18–27 (Layer 2, one page per 32 columns); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, the lines' runs); `panel_frame`: 11 (the tilemap's map); `panel_init`: 10, 11 |
-| 3 | $6000–$7FFF | 12: buffers (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (a byte's dots widened, `dh_obj`), the edge's gaps `eg_*` (`ds_edge_test`), the DAC's ring at $7C00) | only at the start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Never while the sound plays**: the DMA reads the ring through this slot |
+| 3 | $6000–$7FFF | 12: buffers (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (a byte's dots widened, `dh_obj`), the edge's gaps `eg_*` (`ds_edge_test`), the DAC's ring at $7C00); `dh_pf` at $7A00 (`P12_CODE`, copied from page 7 at the start: no room in page 6) | only at the start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Never while the sound plays**: the DMA reads the ring through this slot |
 | 4 | $8000–$9FFF | 4: code | — |
 | 5 | $A000–$BFFF | 5: the cartridge, read from River_Raid.rom | — |
 | 6 | $C000–$DFFF | 6: code | — |
@@ -273,7 +273,7 @@ the missile's and the bullet's rows are `dh_ones` (all set) under their masks, t
 |---|---|---|---|
 | `dh_lists` | start of `display` | The descriptors' rows, positions and bases; then each one's end (field 2). | 1 300 / 1 300 |
 | `dh_sprites` | `display` | HIT = $FF, then HIT 0 where: the tank meets the edge (P1PF), the plane the bank (P2PF), the missile and the bullet the bank or the edge (M0PF, M2PF): `dh_pf`; the plane and the shell (P2PL bit 0), the missile and the plane (M0PL): `dh_pair`. | |
-| `dh_pf` | `dh_sprites` | NZ: sprite IX's rows meet the playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Per river line: the row's byte under the mask first (none: the next line), then its box (X to X + its clocks) in the line's gaps (A: bit 0 the edge's `eg_*`, bit 1 the bank's `bg_*`); inside them nothing; else the row's ends against the runs (the `sp_*` function). Stops at the first touch. | 10 200 / 11 200 |
+| `dh_pf` | `dh_sprites` | In page 12 (`dh_pf.asm`, as the TS-Conf's). First the box against the gaps on all the sprite's lines at once (`DH_GAP`): inside on every one, nothing; else line by line, the row's byte from DE with the mask patched. NZ: sprite IX's rows meet the playfield (DE: `sp_edge`, `sp_bank`, `sp_under`). Per river line: the row's byte under the mask first (none: the next line), then its box (X to X + its clocks) in the line's gaps (A: bit 0 the edge's `eg_*`, bit 1 the bank's `bg_*`); inside them nothing; else the row's ends against the runs (the `sp_*` function). Stops at the first touch. | 4 400 / 6 000 |
 | `sp_edge`, `sp_bank`, `sp_under` | `dh_pf` | A sprite's row against the line's runs of edge (brown), bank (green) or either, as the C++ port's `spanTouches`: its first and last dots (`sp_ends`: `edge_lo`, `edge_hi`, the size's width, plus X) against the runs (`sp_runs`), a run between them a touch; the line's record by `sp_rec`. | |
 | `dh_pair` | `dh_sprites` | NZ: two sprites' rows meet: `hit_setup` on their clocks, then per line both have each one's bits (`dh_bits`, `hit_wide` by its size) into `hit_a`, `hit_b`, and `hit_line`. | |
 | `dh_bits`, `dh_end` | `dh_pf`, `dh_pair`, `dh_obj` | Sprite IX's bits on line A: the row's byte under the mask, at the top already (Z: none); the line after its last row (`dh_lists` puts it in field 2 once a frame). | 400 / 500 |

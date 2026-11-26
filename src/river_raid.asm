@@ -153,6 +153,12 @@ start:
 	nextreg $53,INIT_PAGE		; the panel's characters, tiles and sprites
 	call panel_init
 	call bank_init			; the bank's colours in Layer 2's palette (panel_init.asm)
+	nextreg $52,DATA_PAGE		; page 12's code (dh_pf.asm) from page 7, through slot 2
+	ld hl,p12_code
+	ld de,P12_CODE - $2000
+	ld bc,P12_SIZE
+	ldir
+	nextreg $52,SPAN_PAGE
 	nextreg $53,DATA_PAGE
 	ld hl,(rnd_init)
 	ld (rnd_state),hl
@@ -520,6 +526,11 @@ random_columns:
 	include "load_rom.asm"
 	include "obj_pics.asm"
 	include "copper_panels.asm"
+p12_code:				; (the start copies it to page 12, P12_CODE)
+	disp P12_CODE
+	include "dh_pf.asm"
+	ent
+P12_SIZE	equ $ - p12_code
 	display "page 7 end: ",$
 	assert $ <= $8000
 
@@ -549,7 +560,8 @@ eg_e1:		ds 256			; per span record (line), the water's gaps between its
 eg_s2:		ds 256			; runs of edge pixels: from the 1st's end to the 2nd's start,
 eg_e3:		ds 256			; from the 3rd's end to the 4th's ($FF: none, see spans.asm)
 eg_s4:		ds 256
-	assert $ <= $7C00		; (the DAC's ring)
+P12_CODE:	ds P12_SIZE		; code with no room in page 6 (dh_pf.asm): copied here from
+	assert $ <= $7C00		; page 7 at the start (p12_code; the DAC's ring after it)
 
 ; Buffers and variables (page 1)
 	mmu 7,1
