@@ -53,12 +53,15 @@ display:
 	ld (ds_slip),a
 	ld (ds_bank_n),a
 	ld (ds_obj_n),a
-	ld (ds_obj_over),a
-	dec a
-	ld (ds_obj_slot),a
+	ld hl,ds_objs
+	ld (ds_obj_p),hl
 	call dh_sprites			; HIT: the other sprites' collisions (bank, each other)
 	ld a,(FIRST_SLOT)
 	ld (ds_slot),a
+	ld e,a				; IY: the slot's fields where the game keeps them: kind, type
+	ld d,0				; (+11), X (+22), size (+33) (no copies); one on per slot
+	ld iy,SLOT_KIND
+	add iy,de
 
 	; Each object at its own slot's y: its rows from X = max(y, $5D) + 3 (the scanline
 	; X - 69), row height[type] - (start - y) first (the shapes are kept bottom up), as many
@@ -68,84 +71,77 @@ display:
 	cp SLOTS
 	jp nc,.end
 	ld (ds_current),a
-	ld e,a				; IY: the slot's fields where the game keeps them: kind, type
-	ld d,0				; (+11), X (+22), size (+33) (no copies)
-	ld iy,SLOT_KIND
-	add iy,de
-	ld hl,SLOT_Y			; (Y and the flags, read several times: kept)
-	add hl,de
-	ld a,(hl)
-	ld (ds_y),a
-	ld hl,SLOT_FLAGS
-	add hl,de
+	assert SLOT_Y + SLOTS <= $100 && SLOT_FLAGS + SLOTS <= $100
+	add a,SLOT_Y			; Y and the flags (page 0)
+	ld l,a
+	ld h,0
+	ld c,(hl)			; C: Y
+	add a,SLOT_FLAGS - SLOT_Y
+	ld l,a
 	ld a,(hl)
 	ld (ds_flags),a
-	ld a,(iy + 0)			; tested against the edge: kinds 8-$0D ($FF, or 0)
-	sub 8
+	ld a,c
+	ld (ds_y),a
+	ld a,(iy + 0)
+	ld d,a				; D: the kind
+	sub 8				; tested against the edge: kinds 8-$0D ($FF, or 0)
 	cp 6
 	sbc a,a
 	ld (ds_edge_kind),a
-	ld a,(ds_y)			; the start
+	ld a,c				; the start
 	cp $5D
 	jr nc,1F
 	ld a,$5D
 1:	ld (ds_start),a
-	ld b,a
-	ld a,(iy + 11)			; the first row (by its type)
+	ld b,a				; B: the start
+	ld e,(iy + 11)			; E: the type
+	assert high ROM_OBJECT_HEIGHT == high ROM_SHAPE_OFFSET && high ROM_SHAPE_OFFSET == high ROM_COLOURS_OFFSET
+	ld h,high ROM_OBJECT_HEIGHT	; (the ROM's tables by type and kind: one page, no carry)
+	ld a,e				; the first row (by its type)
 	add a,low ROM_OBJECT_HEIGHT
 	ld l,a
-	adc a,high ROM_OBJECT_HEIGHT
-	sub l
-	ld h,a
-	ld a,(ds_y)
+	ld a,c
 	add a,(hl)
 	sub b
 	ld (ds_row),a
 	cp $80
 	jp nc,.next			; (gone above)
+	ld c,a				; C: the first row
 	ld a,b				; its X: past 255, none from here on
 	add a,3
 	jp c,.end
 	ld (ds_counter),a
 	neg				; the rows: before X wraps
 	ld b,a
-	ld a,(ds_row)
+	ld a,c
 	inc a
 	cp b
 	jr c,1F
 	ld a,b
 1:	ld (ds_rows),a
-	ld ixl,a
 	ld a,(ds_flags)			; DE: the first row's byte (the shape: mirrored frames + 16)
 	and $08
 	add a,a
-	add a,(iy + 0)
+	add a,d
 	add a,low ROM_SHAPE_OFFSET	; (the ROM's tables by 8-bit sums: ROM_SHAPES and
 	ld l,a				; ROM_COLOURS start pages)
-	adc a,high ROM_SHAPE_OFFSET
-	sub l
-	ld h,a
-	ld a,(ds_row)
-	ld c,a
+	ld a,c
 	add a,(hl)
 	ld l,a
 	ld a,high ROM_SHAPES
 	adc a,0
-	ld h,a
-	ld (ds_rowp),hl
-	ld a,(iy + 11)			; BC: its colour's (ds_obj)
+	ld d,a
+	ld a,e				; BC: its colour's (ds_obj)
+	ld e,l
 	add a,low ROM_COLOURS_OFFSET
 	ld l,a
-	adc a,high ROM_COLOURS_OFFSET
-	sub l
-	ld h,a
 	ld a,c
 	add a,(hl)
 	ld c,a
 	ld a,high ROM_COLOURS
 	adc a,0
 	ld b,a
-	ld de,(ds_rowp)
+	ld (ds_rowp),de
 	assert low ROM_SHAPES == 0 && low ROM_COLOURS == 0
 	call ds_obj			; (for the sprites: ds_objs)
 	ifdef BEAM			; a bridge: the road's colours by row, the bank's back after
@@ -156,7 +152,16 @@ display:
 	ld a,(ds_edge_kind)		; P3PF: the edge, only for the kinds that turn at it
 	or a
 	call nz,ds_edge_test
-	call ds_set_flags
+	rrca				; into the slot's flags (bit 0: $02 or 0)
+	ld b,a
+	ld a,(ds_current)
+	add a,SLOT_FLAGS
+	ld l,a
+	ld h,0
+	ld a,(hl)
+	and $FE
+	or b
+	ld (hl),a
 	ld a,(ds_counter)		; the object's lines, for the three (dh_obj): its first,
 	sub $44
 	ld (ds_l1),a
@@ -193,6 +198,7 @@ display:
 .next	ld a,(ds_current)
 	inc a
 	ld (ds_slot),a
+	inc iy
 	jp .slot
 .end
 	ifdef TEST
@@ -250,8 +256,6 @@ display:
 ; ds_counter, ds_rows of them; none past clock 255.
 ds_edge_test:
 	ld a,(iy + 22)
-	ld (.ex1 + 1),a
-	ld (.ex2 + 1),a
 	ld (.bx1 + 1),a
 	ld (.bx2 + 1),a
 	ld b,a
@@ -270,28 +274,16 @@ ds_edge_test:
 	ld (.be2 + 1),a
 	jp c,.none
 	jp z,.none
-	ld a,(iy + 33)			; their dots' clocks: 1, 2 or 4 a dot (sizes 0 and 2, 1, 3)
-	and 3
-	ld hl,0				; (NOP NOP)
-	rra				; (bit 0: at least double)
-	jr nc,2F
-	ld l,$87			; (ADD A,A)
-	or a				; (and bit 1: quadruple)
-	jr z,2F
-	ld h,$87
-2:	ld (.s1),hl
-	ld (.s2),hl
-	ld de,(ds_rowp)			; DE: the row, C: its line's span record (the objects' rows
-	ld a,(ds_counter)		; are all on the river's lines, the next line's the next)
-	sub $44 + RIVER_FIRST
+	ld de,(ds_rowp)			; DE: the row, L: its line's span record (the objects' rows
+	ld a,(ds_counter)		; are all on the river's lines, the next line's the next),
+	sub $44 + RIVER_FIRST		; B: the rows left
 	ld hl,span_top
 	add a,(hl)
-	ld c,a
+	ld l,a
 	ld a,(ds_rows)
-	ld ixl,a
-.row	ld l,c				; first the object's box (X to X + its width) against the
-	ld h,high eg_e1			; line's water gaps (eg_*): inside one, no edge pixel near
-.bx1	ld a,0
+	ld b,a
+.row	ld h,high eg_e1			; first the object's box (X to X + its width) against the
+.bx1	ld a,0				; line's water gaps (eg_*): inside one, no edge pixel near
 	cp (hl)
 	jr c,.g2
 	inc h
@@ -309,7 +301,22 @@ ds_edge_test:
 .look	ld a,(de)			; else the row's dots against the line's runs
 	or a
 	jr z,.row_on
+	ld c,l
 	push bc
+	ld a,(iy + 22)			; (X, and the dots' clocks: 1, 2 or 4 a dot, sizes 0 and 2,
+	ld (.ex1 + 1),a			; 1, 3: only here)
+	ld (.ex2 + 1),a
+	ld a,(iy + 33)
+	and 3
+	ld hl,0				; (NOP NOP)
+	rra				; (bit 0: at least double)
+	jr nc,2F
+	ld l,$87			; (ADD A,A)
+	or a				; (and bit 1: quadruple)
+	jr z,2F
+	ld h,$87
+2:	ld (.s1),hl
+	ld (.s2),hl
 	ld a,c
 	span_rec
 	ld a,l
@@ -343,39 +350,11 @@ ds_edge_test:
 	ld a,$02			; as the C++ port's edgeTouches: no dot by dot)
 	ret
 .off	pop bc
+	ld l,c
 .row_on	dec de
-	inc c
-	dec ixl
-	jp nz,.row
+	inc l
+	djnz .row
 .none	xor a
-	ret
-
-; P3PF (A) as the object's: only the kinds that turn at the edge are tested (moveObjects
-; reads the bit for helicopters, balloons and ships only)
-ds_edge_only:
-	push hl
-	ld hl,ds_edge_kind
-	and (hl)
-	pop hl
-	ret
-
-; The current object's edge bit (A: $02 set) into its slot's flags (bit 0)
-ds_set_flags:
-	ld b,a
-	ld a,(ds_current)
-	cp SLOTS
-	ret nc
-	ld e,a
-	ld d,0
-	ld hl,SLOT_FLAGS
-	add hl,de
-	ld a,b
-	or a
-	ld a,(hl)
-	res 0,a
-	jr z,1F
-	set 0,a
-1:	ld (hl),a
 	ret
 
 	ifdef BEAM

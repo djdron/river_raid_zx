@@ -126,7 +126,7 @@ tscheck (`TSHISTALL=файл`, затем `python3 ../tools/prof.py build/test.s
 - `river_gen.asm`, `panel.asm`, `vars.inc`, `font.inc`, `random.inc`: без изменений.
 - `display.asm`, `display_simple.asm`, `spans.asm`: страница SPANS не мапится (`nextreg $52,SPAN_PAGE` убран: окно 1 держит SPANS всё время); в `spans.asm` нет `rl_fill`/`rl_next` (помощников `render_line` у Next).
 - `display_hits.asm`: `bsla de,b` (Z80N) заменена на `shl_de_b` — цикл из 0–7 `sla e / rl d` (в `hit_line`: до ~100 тактов лишних на проверку, несколько сотен за кадр).
-- `display_simple.asm`, `display_objs.asm`: ещё и дешевле, чем у Next, с тем же результатом (у Next есть время, а в страницах нет места): `display`: IY сдвигается на слот, бит кромки в флаги пишется на месте; `ds_edge_test` на DJNZ, настройка точек — только когда до них доходит; `ds_obj` пишет только байты, которые читает `ob_list` (без `ds_objf`), по `ds_obj_p`.
+- `display_objs.asm`: `ds_obj` пишет только байты, которые читает `ob_list` (без строк и `ds_objf`, по которым рисует спрайты Next и которые сверяет nxcheck).
 - `game.asm`: `tm_colour` пишет BORDER (ячейку CRAM: `TM_*` — свободные ячейки группы 11 со 2-й, их цвета ставит `tm_cram`), а `TM_COLOUR` вызывает его, только пока T включена; `push_line` двигает `scroll` по кольцу из 512 строк (9 бит) и рисует в строку картинки `scroll + RIVER_TOP`.
 - `play.asm`: `clear_layer2_page` — свой у TS-Conf (river_raid.asm, DMA); в `read_input` нет CAPS + 1 (нет 60 Гц), CAPS + 2 (звук), второго Kempston и пада Mega Drive; CAPS + 3 свой: три частоты по кругу (14, 7, 3,5 МГц).
 - `sound.asm`: только `sound_driver` и `sound_random`: `pokey_frame` работает на General Sound (`gs/`).

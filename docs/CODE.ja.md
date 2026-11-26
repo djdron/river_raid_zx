@@ -20,8 +20,8 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 （`NXHISTALL=ファイル`、次に `python3 tools/prof.py build/test.sym ファイル 60`、フレーム数で割る）から取りました。
 ゲームと同じく画面メモリなしの検証ビルド（`-DNOSCREEN`、`NXNOSCREEN=1`）です。2 回の実行：
 
-- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 93 000、最大約 149 000。
-- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 149 000、最大約 193 000（NTSC 約 145 000 / 約 186 000、14 MHz NTSC では約 240 000 のうち約 131 000 / 約 165 000）。
+- **A**：PAL、bot 1、開始から 3 000 フレーム（いつものゲーム序盤）：平均で 1 フレーム約 89 000、最大約 149 000。
+- **B**：橋 80 からの `-stress`、PAL、6 000 フレーム（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：全スロット使用、全速、撃ちっぱなし）：平均約 144 000、最大約 186 000（NTSC 約 140 000 / 約 180 000、14 MHz NTSC では約 240 000 のうち約 114 000 / 約 146 000）。
 
 1 フレームは PAL で約 567 000 サイクル、NTSC で約 481 000（14 MHz ではその半分）。`apply`（とその中の
 `panel_frame`）は計測される処理の後（スクロールテキストの下）で動き、この数値には入りません：1 フレーム約 7 400。
@@ -31,9 +31,9 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 31 700 | 45 600 |
+| display：物体の配置と衝突（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 29 400 | 42 000 |
 | 音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
-| 川の新しい行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 500 | 45 400 |
+| 川の新しい行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 300 | 44 800 |
 | スプライトと Copper リスト（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 9 900 | 15 000 |
 | ゲームロジックとその他（`prepare`、`main_loop`、`move_objects`、`random_step`、パネル表示など） | 9 400 | 10 500 |
 
@@ -42,16 +42,16 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 | ルーチン | A | B | ファイル |
 |---|---|---|---|
 | `pk_g4` | 0 | 1 400 （ミサイルが鳴るフレームでは約 9 000） | sound_pulses |
-| `display`（自身のコード） | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `span_line` | 4 200 | 10 300 | spans |
-| `ds_edge_test` | 3 200 | 10 200 | display_simple |
+| `display`（自身のコード） | 10 500 | 12 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
+| `span_line` | 4 000 | 9 700 | spans |
 | `snd_sum` | 8 600 | 8 600 | sound |
+| `ds_edge_test` | 2 600 | 8 500 | display_simple |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `ds_obj` | 5 300 | 6 100 | display_objs |
 | `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
+| `ds_obj` | 4 600 | 5 400 | display_objs |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
 | `dl_fill` | 1 600 | 3 700 | river_gen |
@@ -65,7 +65,7 @@ tsconf/CODE.ja.md の冒頭にあります。このコードが使う Next 固�
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-B で最も重いフレーム（約 193 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
+B で最も重いフレーム（約 186 000）：音が最大約 60 000（DAC 上のノイズとミサイル、約 180 パルス）、配置と
 岸の判定（`display`、`ds_obj`、`ds_edge_test`）約 30 000、衝突（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）約
 25 000、川の新しい行約 25 000。
 

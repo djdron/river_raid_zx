@@ -24,8 +24,8 @@ Zeiten sind Takte des Next-Kerns bei 28 MHz pro Frame, gemittelt, aus dem Histog
 Frames), auf dem Prüf-Build ohne Bildschirmspeicher, wie das Spiel ihn hat (`-DNOSCREEN`,
 `NXNOSCREEN=1`). Zwei Läufe:
 
-- **A**: PAL, Bot 1, 3 000 Frames ab dem Start (der übliche frühe Spielverlauf): im Mittel ~93 000 pro Frame, höchstens ~149 000;
-- **B**: `-stress` ab Brücke 80, PAL, 6 000 Frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~149 000, höchstens ~193 000 (NTSC ~145 000 / ~186 000; bei 14 MHz NTSC ~131 000 / ~165 000 von ~240 000).
+- **A**: PAL, Bot 1, 3 000 Frames ab dem Start (der übliche frühe Spielverlauf): im Mittel ~89 000 pro Frame, höchstens ~149 000;
+- **B**: `-stress` ab Brücke 80, PAL, 6 000 Frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: alle Slots belegt, Vollgas, Dauerfeuer): im Mittel ~144 000, höchstens ~186 000 (NTSC ~140 000 / ~180 000; bei 14 MHz NTSC ~114 000 / ~146 000 von ~240 000).
 
 Ein Frame hat ~567 000 Takte bei PAL und ~481 000 bei NTSC (bei 14 MHz die Hälfte). `apply` (und
 damit `panel_frame`) läuft nach der gemessenen Arbeit (unter der Laufschrift) und ist nicht in
@@ -36,9 +36,9 @@ Nach Teilen (A / B):
 
 | Teil | A | B |
 |---|---|---|
-| das Display: Platzieren der Objekte und Kollisionen (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 31 700 | 45 600 |
+| das Display: Platzieren der Objekte und Kollisionen (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 29 400 | 42 000 |
 | Ton (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
-| neue Flusszeilen (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
+| neue Flusszeilen (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 300 | 44 800 |
 | Sprites und die Liste des Coppers (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
 | die Spiellogik und der Rest (`prepare`, `main_loop`, `move_objects`, `random_step`, das Drucken des Panels, …) | 9 400 | 10 500 |
 
@@ -46,16 +46,16 @@ Die teuersten Routinen (A / B):
 
 | Routine | A | B | Datei |
 |---|---|---|---|
-| `display` (eigener Code) | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `span_line` | 4 200 | 10 300 | spans |
-| `ds_edge_test` | 3 200 | 10 200 | display_simple |
+| `display` (eigener Code) | 10 500 | 12 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
+| `span_line` | 4 000 | 9 700 | spans |
 | `snd_sum` | 8 600 | 8 600 | sound |
+| `ds_edge_test` | 2 600 | 8 500 | display_simple |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `ds_obj` | 5 300 | 6 100 | display_objs |
 | `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
+| `ds_obj` | 4 600 | 5 400 | display_objs |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
 | `dl_fill` | 1 600 | 3 700 | river_gen |
@@ -70,7 +70,7 @@ Die teuersten Routinen (A / B):
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-Das schwerste Frame von B (~193 000): der Ton bis ~60 000 (das Rauschen und die Rakete auf dem
+Das schwerste Frame von B (~186 000): der Ton bis ~60 000 (das Rauschen und die Rakete auf dem
 DAC, ~180 Impulse), Platzieren und Kantentests (`display`, `ds_obj`, `ds_edge_test`) ~30 000,
 die Kollisionen (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, die neuen Flusszeilen ~25 000.
 

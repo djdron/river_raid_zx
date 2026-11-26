@@ -22,8 +22,8 @@ Czasy to takty rdzenia Next przy 28 MHz na klatkę, średnio, z histogramu nxche
 klatek), na wersji testowej bez pamięci ekranu, jak w grze (`-DNOSCREEN`, `NXNOSCREEN=1`). Dwa
 przebiegi:
 
-- **A**: PAL, bot 1, 3 000 klatek od startu (zwykły początek gry): średnio ~93 000 na klatkę, najwyżej ~149 000;
-- **B**: `-stress` od mostu 80, PAL, 6 000 klatek (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~149 000, najwyżej ~193 000 (NTSC ~145 000 / ~186 000; przy 14 MHz NTSC ~131 000 / ~165 000 z ~240 000).
+- **A**: PAL, bot 1, 3 000 klatek od startu (zwykły początek gry): średnio ~89 000 na klatkę, najwyżej ~149 000;
+- **B**: `-stress` od mostu 80, PAL, 6 000 klatek (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: wszystkie sloty zajęte, pełny gaz, ciągły ogień): średnio ~144 000, najwyżej ~186 000 (NTSC ~140 000 / ~180 000; przy 14 MHz NTSC ~114 000 / ~146 000 z ~240 000).
 
 Klatka ma ~567 000 taktów w PAL i ~481 000 w NTSC (przy 14 MHz połowę). `apply` (a z nim
 `panel_frame`) działa po mierzonej pracy (pod przewijanym napisem) i nie ma go w tych liczbach:
@@ -34,9 +34,9 @@ Według części (A / B):
 
 | część | A | B |
 |---|---|---|
-| wyświetlanie: rozmieszczanie obiektów i kolizje (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 31 700 | 45 600 |
+| wyświetlanie: rozmieszczanie obiektów i kolizje (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 29 400 | 42 000 |
 | dźwięk (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
-| nowe linie rzeki (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
+| nowe linie rzeki (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 300 | 44 800 |
 | sprite'y i lista Coppera (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
 | logika gry i reszta (`prepare`, `main_loop`, `move_objects`, `random_step`, wypisywanie panelu, …) | 9 400 | 10 500 |
 
@@ -44,16 +44,16 @@ Najdroższe procedury (A / B):
 
 | procedura | A | B | plik |
 |---|---|---|---|
-| `display` (własny kod) | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `span_line` | 4 200 | 10 300 | spans |
-| `ds_edge_test` | 3 200 | 10 200 | display_simple |
+| `display` (własny kod) | 10 500 | 12 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
+| `span_line` | 4 000 | 9 700 | spans |
 | `snd_sum` | 8 600 | 8 600 | sound |
+| `ds_edge_test` | 2 600 | 8 500 | display_simple |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `ds_obj` | 5 300 | 6 100 | display_objs |
 | `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
+| `ds_obj` | 4 600 | 5 400 | display_objs |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
 | `dl_fill` | 1 600 | 3 700 | river_gen |
@@ -68,7 +68,7 @@ Najdroższe procedury (A / B):
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-Najcięższa klatka B (~193 000): dźwięk do ~60 000 (szum i rakieta na DAC, ~180 impulsów),
+Najcięższa klatka B (~186 000): dźwięk do ~60 000 (szum i rakieta na DAC, ~180 impulsów),
 rozmieszczanie i testy krawędzi (`display`, `ds_obj`, `ds_edge_test`) ~30 000, kolizje
 (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, nowe linie rzeki ~25 000.
 

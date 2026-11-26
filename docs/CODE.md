@@ -23,8 +23,8 @@ Times are the Next core's ticks at 28 MHz, per frame, averaged, from nxcheck's h
 frames), on the check's build without screen memory as the game has it (`-DNOSCREEN`,
 `NXNOSCREEN=1`). Two runs:
 
-- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~93 000 a frame on average, ~149 000 at most;
-- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~149 000 on average, ~193 000 at most (NTSC ~145 000 / ~186 000; at 14 MHz NTSC ~131 000 / ~165 000 of ~240 000).
+- **A**: PAL, bot 1, 3 000 frames from the start (the usual early game): ~89 000 a frame on average, ~149 000 at most;
+- **B**: `-stress` from bridge 80, PAL, 6 000 frames (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: all slots taken, full speed, always firing): ~144 000 on average, ~186 000 at most (NTSC ~140 000 / ~180 000; at 14 MHz NTSC ~114 000 / ~146 000 of ~240 000).
 
 A frame has ~567 000 ticks on PAL and ~481 000 on NTSC (half that at 14 MHz). `apply` (and
 so `panel_frame`) runs after the measured work (below the scrolling line) and is not in these
@@ -35,9 +35,9 @@ By part (A / B):
 
 | part | A | B |
 |---|---|---|
-| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 31 700 | 45 600 |
+| the display: objects' placement and collisions (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 29 400 | 42 000 |
 | sound (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
-| new river lines (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
+| new river lines (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 300 | 44 800 |
 | sprites and the Copper's list (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
 | the game logic and the rest (`prepare`, `main_loop`, `move_objects`, `random_step`, the panel's printing, …) | 9 400 | 10 500 |
 
@@ -45,16 +45,16 @@ The most expensive routines (A / B):
 
 | routine | A | B | file |
 |---|---|---|---|
-| `display` (own code) | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `span_line` | 4 200 | 10 300 | spans |
-| `ds_edge_test` | 3 200 | 10 200 | display_simple |
+| `display` (own code) | 10 500 | 12 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
+| `span_line` | 4 000 | 9 700 | spans |
 | `snd_sum` | 8 600 | 8 600 | sound |
+| `ds_edge_test` | 2 600 | 8 500 | display_simple |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `ds_obj` | 5 300 | 6 100 | display_objs |
 | `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
+| `ds_obj` | 4 600 | 5 400 | display_objs |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
 | `dl_fill` | 1 600 | 3 700 | river_gen |
@@ -69,7 +69,7 @@ The most expensive routines (A / B):
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-The heaviest frame of B (~193 000): the sound up to ~60 000 (the noise and the missile on the
+The heaviest frame of B (~186 000): the sound up to ~60 000 (the noise and the missile on the
 DAC, ~180 pulses), the placement and edge tests (`display`, `ds_obj`, `ds_edge_test`) ~30 000,
 the collisions (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, the river's new lines ~25 000.
 

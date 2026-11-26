@@ -739,13 +739,11 @@ ds_bullet:	ds 1
 ds_hits:	ds 1
 ds_edge:	ds 1
 ds_obj_n:	ds 1			; the objects drawn (ds_objs)
-ds_obj_over:	ds 1			; more than DS_OBJS of them
+ds_obj_p:	ds 2			; ds_obj: the next object's 8 bytes in ds_objs
 ds_obj_t:	ds 1
 ds_objf:	ds DS_OBJS		; the objects' rows for the sprites (ds_obj: those past the
 					; river's end too)
 ob_fptr:	ds 2			; ob_list: the next of them
-ds_obj_slot:	ds 1			; the slot of the last object in ds_objs ($FF: none),
-ds_obj_last:	ds 2			; its entry
 ds_edge_kind:	ds 1			; the object is tested against the edge ($FF) or not (0)
 ds_edge_skip:	ds 1			; display's rows: no edge test (none, or P3PF set already)
 ; the sprites (sprites.asm)

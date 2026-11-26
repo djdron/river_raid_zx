@@ -23,8 +23,8 @@ de nxcheck (`NXHISTALL=archivo`, luego `python3 tools/prof.py build/test.sym arc
 dividido entre los fotogramas), sobre la compilación de verificación sin memoria de pantalla,
 como la tiene el juego (`-DNOSCREEN`, `NXNOSCREEN=1`). Dos ejecuciones:
 
-- **A**: PAL, bot 1, 3 000 fotogramas desde el inicio (el comienzo habitual de una partida): ~93 000 por fotograma de media, como máximo ~149 000;
-- **B**: `-stress` desde el puente 80, PAL, 6 000 fotogramas (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: todos los slots ocupados, a toda velocidad, disparando siempre): ~149 000 de media, como máximo ~193 000 (NTSC ~145 000 / ~186 000; a 14 MHz NTSC ~131 000 / ~165 000 de ~240 000).
+- **A**: PAL, bot 1, 3 000 fotogramas desde el inicio (el comienzo habitual de una partida): ~89 000 por fotograma de media, como máximo ~149 000;
+- **B**: `-stress` desde el puente 80, PAL, 6 000 fotogramas (`NXBRIDGE=80 NXGHOST=1 NXGAME=1`: todos los slots ocupados, a toda velocidad, disparando siempre): ~144 000 de media, como máximo ~186 000 (NTSC ~140 000 / ~180 000; a 14 MHz NTSC ~114 000 / ~146 000 de ~240 000).
 
 Un fotograma tiene ~567 000 ciclos en PAL y ~481 000 en NTSC (la mitad a 14 MHz). `apply` (y
 con ella `panel_frame`) se ejecuta tras el trabajo medido (debajo del rótulo desplazable) y no
@@ -35,9 +35,9 @@ Por partes (A / B):
 
 | parte | A | B |
 |---|---|---|
-| el display: colocación de objetos y colisiones (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 31 700 | 45 600 |
+| el display: colocación de objetos y colisiones (`display_simple`, `display_objs`, `display_hits`, `sp_*`) | 29 400 | 42 000 |
 | sonido (`pokey_frame`, `snd_*`, `pk_*`, `ay_*`, `sound_driver`) | 26 900 | 39 300 |
-| líneas nuevas del río (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 500 | 45 400 |
+| líneas nuevas del río (`river_gen`, `render_line`, `rl_fill`, `span_line`, `push_line`) | 19 300 | 44 800 |
 | sprites y la lista del Copper (`build_sprites`, `ob_*`, `pl_*`, `build_copper`) | 9 900 | 15 000 |
 | la lógica del juego y el resto (`prepare`, `main_loop`, `move_objects`, `random_step`, la impresión del panel, …) | 9 400 | 10 500 |
 
@@ -45,16 +45,16 @@ Las rutinas más costosas (A / B):
 
 | rutina | A | B | archivo |
 |---|---|---|---|
-| `display` (código propio) | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `span_line` | 4 200 | 10 300 | spans |
-| `ds_edge_test` | 3 200 | 10 200 | display_simple |
+| `display` (código propio) | 10 500 | 12 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
+| `span_line` | 4 000 | 9 700 | spans |
 | `snd_sum` | 8 600 | 8 600 | sound |
+| `ds_edge_test` | 2 600 | 8 500 | display_simple |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `ds_obj` | 5 300 | 6 100 | display_objs |
 | `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
+| `ds_obj` | 4 600 | 5 400 | display_objs |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
 | `dl_fill` | 1 600 | 3 700 | river_gen |
@@ -69,7 +69,7 @@ Las rutinas más costosas (A / B):
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-El fotograma más pesado de B (~193 000): el sonido hasta ~60 000 (el ruido y el misil por el
+El fotograma más pesado de B (~186 000): el sonido hasta ~60 000 (el ruido y el misil por el
 DAC, ~180 pulsos), la colocación y las pruebas del borde (`display`, `ds_obj`, `ds_edge_test`)
 ~30 000, las colisiones (`dh_pf`, `dh_bits`, `dh_obj`, `hit_*`) ~25 000, las líneas nuevas del
 río ~25 000.

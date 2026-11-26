@@ -19,8 +19,8 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 `python3 tools/prof.py build/test.sym 文件 60`，再除以帧数），用的是不带屏幕内存的校验构建，与游戏
 本身一致（`-DNOSCREEN`、`NXNOSCREEN=1`）。两次运行：
 
-- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 93 000，最多约 149 000；
-- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 149 000，最多约 193 000（NTSC 约 145 000 / 约 186 000；14 MHz NTSC 约 131 000 / 约 165 000，满额约 240 000）。
+- **A**：PAL，bot 1，从开始起 3 000 帧（通常的开局）：平均每帧约 89 000，最多约 149 000；
+- **B**：从第 80 座桥开始的 `-stress`，PAL，6 000 帧（`NXBRIDGE=80 NXGHOST=1 NXGAME=1`：所有槽位都被占用、全速、一直开火）：平均约 144 000，最多约 186 000（NTSC 约 140 000 / 约 180 000；14 MHz NTSC 约 114 000 / 约 146 000，满额约 240 000）。
 
 一帧在 PAL 下约有 567 000 个周期，NTSC 下约 481 000（14 MHz 时减半）。`apply`（以及其中的
 `panel_frame`）在被测量的工作之后运行（在滚动字幕下方），不计入这些数字：每帧约 7 400。一个例程的时间
@@ -30,9 +30,9 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 
 | 部分 | A | B |
 |---|---|---|
-| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 31 700 | 45 600 |
+| display：物体摆放与碰撞（`display_simple`、`display_objs`、`display_hits`、`sp_*`） | 29 400 | 42 000 |
 | 声音（`pokey_frame`、`snd_*`、`pk_*`、`ay_*`、`sound_driver`） | 26 900 | 39 300 |
-| 河流的新行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 500 | 45 400 |
+| 河流的新行（`river_gen`、`render_line`、`rl_fill`、`span_line`、`push_line`） | 19 300 | 44 800 |
 | 精灵和 Copper 列表（`build_sprites`、`ob_*`、`pl_*`、`build_copper`） | 9 900 | 15 000 |
 | 游戏逻辑及其他（`prepare`、`main_loop`、`move_objects`、`random_step`、面板打印……） | 9 400 | 10 500 |
 
@@ -41,16 +41,16 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 | 例程 | A | B | 文件 |
 |---|---|---|---|
 | `pk_g4` | 0 | 1 400 （导弹发声的那一帧约 9 000） | sound_pulses |
-| `display`（自身代码） | 11 500 | 13 400 | display_simple |
 | `pk_noise` | 4 600 | 12 900 | sound_pulses |
-| `span_line` | 4 200 | 10 300 | spans |
-| `ds_edge_test` | 3 200 | 10 200 | display_simple |
+| `display`（自身代码） | 10 500 | 12 200 | display_simple |
 | `render_line` | 4 100 | 10 000 | render |
+| `span_line` | 4 000 | 9 700 | spans |
 | `snd_sum` | 8 600 | 8 600 | sound |
+| `ds_edge_test` | 2 600 | 8 500 | display_simple |
 | `rl_fill` | 3 800 | 8 300 | spans |
-| `ds_obj` | 5 300 | 6 100 | display_objs |
 | `dh_pf` | 4 400 | 6 000 | dh_pf |
 | `ob_list` | 4 100 | 5 600 | sprites |
+| `ds_obj` | 4 600 | 5 400 | display_objs |
 | `ob_attr` | 2 900 | 5 200 | sprites |
 | `move_objects` | 2 000 | 3 900 | game |
 | `dl_fill` | 1 600 | 3 700 | river_gen |
@@ -64,7 +64,7 @@ Copper、tilemap、可缩放的精灵、zxnDMA 和 DAC、三个 AY、50 和 60 H
 | `dh_lists` | 1 300 | 1 300 | display_hits |
 | `hit_setup` | 500 | 700 | display_hits |
 
-B 中最重的一帧（约 193 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
+B 中最重的一帧（约 186 000）：声音最高约 60 000（DAC 上的噪声和导弹，约 180 个脉冲），摆放和河岸检测
 （`display`、`ds_obj`、`ds_edge_test`）约 30 000，碰撞（`dh_pf`、`dh_bits`、`dh_obj`、`hit_*`）约
 25 000，河流新行约 25 000。
 

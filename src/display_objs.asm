@@ -6,25 +6,11 @@
 ds_obj:
 	ld a,(ds_obj_n)
 	cp DS_OBJS
-	jr c,1F
-	ld (ds_obj_over),a		; (too many: the sprites from the scanlines)
-	ret
-1:	inc a
+	ret nc				; (too many: not drawn)
+	inc a
 	ld (ds_obj_n),a
-	ld a,(ds_current)
-	ld (ds_obj_slot),a
-	ld a,(ds_obj_n)
-	dec a
 	push de
-	add a,a
-	add a,a
-	add a,a
-	add a,low ds_objs
-	ld l,a
-	adc a,high ds_objs
-	sub l
-	ld h,a
-	ld (ds_obj_last),hl
+	ld hl,(ds_obj_p)		; (its 8 bytes in ds_objs: display sets it at the first)
 	push bc				; (BC: the colour's address)
 	ld a,(ds_counter)
 	sub $44
@@ -94,5 +80,7 @@ ds_obj:
 	inc hl
 	ld a,(iy + 33)
 	ld (hl),a
+	inc hl
+	ld (ds_obj_p),hl
 	pop de
 	ret
