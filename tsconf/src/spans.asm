@@ -90,29 +90,36 @@ span_line:
 	exx
 	ld a,$FF
 	ld (hl),a
+	ld a,l				; B: the edge's bytes with their $FF
+	sub low span_tmp - 1
+	ld b,a
 	pop hl				; the edge's runs after the bank's
+	ld a,$FF
 	ld (de),a
 	inc de
 	ld a,e
 	and $1F
 	ld (hl),a
+	jr z,.cut			; (the bank's filled it)
+	sub 32				; C: the room left in the record (never more than it holds:
+	neg				; cut, an $FF last)
+	ld c,a
+	cp b
+	ld a,b
+	jr c,.full
+	ld c,a
+	ld b,0
 	ld hl,span_tmp
-.copy	ld a,e				; (never more than the record holds)
-	and $1F
-	jr z,.full
-	ld a,(hl)
-	ld (de),a
-	inc hl
-	inc de
-	inc a
-	jr nz,.copy
-	call .gaps
-	jr .bgaps
-.full	dec de
+	ldir
+	jr .done
+.full	ld b,0
+	ld hl,span_tmp
+	ldir
+.cut	dec de
 	ld a,$FF
 	ld (de),a
-	call .gaps
-	jr .bgaps
+.done	call .gaps
+	jp .bgaps
 ; The line's water gaps (ds_edge_test): with 2 runs of edge pixels the one between them,
 ; with 4 the 1st-2nd and the 3rd-4th (the island between); with none all of it; else none
 ; ($FF: the runs looked at)
@@ -169,39 +176,37 @@ span_line:
 	ret
 
 ; the run of colour C ends at clock B, one of colour A starts there
-.change	push af
-	ld a,c
-	dec a
-	jr nz,.e2
+.change	ex af,af'			; (A': the new one; the INT keeps AF')
 	ld a,b
-	exx
-	ld (de),a
-	inc de
+	dec c
+	jr z,.cb
+	dec c
+	jr nz,.open
+	exx				; the edge's ends
+	ld (hl),a
+	inc hl
 	exx
 	jr .open
-.e2	dec a
-	jr nz,.open
-	ld a,b
-	exx
-	ld (hl),a
-	inc hl
-	exx
-.open	pop af
-	ld c,a
-	dec a
-	jr nz,.o2
-	ld a,b
-	exx
+.cb	exx				; the bank's
 	ld (de),a
 	inc de
 	exx
-	ret
-.o2	dec a
+.open	ex af,af'
+	ld c,a
+	dec a
+	jr z,.ob
+	dec a
 	ret nz
-	ld a,b
+	ld a,b				; an edge's starts
 	exx
 	ld (hl),a
 	inc hl
+	exx
+	ret
+.ob	ld a,b				; a bank's
+	exx
+	ld (de),a
+	inc de
 	exx
 	ret
 

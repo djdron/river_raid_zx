@@ -1046,7 +1046,6 @@ ap_list:	ds 2			; apply's: the events, the palette and scroll (the frame INT
 ap_pal:		ds 1			; puts them again: a late frame)
 ap_scroll:	ds 2
 frame_flag:	ds 1			; the frame INT came
-rl_count:	ds 1			; render_line: an edge's bytes left
 rl_page:	ds 1			; the picture's page of its line
 	align 2
 rl_word:	ds 2			; a run's value (twice) for the DMA's fill

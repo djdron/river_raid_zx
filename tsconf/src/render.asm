@@ -131,8 +131,7 @@ render_line:
 	or a
 	jr nz,.t
 	ld d,high ROM_EDGE_PIECES
-.t	ld a,c
-	ld (rl_count),a
+.t	ld ixl,c			; (IXL: the bytes left)
 	ld a,(rl_set)
 	ld ixh,a
 .byte	ld a,(de)
@@ -148,9 +147,7 @@ render_line:
 	ld a,(bc)
 	ld (hl),a
 	inc l
-	ld a,(rl_count)
-	dec a
-	ld (rl_count),a
+	dec ixl
 	jr nz,.byte
 	jp .next
 .table_k
@@ -158,8 +155,7 @@ render_line:
 	or a				; its bank dots in the road colour's entry (rl_sub)
 	jr nz,1F
 	ld d,high ROM_EDGE_PIECES
-1:	ld a,c
-	ld (rl_count),a
+1:	ld ixl,c
 	ld a,(rl_sub)
 	ld ixh,a
 .tkb	ld a,(de)
@@ -175,9 +171,7 @@ render_line:
 	inc l
 	inc b
 	endr
-	ld a,(rl_count)
-	dec a
-	ld (rl_count),a
+	dec ixl
 	jr nz,.tkb
 	jp .next
 .end	ld bc,PAGE1
