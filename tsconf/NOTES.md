@@ -40,11 +40,13 @@ Ticks at 14 MHz, ~286 800 a frame. tscheck: the work from `apply_done` to `frame
 
 | run | average | heaviest | late |
 |---|---|---|---|
-| bot 1, 3 000 frames from the start | ~69 000 | ~120 000 | 0 |
-| `-stress` from bridge 80 (all slots taken, full speed, always firing), 6 000 | ~108 000 | ~144 000 | 0 |
-| the same at 7 MHz (~143 400 a frame) | ~93 000 | ~125 000 | 0 |
+| bot 1, 3 000 frames from the start | ~53 000 | ~109 000 | 0 |
+| `-stress` from bridge 80 (all slots taken, full speed, always firing), 6 000 | ~89 000 | ~127 000 | 0 |
+| the same at 7 MHz (~143 400 a frame) | ~75 000 | ~102 000 | 0 |
+| 3.5 MHz, the game's build (`-DNOSCREEN`), bot 1, 3 000 (~71 700 a frame) | ~43 000 | ~71 700 | 10 |
+| 3.5 MHz, the game's build, `-stress`, 3 000 | ~57 000 | ~88 500 | 465 |
 
-At 3.5 MHz it does not keep up: a late frame shows the last one again (the frame's INT puts apply's registers and events back, and `wait_frame` waits for the next INT, as the Next's for its line), never the panel's picture over the river; events on lines next to each other are not lost either (the INT puts the next one's VSINT out first and enables INTs before its end), so the panel does not flicker. By part in the heaviest scenes: the display (placement and collisions) ~51 000, the river's new lines ~32 000, sprites and the palette's events ~15 000, apply, the panel and the INTs ~7 000, the game's logic ~8 800, the sound ~3 500 (on the card).
+At 3.5 MHz (CAPS + 3) the heaviest frames still come late: a late frame shows the last one again (the frame's INT puts apply's registers and events back, and `wait_frame` waits for the next INT, as the Next's for its line), never the panel's picture over the river; events on lines next to each other are not lost either (the INT puts the next one's VSINT out first and enables INTs before its end), so the panel does not flicker. By part in the heaviest scenes: the display (placement and collisions) ~34 900, the river's new lines ~29 800, sprites ~12 700, apply, the panel and the INTs ~5 500, the game's logic ~9 000, the sound ~3 300 (on the card).
 
 The numbers are from the check's build (`-DTEST`: with the Atari's screen memory, which the game does not have); the game is ~1 000–2 500 lighter.
 
@@ -61,4 +63,7 @@ Xpeccy+'s TSConf core (and its General Sound) as a library, no window, beside th
 - The INT is a pulse of 32 ticks: one that comes under DI, or while the INT handler still runs, is lost. At 3.5 MHz a line is 224 ticks and the handler ~430, so events on the next line or the one after were lost (and with them the rest of the frame's: the panel flickered); and `wait_frame` with HALT waited past an INT that came between its test and the HALT, with DI around them lost it. Hence each event carries the next one's line (its VSINT goes out first, ~150 ticks in, and EI comes before the INT's end), and the frame's INT sends `wait_frame` back to its test when it came just before the HALT.
 - `-stress` without `-bot` did nothing in tscheck (no bot played): its runs were attract mode. Now it plays the bot of seed 1, as nxcheck.
 - The run's last picture (TSFULL) is taken at `apply_done`, so its border shows one colour; the border's bands are seen in TSSHOT's frames.
+- The check's build has the Atari's screen memory, the game does not: at 3.5 MHz that is ~2 000 more a river line and the reset's clearing (bot 1: 302 frames late of 3 000 in the check's build, 79 in the game's). Measure the speed with `-DNOSCREEN` and `TSNOSCREEN=1`.
+- The collisions were dear for the work around the tests, not the tests: nearly every row is decided by the gap test, and the time went on fields through IX and IY, variables kept in memory, and the setup per object and per row (`TSHISTN` shows which branches run how often).
+- Walking draw_line's pieces is cheap (~150 ticks a piece): making the runs as the pieces are made, or in render_line's walk (the picture in window 0, window 1 left to SPANS), saved nothing; both were tried and dropped.
 - Not run on a real board yet: the keyboard, Kempston, the SD card, the GS's real firmware and a NeoGS's are as Xpeccy+ models them.

@@ -47,10 +47,12 @@ Der Quelltext Routine für Routine, was am gemeinsamen Code des Next geändert i
   (`sound_ay.asm`): POKEY-Kanäle 1 und 2 auf A und B des zweiten Chips, 3 und 4 auf B und C
   des ersten. In Xpeccy: General Sound einschalten (und TurboSound NedoPC für die AYs).
 
-Bei 14 MHz braucht die Arbeit eines Bildes im Attract-Modus durchschnittlich ~64 000 Takte,
-~106 000 bei voller Geschwindigkeit mit Dauerfeuer ab Brücke 80 (-stress), höchstens ~167 000,
-von ~287 000; bei 7 MHz passt es noch, knapp (höchstens ~122 000 mit -stress, von ~143 400;
-kein Bild verspätet); bei 3,5 MHz kommt es nicht mit.
+Bei 14 MHz braucht die Arbeit eines Bildes im Attract-Modus durchschnittlich ~53 000 Takte,
+~89 000 bei voller Geschwindigkeit mit Dauerfeuer ab Brücke 80 (-stress), höchstens ~156 000,
+von ~287 000; bei 7 MHz passt es noch, knapp (höchstens ~102 000 mit -stress, von ~143 400;
+kein Bild verspätet); bei 3,5 MHz (CAPS + 3) kommt
+das Spiel im normalen Spiel mit (mit Bot 1 sind 10 von 3 000 Frames zu spät), bei ständigem
+Vollgas nicht (-stress: etwa jeder sechste Frame zu spät).
 
 Speicher (16K-Fenster): $0000 das RAM des Atari (Seite 1; während des Starts Seite 3 mit seiner
 Arbeit), $4000 die Läufe der Zeilen und Puffer, der Zeichensatz des OS ab $7D00 (Seite 5;

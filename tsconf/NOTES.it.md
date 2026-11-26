@@ -40,11 +40,13 @@ Cicli a 14 MHz, ~286 800 a fotogramma. tscheck: il lavoro da `apply_done` a `fra
 
 | esecuzione | media | più pesante | in ritardo |
 |---|---|---|---|
-| bot 1, 3 000 fotogrammi dall'inizio | ~69 000 | ~120 000 | 0 |
-| `-stress` dal ponte 80 (tutti gli slot occupati, tutta velocità, sempre sparando), 6 000 | ~108 000 | ~144 000 | 0 |
-| lo stesso a 7 MHz (~143 400 a fotogramma) | ~93 000 | ~125 000 | 0 |
+| bot 1, 3 000 fotogrammi dall'inizio | ~53 000 | ~109 000 | 0 |
+| `-stress` dal ponte 80 (tutti gli slot occupati, tutta velocità, sempre sparando), 6 000 | ~89 000 | ~127 000 | 0 |
+| lo stesso a 7 MHz (~143 400 a fotogramma) | ~75 000 | ~102 000 | 0 |
+| 3,5 MHz, build come nel gioco (`-DNOSCREEN`), bot 1, 3 000 (~71 700 a fotogramma) | ~43 000 | ~71 700 | 10 |
+| 3,5 MHz, build come nel gioco, `-stress`, 3 000 | ~57 000 | ~88 500 | 465 |
 
-A 3,5 MHz non regge: un fotogramma in ritardo mostra di nuovo l'ultimo (l'INT del fotogramma rimette i registri e gli eventi di `apply`, e `wait_frame` aspetta l'INT successivo, come il Next la sua riga), mai l'immagine del pannello sopra il fiume; nemmeno gli eventi su righe vicine vanno persi (l'INT scrive per primo il VSINT del successivo e riabilita gli INT prima della fine), così il pannello non sfarfalla. Per parti nelle scene più pesanti: il display (posizionamento e collisioni) ~51 000, le nuove righe del fiume ~32 000, gli sprite e gli eventi della palette ~15 000, apply, il pannello e gli interrupt ~7 000, la logica del gioco ~8 800, il suono ~3 500 (sulla scheda).
+A 3,5 MHz (CAPS + 3) i fotogrammi più pesanti arrivano ancora in ritardo: un fotogramma in ritardo mostra di nuovo l'ultimo (l'INT del fotogramma rimette i registri e gli eventi di `apply`, e `wait_frame` aspetta l'INT successivo, come il Next la sua riga), mai l'immagine del pannello sopra il fiume; nemmeno gli eventi su righe vicine vanno persi (l'INT scrive per primo il VSINT del successivo e riabilita gli INT prima della fine), così il pannello non sfarfalla. Per parti nelle scene più pesanti: il display (posizionamento e collisioni) ~34 900, le nuove righe del fiume ~29 800, gli sprite ~12 700, apply, il pannello e gli interrupt ~5 500, la logica del gioco ~9 000, il suono ~3 300 (sulla scheda).
 
 I numeri sono della build di verifica (`-DTEST`: con la memoria dello schermo dell'Atari, che il gioco non ha); il gioco è più leggero di ~1 000–2 500.
 
@@ -61,4 +63,7 @@ Il core TSConf di Xpeccy+ (e la sua General Sound) come libreria, senza finestra
 - L'INT è un impulso di 32 cicli: uno che arriva sotto DI, o mentre il gestore è ancora in corso, va perso. A 3,5 MHz una riga è 224 cicli e il gestore ~430, così gli eventi sulla riga successiva o quella dopo andavano persi (e con loro il resto del fotogramma: il pannello sfarfallava); `wait_frame` con HALT superava un INT arrivato tra il test e l'HALT, e con DI intorno lo perdeva. Perciò ogni evento porta la riga del successivo (il suo VSINT esce per primo, ~150 cicli dall'ingresso, ed EI viene prima della fine dell'INT), e l'INT del fotogramma rimanda `wait_frame` al test quando arriva appena prima dell'HALT.
 - `-stress` senza `-bot` in tscheck non faceva nulla (nessun bot giocava): quelle esecuzioni erano l'attract mode. Ora gioca il bot con seme 1, come in nxcheck.
 - L'ultima immagine di un'esecuzione (TSFULL) è presa a `apply_done`, quindi il suo bordo ha un solo colore; le bande del bordo si vedono nei fotogrammi di TSSHOT.
+- La build del controllo ha la memoria video dell'Atari, il gioco no: a 3,5 MHz sono ~2 000 in più per riga del fiume e la pulizia al reset (bot 1: nella build del controllo 302 fotogrammi su 3 000 in ritardo, nel gioco 79). Misurare la velocità con `-DNOSCREEN` e `TSNOSCREEN=1`.
+- Le collisioni costavano per il lavoro intorno ai test, non per i test: quasi ogni riga la decide il test del varco, e il tempo andava nei campi tramite IX e IY, nelle variabili in memoria e nella preparazione per oggetto e per riga (`TSHISTN` mostra quali rami girano quante volte).
+- Percorrere i pezzi di draw_line costa poco (~150 cicli a pezzo): fare i tratti mentre nascono i pezzi, o nel giro di render_line (l'immagine nella finestra 0, la finestra 1 lasciata a SPANS), non ha fatto risparmiare niente; provati entrambi e tolti.
 - Non ancora eseguito su una scheda reale: la tastiera, il Kempston, la scheda SD, il firmware reale della GS e quello di una NeoGS sono come li modella Xpeccy+.

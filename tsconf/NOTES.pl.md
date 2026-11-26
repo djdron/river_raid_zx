@@ -40,11 +40,13 @@ Takty przy 14 MHz, ~286 800 na klatkę. tscheck: praca od `apply_done` do `frame
 
 | przebieg | średnio | najcięższa | spóźnione |
 |---|---|---|---|
-| bot 1, 3 000 klatek od startu | ~69 000 | ~120 000 | 0 |
-| `-stress` od mostu 80 (wszystkie sloty zajęte, pełny gaz, ciągły ogień), 6 000 | ~108 000 | ~144 000 | 0 |
-| to samo przy 7 MHz (~143 400 na klatkę) | ~93 000 | ~125 000 | 0 |
+| bot 1, 3 000 klatek od startu | ~53 000 | ~109 000 | 0 |
+| `-stress` od mostu 80 (wszystkie sloty zajęte, pełny gaz, ciągły ogień), 6 000 | ~89 000 | ~127 000 | 0 |
+| to samo przy 7 MHz (~143 400 na klatkę) | ~75 000 | ~102 000 | 0 |
+| 3,5 MHz, build jak w grze (`-DNOSCREEN`), bot 1, 3 000 (~71 700 na klatkę) | ~43 000 | ~71 700 | 10 |
+| 3,5 MHz, build jak w grze, `-stress`, 3 000 | ~57 000 | ~88 500 | 465 |
 
-Przy 3,5 MHz nie nadąża: spóźniona klatka pokazuje poprzednią jeszcze raz (przerwanie klatki przywraca rejestry i zdarzenia z `apply`, a `wait_frame` czeka na następne przerwanie, jak Next na swoją linię), nigdy obraz panelu nad rzeką; zdarzenia na sąsiednich liniach też nie giną (przerwanie najpierw zapisuje VSINT następnego i włącza przerwania przed swoim końcem), więc i panel nie migocze. Według części w najcięższych scenach: wyświetlanie (rozmieszczanie i kolizje) ~51 000, nowe linie rzeki ~32 000, sprite'y i zdarzenia palety ~15 000, apply, panel i przerwania ~7 000, logika gry ~8 800, dźwięk ~3 500 (na karcie).
+Przy 3,5 MHz (CAPS + 3) najcięższe klatki wciąż się spóźniają: spóźniona klatka pokazuje poprzednią jeszcze raz (przerwanie klatki przywraca rejestry i zdarzenia z `apply`, a `wait_frame` czeka na następne przerwanie, jak Next na swoją linię), nigdy obraz panelu nad rzeką; zdarzenia na sąsiednich liniach też nie giną (przerwanie najpierw zapisuje VSINT następnego i włącza przerwania przed swoim końcem), więc i panel nie migocze. Według części w najcięższych scenach: wyświetlanie (rozmieszczanie i kolizje) ~34 900, nowe linie rzeki ~29 800, sprite'y ~12 700, apply, panel i przerwania ~5 500, logika gry ~9 000, dźwięk ~3 300 (na karcie).
 
 Liczby pochodzą z wersji testowej (`-DTEST`: z pamięcią ekranu Atari, której gra nie ma); gra jest lżejsza o ~1 000–2 500.
 
@@ -61,4 +63,7 @@ Rdzeń TSConf z Xpeccy+ (i jego General Sound) jako biblioteka, bez okna, obok p
 - Przerwanie to impuls 32 taktów: przychodzące pod DI albo gdy obsługa jeszcze trwa ginie. Przy 3,5 MHz linia ma 224 takty, a obsługa ~430, więc zdarzenia na następnej linii lub o jedną dalej ginęły (a z nimi reszta zdarzeń klatki: panel migotał); `wait_frame` z HALT przeczekiwał przerwanie, które przyszło między testem a HALT, a z DI wokół nich je gubił. Dlatego każde zdarzenie niesie linię następnego (jego VSINT wychodzi pierwszy, ~150 taktów od wejścia, a EI jest przed końcem przerwania), a przerwanie klatki odsyła `wait_frame` do testu, gdy przyszło tuż przed HALT.
 - `-stress` bez `-bot` w tscheck nic nie robił (bot nie grał): te przebiegi były trybem attract. Teraz gra bot z ziarnem 1, jak w nxcheck.
 - Ostatni obraz przebiegu (TSFULL) jest robiony na `apply_done`, więc ramka ma na nim jeden kolor; pasy ramki widać w klatkach TSSHOT.
+- Build testu ma pamięć ekranu Atari, gra nie: przy 3,5 MHz to ~2 000 więcej na linię rzeki i czyszczenie przy resecie (bot 1: w buildzie testu spóźnia się 302 klatki z 3 000, w grze 79). Szybkość mierzyć z `-DNOSCREEN` i `TSNOSCREEN=1`.
+- Kolizje były drogie przez obsługę wokół testów, nie przez testy: prawie każdy wiersz rozstrzyga test przerwy, a czas szedł na pola przez IX i IY, zmienne w pamięci i przygotowanie na każdy obiekt i wiersz (`TSHISTN` pokazuje, które gałęzie ile razy się wykonują).
+- Przechodzenie kawałków draw_line jest tanie (~150 taktów na kawałek): budowanie odcinków w miarę powstawania kawałków albo w przejściu render_line (obraz w oknie 0, okno 1 zostaje SPANS) nic nie dało; próbowano obu i wycofano.
 - Jeszcze nie uruchamiane na prawdziwej płycie: klawiatura, Kempston, karta SD, prawdziwy firmware GS i NeoGS są takie, jak modeluje je Xpeccy+.

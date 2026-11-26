@@ -48,10 +48,12 @@ El código fuente rutina a rutina, qué cambió en el código compartido con el 
   segundo chip, 3 y 4 en B y C del primero. En Xpeccy: activa la General Sound (y el TurboSound
   NedoPC para los AY).
 
-A 14 MHz el trabajo de un fotograma ocupa de media ~64 000 ciclos en el modo attract, ~106 000
-a toda velocidad disparando siempre desde el puente 80 (-stress), ~167 000 como máximo, de
-~287 000; a 7 MHz todavía cabe, por poco (~122 000 como máximo con -stress, de ~143 400; ningún
-fotograma se retrasa); a 3,5 MHz no da abasto.
+A 14 MHz el trabajo de un fotograma ocupa de media ~53 000 ciclos en el modo attract, ~89 000
+a toda velocidad disparando siempre desde el puente 80 (-stress), ~156 000 como máximo, de
+~287 000; a 7 MHz todavía cabe, por poco (~102 000 como máximo con -stress, de ~143 400; ningún
+fotograma se retrasa); a 3,5 MHz (CAPS + 3) en el
+juego normal da abasto (con el bot 1 llegan tarde 10 fotogramas de 3 000), a todo gas siempre
+no (-stress: llega tarde más o menos uno de cada seis).
 
 Memoria (ventanas de 16K): $0000 la RAM del Atari (página 1; durante el arranque la página 3 con
 su trabajo), $4000 las secuencias de las líneas y los búferes, la fuente del sistema operativo

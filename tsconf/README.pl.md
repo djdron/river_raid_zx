@@ -44,10 +44,12 @@ Kod źródłowy procedura po procedurze, co zmieniono we wspólnym kodzie Next, 
   drugiego układu, 3 i 4 na B i C pierwszego. W Xpeccy: włącz General Sound (i TurboSound
   NedoPC dla AY).
 
-Przy 14 MHz praca klatki zajmuje średnio ~64 000 taktów w trybie attract, ~106 000 przy pełnej
-prędkości z ciągłym ogniem od mostu 80 (-stress), najwyżej ~167 000, z ~287 000; przy 7 MHz
-też się mieści, na styk (najwyżej ~122 000 w -stress, z ~143 400; żadna klatka się nie
-spóźnia); przy 3,5 MHz nie nadąża.
+Przy 14 MHz praca klatki zajmuje średnio ~53 000 taktów w trybie attract, ~89 000 przy pełnej
+prędkości z ciągłym ogniem od mostu 80 (-stress), najwyżej ~156 000, z ~287 000; przy 7 MHz
+też się mieści, na styk (najwyżej ~102 000 w -stress, z ~143 400; żadna klatka się nie
+spóźnia); przy 3,5 MHz (CAPS + 3)
+w zwykłej grze nadąża (z botem 1 spóźnia się 10 klatek z 3 000), przy stałym pełnym gazie nie
+(-stress: spóźnia się mniej więcej co szósta klatka).
 
 Pamięć (okna po 16K): $0000 RAM Atari (strona 1; na czas startu strona 3 z jego pracą), $4000
 przebiegi linii i bufory, czcionka OS od $7D00 (strona 5; `render_line` na czas rysowania

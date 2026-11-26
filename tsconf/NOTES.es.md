@@ -40,11 +40,13 @@ Ciclos a 14 MHz, ~286 800 por fotograma. tscheck: el trabajo de `apply_done` a `
 
 | ejecución | media | más pesado | tardíos |
 |---|---|---|---|
-| bot 1, 3 000 fotogramas desde el inicio | ~69 000 | ~120 000 | 0 |
-| `-stress` desde el puente 80 (todos los slots ocupados, a toda velocidad, disparando sin parar), 6 000 | ~108 000 | ~144 000 | 0 |
-| lo mismo a 7 MHz (~143 400 por fotograma) | ~93 000 | ~125 000 | 0 |
+| bot 1, 3 000 fotogramas desde el inicio | ~53 000 | ~109 000 | 0 |
+| `-stress` desde el puente 80 (todos los slots ocupados, a toda velocidad, disparando sin parar), 6 000 | ~89 000 | ~127 000 | 0 |
+| lo mismo a 7 MHz (~143 400 por fotograma) | ~75 000 | ~102 000 | 0 |
+| 3,5 MHz, build como en el juego (`-DNOSCREEN`), bot 1, 3 000 (~71 700 por fotograma) | ~43 000 | ~71 700 | 10 |
+| 3,5 MHz, build como en el juego, `-stress`, 3 000 | ~57 000 | ~88 500 | 465 |
 
-A 3,5 MHz no llega: un fotograma tardío muestra el último otra vez (la INT del fotograma vuelve a poner los registros y los eventos de `apply`, y `wait_frame` espera a la INT siguiente, como la Next a su línea), nunca la imagen del panel sobre el río; tampoco se pierden los eventos en líneas vecinas (la INT escribe primero el VSINT del siguiente y habilita las INT antes de terminar), así que el panel no parpadea. Por partes en las escenas más pesadas: el display (colocación y colisiones) ~51 000, las líneas nuevas del río ~32 000, los sprites y los eventos de la paleta ~15 000, apply, el panel y las interrupciones ~7 000, la lógica del juego ~8 800, el sonido ~3 500 (en la tarjeta).
+A 3,5 MHz (CAPS + 3) los fotogramas más pesados aún llegan tarde: un fotograma tardío muestra el último otra vez (la INT del fotograma vuelve a poner los registros y los eventos de `apply`, y `wait_frame` espera a la INT siguiente, como la Next a su línea), nunca la imagen del panel sobre el río; tampoco se pierden los eventos en líneas vecinas (la INT escribe primero el VSINT del siguiente y habilita las INT antes de terminar), así que el panel no parpadea. Por partes en las escenas más pesadas: el display (colocación y colisiones) ~34 900, las líneas nuevas del río ~29 800, los sprites ~12 700, apply, el panel y las interrupciones ~5 500, la lógica del juego ~9 000, el sonido ~3 300 (en la tarjeta).
 
 Las cifras son de la versión de comprobación (`-DTEST`: con la memoria de pantalla del Atari, que el juego no tiene); el juego es ~1 000–2 500 más ligero.
 
@@ -61,4 +63,7 @@ El núcleo TSConf de Xpeccy+ (y su General Sound) como biblioteca, sin ventana, 
 - La INT es un pulso de 32 ciclos: una que llega bajo DI, o mientras el manejador aún corre, se pierde. A 3,5 MHz una línea son 224 ciclos y el manejador ~430, así que los eventos en la línea siguiente o la de después se perdían (y con ellos el resto del fotograma: el panel parpadeaba); `wait_frame` con HALT esperaba más allá de una INT llegada entre la prueba y el HALT, y con DI alrededor la perdía. Por eso cada evento lleva la línea del siguiente (su VSINT sale primero, ~150 ciclos desde la entrada, y EI va antes del final de la INT), y la INT del fotograma devuelve `wait_frame` a su prueba si llegó justo antes del HALT.
 - `-stress` sin `-bot` no hacía nada en tscheck (no jugaba ningún bot): esas ejecuciones eran el modo attract. Ahora juega el bot de semilla 1, como en nxcheck.
 - La última imagen de una ejecución (TSFULL) se toma en `apply_done`, así que su borde muestra un solo color; las bandas del borde se ven en los fotogramas de TSSHOT.
+- La build de la comprobación tiene la memoria de pantalla del Atari, el juego no: a 3,5 MHz son ~2 000 más por línea del río y el borrado del reinicio (bot 1: en la build de la comprobación llegan tarde 302 fotogramas de 3 000, en la del juego 79). Medir la velocidad con `-DNOSCREEN` y `TSNOSCREEN=1`.
+- Las colisiones costaban por el trabajo alrededor de las pruebas, no por las pruebas: casi cada fila la decide la prueba del hueco, y el tiempo se iba en campos por IX e IY, variables en memoria y la preparación por objeto y por fila (`TSHISTN` muestra qué ramas corren cuántas veces).
+- Recorrer los trozos de draw_line es barato (~150 ciclos por trozo): hacer los tramos según se hacen los trozos, o en la pasada de render_line (la imagen en la ventana 0, la ventana 1 para SPANS), no ahorró nada; se probaron ambos y se quitaron.
 - Aún no se ha ejecutado en una placa real: el teclado, el Kempston, la tarjeta SD, el firmware real de la GS y el de una NeoGS son como los modela Xpeccy+.

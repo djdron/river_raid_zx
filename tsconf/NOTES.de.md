@@ -40,11 +40,13 @@ Takte bei 14 MHz, ~286 800 pro Frame. tscheck: die Arbeit von `apply_done` bis `
 
 | Lauf | Mittel | schwerstes | verspätet |
 |---|---|---|---|
-| Bot 1, 3 000 Frames ab dem Start | ~69 000 | ~120 000 | 0 |
-| `-stress` ab Brücke 80 (alle Slots belegt, Vollgas, Dauerfeuer), 6 000 | ~108 000 | ~144 000 | 0 |
-| dasselbe mit 7 MHz (~143 400 pro Frame) | ~93 000 | ~125 000 | 0 |
+| Bot 1, 3 000 Frames ab dem Start | ~53 000 | ~109 000 | 0 |
+| `-stress` ab Brücke 80 (alle Slots belegt, Vollgas, Dauerfeuer), 6 000 | ~89 000 | ~127 000 | 0 |
+| dasselbe mit 7 MHz (~143 400 pro Frame) | ~75 000 | ~102 000 | 0 |
+| 3,5 MHz, Build wie im Spiel (`-DNOSCREEN`), Bot 1, 3 000 (~71 700 je Frame) | ~43 000 | ~71 700 | 10 |
+| 3,5 MHz, Build wie im Spiel, `-stress`, 3 000 | ~57 000 | ~88 500 | 465 |
 
-Mit 3,5 MHz kommt es nicht mit: ein verspätetes Frame zeigt das letzte noch einmal (der Frame-INT setzt die Register und Ereignisse von `apply` zurück, und `wait_frame` wartet auf den nächsten INT, wie der Next auf seine Zeile), nie das Bild des Panels über dem Fluss; auch Ereignisse auf Nachbarzeilen gehen nicht verloren (der INT gibt zuerst das VSINT des nächsten aus und erlaubt INTs vor seinem Ende), so flackert auch das Panel nicht. Nach Teilen in den schwersten Szenen: das Display (Platzieren und Kollisionen) ~51 000, die neuen Zeilen des Flusses ~32 000, Sprites und die Ereignisse der Palette ~15 000, apply, Panel und Interrupts ~7 000, die Logik des Spiels ~8 800, der Ton ~3 500 (auf der Karte).
+Mit 3,5 MHz (CAPS + 3) kommen die schwersten Frames noch zu spät: ein verspätetes Frame zeigt das letzte noch einmal (der Frame-INT setzt die Register und Ereignisse von `apply` zurück, und `wait_frame` wartet auf den nächsten INT, wie der Next auf seine Zeile), nie das Bild des Panels über dem Fluss; auch Ereignisse auf Nachbarzeilen gehen nicht verloren (der INT gibt zuerst das VSINT des nächsten aus und erlaubt INTs vor seinem Ende), so flackert auch das Panel nicht. Nach Teilen in den schwersten Szenen: das Display (Platzieren und Kollisionen) ~34 900, die neuen Zeilen des Flusses ~29 800, Sprites ~12 700, apply, Panel und Interrupts ~5 500, die Logik des Spiels ~9 000, der Ton ~3 300 (auf der Karte).
 
 Die Zahlen stammen vom Prüf-Build (`-DTEST`: mit dem Bildschirmspeicher des Atari, den das Spiel nicht hat); das Spiel ist ~1 000–2 500 leichter.
 
@@ -61,4 +63,7 @@ Der TSConf-Kern von Xpeccy+ (und seine General Sound) als Bibliothek, ohne Fenst
 - Der INT ist ein Puls von 32 Takten: einer unter DI oder während der Handler noch läuft geht verloren. Bei 3,5 MHz hat eine Zeile 224 Takte und der Handler ~430, also gingen Ereignisse auf der nächsten oder übernächsten Zeile verloren (und mit ihnen der Rest des Frames: das Panel flackerte); `wait_frame` mit HALT wartete über einen INT hinweg, der zwischen Test und HALT kam, mit DI darum verlor es ihn. Daher trägt jedes Ereignis die Zeile des nächsten (sein VSINT geht zuerst hinaus, ~150 Takte nach dem Eintritt, und EI kommt vor dem Ende des INT), und der Frame-INT schickt `wait_frame` zu seinem Test zurück, wenn er kurz vor dem HALT kam.
 - `-stress` ohne `-bot` tat in tscheck nichts (kein Bot spielte): diese Läufe waren der Attract-Modus. Jetzt spielt der Bot mit Seed 1, wie bei nxcheck.
 - Das letzte Bild eines Laufs (TSFULL) wird bei `apply_done` genommen, daher zeigt sein Rand eine Farbe; die Bänder des Rands sieht man in den Bildern von TSSHOT.
+- Der Build der Prüfung hat den Bildschirmspeicher des Atari, das Spiel nicht: bei 3,5 MHz sind das ~2 000 mehr je Flusszeile und das Löschen beim Reset (Bot 1: im Build der Prüfung 302 von 3 000 Frames zu spät, im Spiel 79). Die Geschwindigkeit mit `-DNOSCREEN` und `TSNOSCREEN=1` messen.
+- Die Kollisionen waren teuer durch die Arbeit um die Tests, nicht durch die Tests: fast jede Reihe entscheidet der Lückentest, die Zeit ging an Felder über IX und IY, Variablen im Speicher und das Setup je Objekt und Reihe (`TSHISTN` zeigt, welche Zweige wie oft laufen).
+- Die Stücke von draw_line abzulaufen ist billig (~150 Takte je Stück): die Läufe beim Entstehen der Stücke zu bauen oder im Durchlauf von render_line (das Bild in Fenster 0, Fenster 1 bleibt SPANS) brachte nichts; beides versucht und verworfen.
 - Noch nicht auf einer echten Platine gelaufen: Tastatur, Kempston, SD-Karte, die echte Firmware der GS und die einer NeoGS sind so, wie Xpeccy+ sie nachbildet.

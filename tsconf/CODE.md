@@ -39,8 +39,8 @@ tscheck's histogram (`TSHISTALL=file`, then `python3 ../tools/prof.py build/test
 which the game does not have: `line_done` and `draw_line` are ~1 000–2 000 heavier than in
 the game). With a General Sound, so the noises cost the main CPU nothing. Two runs:
 
-- **A**: bot 1, 3 000 frames from the start: the work ~68 000 a frame on average, ~120 000 at most;
-- **B**: `-stress` from bridge 80, 6 000 frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: all slots taken, full speed, always firing): ~106 000 on average, ~144 000 at most.
+- **A**: bot 1, 3 000 frames from the start: the work ~53 000 a frame on average, ~109 000 at most;
+- **B**: `-stress` from bridge 80, 6 000 frames (`TSBRIDGE=80 TSGHOST=1 NXGAME=1 … -bot 1 -stress`: all slots taken, full speed, always firing): ~89 000 on average, ~127 000 at most.
 
 The work is from `apply_done` to `frame_done` (the frame INT's waits not counted); the parts
 below also count `apply` and the INTs (~7 000).
@@ -49,40 +49,40 @@ By part (A / B):
 
 | part | A | B |
 |---|---|---|
-| the display: objects' placement and collisions (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 38 300 | 51 000 |
-| new river lines (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 14 400 | 33 800 |
-| sprites (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 9 300 | 13 900 |
-| `apply`, the panel and the INTs (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, the panel's printing) | 6 200 | 5 800 |
-| sound (`sound_driver`, `snd_*`, `gs_*`; without a card `ay_*`: ~5 800 in A) | 3 400 | 3 500 |
-| the game logic and the rest (`move_objects`, `main_loop`, `random_step`, `vbi`, …) | 7 000 | 8 800 |
+| the display: objects' placement and collisions (`display`, `ds_*`, `dh_*`, `sp_*`, `hit_*`) | 23 800 | 34 900 |
+| new river lines (`river_gen`, `render_line`, `span_line`, `line_done`, `push_line`) | 12 800 | 29 800 |
+| sprites (`build_sprites`, `ob_*`, `pl_*`, `obj_lookup`, `sfile_put`) | 8 700 | 12 700 |
+| `apply`, the panel and the INTs (`apply`, `panel_frame`, `panel_draw`, `pc_*`, `irq`, the panel's printing) | 5 700 | 5 500 |
+| sound (`sound_driver`, `snd_*`, `gs_*`; without a card `ay_*`: ~5 800 in A) | 3 200 | 3 300 |
+| the game logic and the rest (`move_objects`, `main_loop`, `random_step`, `vbi`, …) | 8 900 | 11 800 |
 
 The most expensive routines (A / B):
 
 | routine | A | B | file |
 |---|---|---|---|
-| `display` (own code) | 11 200 | 12 900 | display_simple |
-| `dh_pf` | 8 700 | 9 800 | display_hits |
-| `span_line` | 3 900 | 9 500 | spans |
-| `ds_edge_test` | 2 800 | 8 700 | display_simple |
-| `render_line` | 3 700 | 8 700 | render |
-| `ds_obj` | 5 300 | 6 200 | display_objs |
-| `dh_obj` | 4 400 | 5 500 | display_hits |
-| `ob_attr` | 2 500 | 5 100 | sprites |
+| `display` (own code) | 9 600 | 11 200 | display_simple |
+| `span_line` | 3 700 | 8 900 | spans |
+| `render_line` | 3 500 | 8 400 | render |
+| `ds_edge_test` | 2 300 | 7 500 | display_simple |
+| `dh_pf` | 4 000 | 5 500 | display_hits |
+| `ob_attr` | 2 700 | 5 400 | sprites |
 | `move_objects` | 1 700 | 3 300 | game |
 | `dl_fill` | 1 500 | 3 300 | river_gen |
 | `ob_list` | 2 400 | 3 200 | sprites |
+| `ds_obj` | 2 400 | 2 900 | display_objs |
 | `line_done` (screen memory's copy, check build only) | 1 100 | 2 500 | game |
-| `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 400 | 2 300 | sound_gs |
-| `pl_keep` | 800 | 1 600 | sprites |
+| `gs_send` + `gs_wait_c` + `gs_wait_d` | 2 300 | 2 100 | sound_gs |
+| `dh_obj` | 1 200 | 1 600 | display_hits |
 | `panel_frame` | 1 600 | 1 600 | panel_ts |
-| `irq` | 1 200 | 1 200 | river_raid |
+| `sfile_put` | 1 300 | 1 400 | river_raid |
 | `dh_lists` | 1 300 | 1 300 | display_hits |
-| `sfile_put` | 1 200 | 1 300 | river_raid |
+| `irq` | 1 200 | 1 200 | river_raid |
 | `apply` (own code) | 800 | 800 | river_raid |
 | `hit_setup` | 500 | 700 | display_hits |
+| `pl_keep` | 100 | 100 | sprites |
 
 At 7 MHz (`TSSPEED=1`, ~143 400 ticks a frame) the work is the same instructions: `-stress`
-~91 000 on average, ~122 000 at most, just fitting; at 3.5 MHz it does not keep up.
+~75 000 on average, ~102 000 at most, just fitting; at 3.5 MHz (`TSSPEED=0`, ~71 700 a frame), in the game's build (no screen memory: `-DNOSCREEN`, tscheck `TSNOSCREEN=1`), bot 1 ~43 000 on average, ~71 700 at most, 10 frames of 3 000 late; `-stress` ~57 000 / ~88 500, 465 late.
 `gs_send` waits for the card to read each byte (~300 ticks a byte at 14 MHz).
 
 (`prof.py` takes a routine's name from the nearest global label below the address. Addresses
@@ -123,9 +123,10 @@ While the picture is drawn the INT comes three times, at the events of the list 
 
 Copied from `../src`, the same code:
 
-- `river_gen.asm`, `display_objs.asm`, `panel.asm`, `vars.inc`, `font.inc`, `random.inc`: unchanged.
+- `river_gen.asm`, `panel.asm`, `vars.inc`, `font.inc`, `random.inc`: unchanged.
 - `display.asm`, `display_simple.asm`, `spans.asm`: the SPANS page is not mapped (`nextreg $52,SPAN_PAGE` gone: window 1 holds SPANS all the time); `spans.asm` without `rl_fill`/`rl_next` (the Next's `render_line` helpers).
 - `display_hits.asm`: `bsla de,b` (Z80N) as `shl_de_b`, a loop of 0–7 `sla e / rl d` (in `hit_line`: up to ~100 ticks more a test, a few hundred a frame).
+- `display_simple.asm`, `display_hits.asm`, `display_objs.asm`: also cheaper than the Next's, the same results (the Next has the time and no room in its pages): `display` tests an object's lines against a sprite's before calling `dh_obj` (`TS_MEET`), IY one on per slot, the edge bit into the flags inline; `dh_pf` first the box against the gaps on all the sprite's lines (`DH_GAP`), then line by line from DE with the mask patched; `ds_edge_test` with DJNZ, the dots' setup only when a row's dots are looked at; `ds_obj` only the bytes `ob_list` reads (no `ds_objf`), from `ds_obj_p`.
 - `game.asm`: `tm_colour` writes BORDER (a CRAM entry: `TM_*` are group 11's free entries from 2, their colours set by `tm_cram`), and `TM_COLOUR` calls it only while T is on; `push_line` moves `scroll` in a ring of 512 lines (9 bits) and draws into the picture's line `scroll + RIVER_TOP`.
 - `play.asm`: `clear_layer2_page` is the TS-Conf's (river_raid.asm, the DMA); `read_input` without CAPS + 1 (no 60 Hz), CAPS + 2 (sound off), the second Kempston and the Mega Drive pad; its CAPS + 3 goes round three speeds (14, 7, 3.5 MHz).
 - `sound.asm`: only `sound_driver` and `sound_random`: `pokey_frame` runs on the General Sound (`gs/`).
@@ -180,11 +181,11 @@ XS and the flip bits, the tile and the palette) go to `spr_list`; `apply` copies
 | routine | called | what and how | A / B |
 |---|---|---|---|
 | `build_sprites` | `main_frame` | `ob_list`; then the plane, its bullet, the tank, the helicopter's missile, the shell (the order `drawRiver` draws them) by `pl_pattern` + `pl_sprite`; `pl_keep`. During a reset `pl_again`. | 800 / 800 |
-| `ob_list` | `build_sprites` | Per `ds_objs` entry with its rows (`ds_objf`): `obj_lookup` by the top row's shape and colour addresses; not found: no sprite; first row below the river: none; else `ob_attr`. | 2 400 / 3 100 |
+| `ob_list` | `build_sprites` | Per `ds_objs` entry: `obj_lookup` by the top row's shape and colour addresses; not found: no sprite; first row below the river: none; else `ob_attr`. | 2 400 / 3 100 |
 | `obj_lookup` | `ob_list` | The picture of the shape byte at $B900 + E and colour byte at $B700 + D: `obj_head` (by the shape byte) then its chain in `obj_e`; A = picture + bit 7 for `OBJ_PAL_B`. | 1 000 / 1 300 |
 | `ob_attr` | `ob_list` | The SFILE entry: Y = `RIVER_TOP` + its line's place in the river (9 bits) with YS from `pic_h` and ACT; X = 2 × (position − 52) (9 bits) with XS 1, 3 or 7 by its size; the tile of the right width (`pic_tn16/32/64_lo/hi`), the palette. | 2 500 / 5 200 |
 | `pl_pattern`, `pl_sprite` | `build_sprites` | The frame's picture from its table ($FF: none); a 16-dot sprite at line D (none below the river), position E, palette C. | ~100 a sprite |
-| `pl_keep`, `pl_again` | `build_sprites` | The players' entries kept; a reset's frames show them again (as the Next's). | 800 / 1 600 |
+| `pl_keep`, `pl_again` | `build_sprites` | The players' entries counted (they stay in `spr_list` until the next frame's); a reset's frame copies them first (`pl_save`) and shows them again. | ~100 |
 | `cram_set` | the start, `init_video` | CRAM entry A × 16 + B = Atari colour E (`palette_lo`). | |
 
 ## sprite_pics.asm (INIT_PAGE, at the start): the sprites' pictures
@@ -289,4 +290,4 @@ sector buffer is SPANS (made anew after the start).
 - **Registers taken at a line's end** (VPAGE, GYOFFS, GXOFFS): set them in the INT of the line before; the INT comes at HSINT 208 (the right border), so there is time at 3.5–14 MHz.
 - **The DMA** is shared by the picture's clearing (`clear_layer2_page`) and the panel's characters (`pc_put`): `pc_put` draws by CPU while the DMA is busy; the SFILE's copy (`sfile_put`) and a new line's long runs (`render_line`) use it too, each falling back to the CPU while it is busy.
 - **The checks**: `make check` (3 000 frames; `FRAMES=`), and with a bot, `-stress`, TSBRIDGE, TSSPEED=1 (7 MHz), TSGS=neo or 0, as in [README.md](README.md). After any change: the state, the bank colour by line, the General Sound's registers and the machine's picture of every frame pixel for pixel.
-- **Measuring**: `TSHISTALL=file` (every instruction's time over the run, the start, the INTs and the wait included), then `python3 ../tools/prof.py build/test.sym file 60`; the work's average and maximum are in tscheck's last lines. `TSMSHOT=k` writes each machine frame from frame k (32 of them: a late frame's second too); `TSBORDER=1` turns T on; `TSSHOT=k` with `TSFULL=1` writes frames k.. with the border (the run's last picture shows only one colour on the border: it stops at `apply_done`). `TSTIME=N` prints the work of frames N−2..N+2. `TSVOL=1`: the frames' sums of POKEY's volumes and the card's highest level (it must stay at most 255). `TSHISTMIN=n` with `TSHISTALL`: only the frames with n ticks of work or more (the heavy ones; their number printed).
+- **Measuring**: `TSHISTALL=file` (every instruction's time over the run, the start, the INTs and the wait included), then `python3 ../tools/prof.py build/test.sym file 60`; the work's average and maximum are in tscheck's last lines. `TSMSHOT=k` writes each machine frame from frame k (32 of them: a late frame's second too); `TSBORDER=1` turns T on; `TSSHOT=k` with `TSFULL=1` writes frames k.. with the border (the run's last picture shows only one colour on the border: it stops at `apply_done`). `TSTIME=N` prints the work of frames N−2..N+2. `TSVOL=1`: the frames' sums of POKEY's volumes and the card's highest level (it must stay at most 255). `TSHISTMIN=n` with `TSHISTALL`: only the frames with n ticks of work or more (the heavy ones; their number printed). `TSHISTN=file` (with `TSHISTALL`): how many times each instruction ran. `TSPAGES=1`: the writes to PAGE0–3 a frame and where from. `TSNOSCREEN=1`: a `-DNOSCREEN` build (no screen memory, as the game: only to measure, the screen memory not compared).
