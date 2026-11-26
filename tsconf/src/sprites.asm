@@ -26,6 +26,8 @@ SPR_SIZE	equ 6			; an SFILE entry
 build_sprites:
 	xor a
 	ld (sb_count),a
+	ld hl,spr_list
+	ld (sb_ptr),hl
 	; in the order drawRiver draws them, the last on top
 	call ob_list			; player 3: the objects, from their rows
 	ld a,(sb_count)			; (where the players' entries start)
@@ -150,6 +152,7 @@ pl_again:
 	call pl_keep.bytes
 	ld hl,pl_attrs
 	ldir
+	ld (sb_ptr),de
 	ret
 
 ; A = the picture of frame A in the table at HL
@@ -271,8 +274,7 @@ ob_attr:
 	ret nc
 	inc a
 	ld (sb_count),a
-	dec a
-	call pl_keep.addr
+	ld hl,(sb_ptr)			; (spr_list + 6 sb_count)
 	ld a,(ob_line)			; Y: lines 220-255 and 0-3 above the screen (9 bits round)
 	sub RIVER_FIRST - RIVER_TOP
 	ld e,a
@@ -332,6 +334,8 @@ ob_attr:
 	add a,a
 	or e
 	ld (hl),a
+	inc hl
+	ld (sb_ptr),hl
 	ret
 
 ; CRAM entry A x 16 + B: Atari colour E (B, C, E kept)

@@ -463,10 +463,18 @@ int main(int argc, char **argv) {
 	// TSMSHOT=k: each machine's frame from frame k on (32 of them), to /tmp/tsm_N.ppm (a late
 	// frame's second one too, which TSSHOT does not see)
 	static int mshotFrom = std::getenv("TSMSHOT") ? std::atoi(std::getenv("TSMSHOT")) : -1, mshotN = 0, curFrame = 0;
+	// TSPAGES=1: each write to PAGE0-3 ($10AF-$13AF, OUT (C),r): how many a frame, and where
+	static const bool pagesOn = std::getenv("TSPAGES") != nullptr;
+	static long pageOuts[0x10000], pageFrame = 0, pageFrameMax = 0, pageTotal = 0;
 	auto runTo = [&](uint16_t hook) {
 		for (long n = 0; n < 50000000L; n++) {
 			const uint16_t pc = comp->cpu->regPC;
 			const long long t = comp->tickTotal;
+			if (pagesOn && mem_rd_fast(comp->mem, pc) == 0xED) {
+				const int op = mem_rd_fast(comp->mem, uint16_t(pc + 1));
+				const uint16_t bc = comp->cpu->regBC;
+				if ((op & 0xC7) == 0x41 && (bc & 0xFF) == 0xAF && (bc >> 8) >= 0x10 && (bc >> 8) <= 0x13) { pageOuts[pc]++; pageFrame++; }
+			}
 			const int sw = bufSwaps;
 			compExec(comp);
 			if (bufSwaps != sw && mshotFrom > 0 && curFrame >= mshotFrom && mshotN < 32) {
@@ -538,7 +546,8 @@ int main(int argc, char **argv) {
 		if (f == 2 && std::getenv("TSBORDER"))   // T's border on (TSFULL: the picture with the border)
 			ram[kHighPage * 0x4000 + (symbol(dir, "tm_show") - 0xC000)] = 1;
 		if (!runTo(frameHook)) { std::printf("frame %d: the program never got to frame_done (PC %04X)\n", f, comp->cpu->regPC); return 1; }
-		if (f == 1) swapsFirst = bufSwaps;   // (the start's frames before it: not counted)
+		if (f == 1) swapsFirst = bufSwaps;
+		if (pagesOn) { pageTotal += pageFrame; pageFrameMax = std::max(pageFrameMax, pageFrame); pageFrame = 0; }   // (the start's frames before it: not counted)
 		if (applyTick >= 0) {   // the frame's work, from the apply before it
 			const long long w = comp->tickTotal - applyTick;
 			workSum += w;
@@ -770,6 +779,11 @@ int main(int argc, char **argv) {
 		frames, lateShown, swapsFirst - swaps0);
 	std::printf("a frame's work: %lld ticks on average, %lld at most (frame %d), of %lld a frame\n",
 		frames > 1 ? workSum / (frames - 1) : 0, workMax, workMaxFrame, (comp->tickTotal - tick0) / std::max(1, bufSwaps - swaps0));
+	if (pagesOn) {
+		std::printf("TSPAGES: %.2f page writes a frame on average, %ld at most; by PC:", double(pageTotal) / frames, pageFrameMax);
+		for (int a = 0; a < 0x10000; a++) if (pageOuts[a]) std::printf(" %04X:%.2f", a, double(pageOuts[a]) / frames);
+		std::printf("\n");
+	}
 	if (histMin >= 0) std::printf("TSHISTALL: the %ld frames with work of %lld ticks or more\n", histFrames, histMin);
 	if (histAllPath) {
 		FILE *hf = std::fopen(histAllPath, "w");

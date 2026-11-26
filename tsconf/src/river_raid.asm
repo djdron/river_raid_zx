@@ -1201,6 +1201,7 @@ ds_obj_n:	ds 1
 ds_obj_p:	ds 2			; ds_obj: the next object's 8 bytes in ds_objs
 ds_edge_kind:	ds 1
 sb_count:	ds 1
+sb_ptr:		ds 2			; ob_attr: the next entry (spr_list + 6 sb_count)
 pm_empty:	ds 1			; a reset cleared player-missile memory, no prepare since
 dh_desc:	ds 5 * DH_SIZE		; the sprites
 ; the sprites (sprites.asm)
