@@ -10,11 +10,11 @@ TS-Conf 移植自己的笔记（主板、代替 Copper 的中断、General Sound
 | Z80 | 8K 页 | 内容 |
 |---|---|---|
 | $0000–$3FFF | 30, 31 | Atari 的 RAM，位于原版的地址（状态、槽位 $0500、字符集 $0600–$09FF、player-missile 内存 $0B00–$0FFF、面板 $1000、屏幕内存 $2000–$2EFF 和 $3000–$3EFF、$3F04 顶行地址、$3FB3 滚动字幕文本） |
-| $4000–$5FFF | 18–27 / 10, 11 / 7 | 一个窗口：Layer 2（render_line、清除）、bank 5（tilemap、panel_frame） |
+| $4000–$5FFF | 18–27 / 10, 11 / 7 / 13 | 一个窗口：Layer 2（render_line、清除）、bank 5（tilemap、panel_frame）、声音的代码（`pokey_frame`：页 13） |
 | $6000–$7FFF | 12 | scan_bank（只有 `-DBEAM` 填充）、ring_lo/hi（屏幕内存的行：检查构建）、edge_runs（每段边缘的连续段：span_line）、sprite_list、ds_objs、copper_list（256）、rl_k1、pix_set1、ov_exp2/ov_exp4（加宽后的一个字节的点：hit_wide）、eg_*（每行边缘的空隙：ds_edge_test、dh_pf）、$7C00 的 DAC 环形缓冲；`dh_pf` 在 $7A00（`P12_CODE`，启动时从第 7 页复制过来：第 6 页没有空间） |
-| $8000–$9FFF | 4 | 头部和帧循环、河流生成器、渲染、调色板、随机映射、play.asm（约 1.6K 空闲） |
+| $8000–$9FFF | 4 | 头部和帧循环、河流生成器、渲染、调色板、随机映射、play.asm（约 0.9K 空闲） |
 | $A000–$BFFF | 5 | 卡带（从 SD 卡加载；esxDOS F_OPEN/F_READ，先长文件名再 RIVER_~1.ROM；已检查：8192 字节，$BFFA = $A000） |
-| $C000–$DFFF | 6 | game.asm、display.asm、sprites.asm、render.asm、bank_colours.asm（约 10 字节空闲） |
+| $C000–$DFFF | 6 | game.asm、display.asm、sprites.asm、render.asm、bank_colours.asm（约 1.5K空闲） |
 | $E000–$FFFF | 1 | 变量（line_buf 仅在有屏幕内存时）、edge_lo/hi、span_class、span_masks、obj_head/obj_e、rnd_tab、pix_set0, bg_*（每行河岸的空隙：dh_pf，4 页）、栈 |
 
 页 7 只在启动时 `load_rom` 和 `panel_init` 运行期间映射到 $6000；`obj_pics` 紧随其后放在那里。NEX 包含 16K bank 2 和 3（页 4–7）。
@@ -99,7 +99,7 @@ $8000 处的头部（供检查用，`tools/nxcheck.cpp`）：`jp start`，`line_
 `random_read` 返回 `rnd_state` 的第 16–9 位，即游戏逻辑读取时的计数器（NTSC 扫描线 192 周期 13，PAL 191 周期 24）。`random_step`（每次 VBI）把它推进一帧：262·114 或 312·114 步，GF(2) 上的线性映射，表示为 17 列各 3 字节（`src/random.inc`、`tools/mkrandom`），每次处理 4 位：`rnd_tables`（`tv_setup` 末尾）把第 0–15 位每个半字节每个值的列 XOR 到 `rnd_tab`（256 字节，页 1），并保存第 16 位的列（`rnd_col16`）；`random_step` 是 4 次查表和 XOR，约 560 周期（逐位时约 2 300）。C++ 移植则把计数器保存为它在 131 071 状态循环中的位置（跳转是加法），用约 1 MB 的表；在 Next 上那将是 128 KB（只取读到的字节）和启动时约 0.3 秒的构建，换来再省约 450 周期：不值得。启动：`rnd_init` 与 R 混合（发布版）或 `pokeyFirstRead(seed)`（检查）。测试构建可以改从检查中获取 RANDOM（`rnd_feed`）。
 
 ## 声音（src/sound.asm、src/sound_pulses.asm）
-纯音在 AY 上（由页 7 中的 `src/sound_ay.asm` 设置；每帧运行的部分 `ay_frame`、`ay_out`、`ay_quiet` 在 `src/sound_ay_run.asm`，页 6：见下文的噼啪声）：播放纯音的通道（AUDC 第 7-5 位为 101 或 111，第 4 位清零，音量 ≠ 0：出发的哔声、低油量、加油、油箱满、射击、额外生命、坦克炮弹的呼啸声）走自己的 AY 通道（POKEY 1 到第二个 AY 的 A，2 到第三个的 A，3 到第一个的 B，4 到第一个的 C），DAC 循环跳过它（`ay_mask`）。周期 N = (AUDF + 1) × 3.454 PAL / 3.422 NTSC（1.75 MHz / 16 对 Atari 时钟 / 28；`mul d,e`），音量通过 `ay_vol`（Next 的 YM 表中与混音器里 DAC 的 32 v 最接近的值；从 v = 8 起，即纯音的常用音量，为表的顶端 255）。AY 收到的是 2 帧之前的寄存器：`ay_q` 轮流保存三个芯片的寄存器 0–10 共 3 帧（`ay_qi`），每帧全部写入。TurboSound 打开（NR $08 第 1 位），三个 AY 单声道（NR $09 第 7-5 位）。nxcheck 检查纯音寄存器与 C++ 移植 2 帧之前在各自通道中的值。当四个通道都在 AY 上时，DAC 环被静音一次，`pokey_frame` 在 `ay_frame` 之后停止（`snd_idle`）。
+纯音在 AY 上（由页 7 中的 `src/sound_ay.asm` 设置；每帧运行的部分 `ay_frame`、`ay_out`、`ay_quiet` 在 `src/sound_ay_run.asm`，页 13：见下文的噼啪声）：播放纯音的通道（AUDC 第 7-5 位为 101 或 111，第 4 位清零，音量 ≠ 0：出发的哔声、低油量、加油、油箱满、射击、额外生命、坦克炮弹的呼啸声）走自己的 AY 通道（POKEY 1 到第二个 AY 的 A，2 到第三个的 A，3 到第一个的 B，4 到第一个的 C），DAC 循环跳过它（`ay_mask`）。周期 N = (AUDF + 1) × 3.454 PAL / 3.422 NTSC（1.75 MHz / 16 对 Atari 时钟 / 28；`mul d,e`），音量通过 `ay_vol`（Next 的 YM 表中与混音器里 DAC 的 32 v 最接近的值；从 v = 8 起，即纯音的常用音量，为表的顶端 255）。AY 收到的是 2 帧之前的寄存器：`ay_q` 轮流保存三个芯片的寄存器 0–10 共 3 帧（`ay_qi`），每帧全部写入。TurboSound 打开（NR $08 第 1 位），三个 AY 单声道（NR $09 第 7-5 位）。nxcheck 检查纯音寄存器与 C++ 移植 2 帧之前在各自通道中的值。当四个通道都在 AY 上时，DAC 环被静音一次，`pokey_frame` 在 `ay_frame` 之后停止（`snd_idle`）。
 
 试过把全部声音放到 AY 上（噪声用 AY 的噪声发生器，导弹作为噪声，关闭混音器的纯音量）：每帧约 7 000 周期而不是约 37 000，但 AY 的噪声周期不能超过 31（每 2N 个 AY 周期一个新的随机位：最多相当于 POKEY 的 AUDF 17），所以引擎无论速度如何都停在一个音高，爆炸声发嘶；放弃。
 

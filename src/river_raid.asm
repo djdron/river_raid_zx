@@ -74,6 +74,7 @@ TILE_256	equ $4000		; page 11 at $4000: the scrolling line's tile 256
 TILE_MAP	equ $4100		; and the map, 40 x 32 entries of 2 bytes
 NEEDLE_OFFSET	equ 4			; sprite palette offsets
 LOGO_OFFSET	equ 5
+SOUND_PAGE	equ 13			; at $4000 while pokey_frame runs: its code (sound_frame.asm)
 SPAN_PAGE	equ 28			; at $4000 (display, push_line): the river lines' runs of bank
 SPANS		equ $4000		; and edge pixels, 32 bytes a line, a ring of 256 (spans.asm)
 
@@ -246,7 +247,9 @@ main_frame:
 	TM_COLOUR TM_VBI
 	call vbi
 .sound	TM_COLOUR TM_SOUND
+	nextreg $52,SOUND_PAGE		; (the sound's code at $4000 meanwhile: sound_frame.asm)
 	call pokey_frame
+	nextreg $52,SPAN_PAGE
 	TM_COLOUR TM_IDLE		; T: the work done (the border, from apply on, shows its
 frame_done:				; parts in their colours: TM_*)
 	call wait_frame
@@ -497,7 +500,6 @@ random_columns:
 	include "random.inc"
 	include "play.asm"
 	include "sound.asm"
-	include "sound_handlers.asm"
 	include "display_objs.asm"
 
 	display "page 4 end: ",$
@@ -508,8 +510,6 @@ random_columns:
 	include "game.asm"
 	include "display.asm"
 	include "sprites.asm"
-	include "sound_pulses.asm"
-	include "sound_ay_run.asm"
 	include "spans.asm"
 	include "display_hits.asm"
 	include "panel.asm"
@@ -535,6 +535,16 @@ P12_SIZE	equ $ - p12_code
 	assert $ <= $8000
 
 ; ------------------------------------------------------------------------------------------
+; The sound's code (page 13, at $4000 while pokey_frame runs)
+	mmu 2,SOUND_PAGE
+	org $4000
+	include "sound_frame.asm"
+	include "sound_handlers.asm"
+	include "sound_pulses.asm"
+	include "sound_ay_run.asm"
+	display "page 13 end: ",$
+	assert $ <= $6000
+
 ; Buffers (page 12)
 	mmu 3,12
 	org $6000
@@ -881,10 +891,12 @@ g4_tab:		ds 2 * 465		; copy at most (from $FD00 on: 465 back)
 	savebin "build/test_page6.bin",$C000,$2000
 	mmu 3,INIT_PAGE
 	savebin "build/test_page7.bin",$6000,$2000
+	mmu 2,SOUND_PAGE
+	savebin "build/test_page13.bin",$4000,$2000
 	else
 	savenex open "build/river_raid.nex",entry,0
 	savenex core 3,0,0
 	savenex cfg 0
-	savenex bank 2,3,7
+	savenex bank 2,3,6,7
 	savenex close
 	endif

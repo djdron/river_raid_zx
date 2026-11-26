@@ -86,7 +86,7 @@ läuft.)
 | Slot | Adresse | normalerweise | umgemappt von |
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31: das RAM des Atari an den Adressen des Originals | `pokey_frame`: 14–15, POKEYs 17-Bit-Zähler (`poly17.bin`), während es Samples macht |
-| 2 | $4000–$5FFF | wechselnd: keine feste Seite | `render_line`: 18–27 (Layer 2, eine Seite pro 32 Spalten); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, die Läufe der Zeilen); `panel_frame`: 11 (die Karte der Tilemap); `panel_init`: 10, 11 |
+| 2 | $4000–$5FFF | wechselnd: keine feste Seite | `render_line`: 18–27 (Layer 2, eine Seite pro 32 Spalten); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, die Läufe der Zeilen); `panel_frame`: 11 (die Karte der Tilemap); `panel_init`: 10, 11; `pokey_frame` und was es ruft: 13 (`SOUND_PAGE`, der Code des Tons; auch `sound_init`, für `ay_quiet`) |
 | 3 | $6000–$7FFF | 12: Puffer (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (die Punkte eines Bytes verbreitert, `dh_obj`), die Lücken der Kante `eg_*` (`ds_edge_test`), der Ring des DAC bei $7C00); `dh_pf` bei $7A00 (`P12_CODE`, beim Start aus Page 7 kopiert: in Page 6 kein Platz) | nur beim Start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Nie, während der Ton spielt**: Der DMA liest den Ring durch diesen Slot |
 | 4 | $8000–$9FFF | 4: Code | — |
 | 5 | $A000–$BFFF | 5: die Cartridge, aus River_Raid.rom gelesen | — |
@@ -355,7 +355,7 @@ Vorteiler 55 (15 909 Hz) an Port $DF gesendet, an seinem Ende neu startend. Pege
 | `pk_on`, `pk_off`, `pk_part*` | die Schleifen | Der Wechsel eines Tons oder des Rests bei einem Impuls: Das Sample bekommt den Wechsel abzüglich des Teils vor dem Wechsel, das nächste Sample diesen Teil (kein Brummen durch ganze Samples; Rauschen und Rakete wechseln stattdessen am Anfang des Samples). | |
 | `pk_done` | die Schleifen | Der Rest der Ticks des Frames in `CH_D`, `CH_F`, der Ausgang behalten. | |
 
-## sound_ay.asm (Seite 7), sound_ay_run.asm (Seite 6): die reinen Töne auf dem AY
+## sound_ay.asm (Seite 7), sound_ay_run.asm (Seite 13): die reinen Töne auf dem AY
 
 | Routine | aufgerufen | was und wie | A / B |
 |---|---|---|---|
@@ -365,7 +365,7 @@ Vorteiler 55 (15 909 Hz) an Port $DF gesendet, an seinem Ende neu startend. Pege
 | `ay_out` | `ay_frame`, `ay_init`, `ay_quiet` | Die Register 0–10 der drei AYs ab HL (der erste bleibt ausgewählt, B = $FF). | 3 400 / 3 400 |
 | `ay_quiet` | `pokey_frame` (Ton aus), `ay_init` | Alles still (Lautstärken 0, Mixer $3F). | |
 
-`sound_ay_run.asm` liegt in Seite 6, nicht 7, damit `pokey_frame` nie Seite 7 über den Ring
+`sound_ay_run.asm` liegt in Seite 13 ($4000), nicht 7, damit `pokey_frame` nie Seite 7 über den Ring
 mappt (siehe NOTES: das Knistern).
 
 ## panel_init.asm (Seite 7, beim Start)

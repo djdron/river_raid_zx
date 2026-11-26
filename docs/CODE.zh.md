@@ -78,7 +78,7 @@ B 中最重的一帧（约 193 000）：声音最高约 60 000（DAC 上的噪�
 | 槽 | 地址 | 平时 | 被谁换页 |
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31：位于原版地址的 Atari 内存 | `pokey_frame`：生成采样时换成 14–15，即 POKEY 的 17 位计数器（`poly17.bin`） |
-| 2 | $4000–$5FFF | 不固定：没有固定的页 | `render_line`：18–27（Layer 2，每 32 列一页）；`display`、`span_line`、`spans_clear`：28（`SPAN_PAGE`，各行的色段）；`panel_frame`：11（tilemap 的映射）；`panel_init`：10、11 |
+| 2 | $4000–$5FFF | 不固定：没有固定的页 | `render_line`：18–27（Layer 2，每 32 列一页）；`display`、`span_line`、`spans_clear`：28（`SPAN_PAGE`，各行的色段）；`panel_frame`：11（tilemap 的映射）；`panel_init`：10、11；`pokey_frame` 及其调用的代码：13（`SOUND_PAGE`，声音的代码；`sound_init` 也用，为了 `ay_quiet`） |
 | 3 | $6000–$7FFF | 12：缓冲区（`copper_list`、`ds_objs`、`sprite_list`、`ov_exp2`/`ov_exp4`（展宽后的单字节点，`dh_obj` 用）、河岸缝隙 `eg_*`（`ds_edge_test` 用）、$7C00 处的 DAC 环形缓冲）；`dh_pf` 在 $7A00（`P12_CODE`，启动时从第 7 页复制过来：第 6 页没有空间） | 仅在启动时：7（`panel_init`、`sound_init7`、`load_rom`）。**发声时绝不能换**：DMA 通过这个槽读取环形缓冲 |
 | 4 | $8000–$9FFF | 4：代码 | — |
 | 5 | $A000–$BFFF | 5：卡带，从 River_Raid.rom 读入 | — |
@@ -332,7 +332,7 @@ Copper 负责。
 | `pk_on`、`pk_off`、`pk_part*` | 各循环 | 音调或其余类型在脉冲处的翻转：本采样得到变化量减去翻转前的部分，下一个采样得到那一部分（避免整采样带来的嗡声；噪声和导弹则在采样开始处翻转）。 | |
 | `pk_done` | 各循环 | 本帧剩余 tick 存入 `CH_D`、`CH_F`，保存输出状态。 | |
 
-## sound_ay.asm（第 7 页）、sound_ay_run.asm（第 6 页）：AY 上的纯音
+## sound_ay.asm（第 7 页）、sound_ay_run.asm（第 13 页）：AY 上的纯音
 
 | 例程 | 调用 | 做什么、怎么做 | A / B |
 |---|---|---|---|
@@ -342,7 +342,7 @@ Copper 负责。
 | `ay_out` | `ay_frame`、`ay_init`、`ay_quiet` | 从 HL 写三片 AY 的寄存器 0–10（最后选中第一片，B = $FF）。 | 3 400 / 3 400 |
 | `ay_quiet` | `pokey_frame`（声音关闭）、`ay_init` | 全部静音（音量 0，混音器 $3F）。 | |
 
-`sound_ay_run.asm` 在第 6 页而不是第 7 页，这样 `pokey_frame` 就永远不会把第 7 页映射到环形缓冲上（见
+`sound_ay_run.asm` 在第 13 页（$4000）而不是第 7 页，这样 `pokey_frame` 就永远不会把第 7 页映射到环形缓冲上（见
 NOTES：咔嗒声）。
 
 ## panel_init.asm（第 7 页，启动时）

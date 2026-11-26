@@ -84,7 +84,7 @@ stand for `panel_init` in page 7 at the same addresses, which runs once at the s
 | slot | address | normally | remapped by |
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31: the Atari's RAM at the original's addresses | `pokey_frame`: 14–15, POKEY's 17-bit counter (`poly17.bin`), while it makes samples |
-| 2 | $4000–$5FFF | varies: there is no fixed page | `render_line`: 18–27 (Layer 2, one page per 32 columns); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, the lines' runs); `panel_frame`: 11 (the tilemap's map); `panel_init`: 10, 11 |
+| 2 | $4000–$5FFF | varies: there is no fixed page | `render_line`: 18–27 (Layer 2, one page per 32 columns); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, the lines' runs); `panel_frame`: 11 (the tilemap's map); `panel_init`: 10, 11; `pokey_frame` and what it calls: 13 (`SOUND_PAGE`, the sound's code; `sound_init` too, for `ay_quiet`) |
 | 3 | $6000–$7FFF | 12: buffers (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (a byte's dots widened, `dh_obj`), the edge's gaps `eg_*` (`ds_edge_test`), the DAC's ring at $7C00); `dh_pf` at $7A00 (`P12_CODE`, copied from page 7 at the start: no room in page 6) | only at the start: 7 (`panel_init`, `sound_init7`, `load_rom`). **Never while the sound plays**: the DMA reads the ring through this slot |
 | 4 | $8000–$9FFF | 4: code | — |
 | 5 | $A000–$BFFF | 5: the cartridge, read from River_Raid.rom | — |
@@ -349,7 +349,7 @@ burst mode with prescaler 55 (15 909 Hz), restarting at its end. Levels 0–240.
 | `pk_on`, `pk_off`, `pk_part*` | the loops | A tone's or the rest's turn at a pulse: the sample gets the change less the part before the turn, the next sample that part (no buzz from whole samples; the noise and the missile turn at the sample's start instead). | |
 | `pk_done` | the loops | The rest of the frame's ticks into `CH_D`, `CH_F`, the output kept. | |
 
-## sound_ay.asm (page 7), sound_ay_run.asm (page 6): the pure tones on the AY
+## sound_ay.asm (page 7), sound_ay_run.asm (page 13): the pure tones on the AY
 
 | routine | called | what and how | A / B |
 |---|---|---|---|
@@ -359,7 +359,7 @@ burst mode with prescaler 55 (15 909 Hz), restarting at its end. Levels 0–240.
 | `ay_out` | `ay_frame`, `ay_init`, `ay_quiet` | The three AYs' registers 0–10 from HL (the first left selected, B = $FF). | 3 400 / 3 400 |
 | `ay_quiet` | `pokey_frame` (sound off), `ay_init` | All quiet (volumes 0, mixers $3F). | |
 
-`sound_ay_run.asm` is in page 6, not 7, so that `pokey_frame` never maps page 7 over the
+`sound_ay_run.asm` is in page 13 ($4000), not 7, so that `pokey_frame` never maps page 7 over the
 ring (see NOTES: the crackle).
 
 ## panel_init.asm (page 7, at the start)

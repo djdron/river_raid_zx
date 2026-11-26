@@ -79,7 +79,7 @@ make profile   # 一帧的时间花在哪里（FRAMES 之后的那一帧）
 2. `src/display_simple.asm`、`src/display_hits.asm`：DLI 的工作，但不用 DLI（C++ 移植 `dli_removed` 分支中的 `Game::displayGeometry`）。每个物体位于其位置（slot）的高度，被裁剪到河流范围内；它的行进入 `ds_objs`。游戏读取的碰撞是简单的几何：先比较矩形框（与每一行的水域空隙比较、彼此比较），再比较点，无论在哪里接触。原版按窗口、逐个物体读取：0.01–0.25% 的帧会判定不同，即早一帧的接触。
 3. `src/sprites.asm`：Atari 显示的内容变成 Next 的硬件。每个物体（player 3，颜色每行都变）是一个现成的精灵，各行带着各自的颜色，放在物体的位置。其他 player 和 missile 也各是一个精灵，放在游戏给出的位置。它们所有的图像都是启动时根据 ROM 中的形状一次性生成的 4 位图案（`src/obj_pics.asm`），所以每帧只需选一个图案并写入精灵属性（Atari 的一个像素是精灵的两个像素；两倍和四倍宽度用精灵的缩放实现）。桥附近河岸颜色会变化：每条新行的河岸点用其颜色在 Layer 2 调色板中的项绘制。
 4. `src/play.asm`，`main_loop`：主循环（`Game::mainLoop`）：操作（键盘和摇杆，按 Atari 的方式读取）、暂停、每 16 帧由 POKEY 的 RANDOM 唤醒一个敌人、坦克、物体、飞机（燃料、转向、速度、子弹、撞到了什么）、导弹、炮弹、START 和 SELECT、新游戏、坠毁和新飞机，以及按速度生成并写入 Layer 2 的河流行（`src/river_gen.asm`，逐行对应 `river_gen.cpp`）。原版在坠毁或 START 后清理内存（13 帧）期间，只运行显示和 VBI，Layer 2 每帧清理两页，从复位的第二帧开始，清理期间被隐藏（它的裁剪窗口只保留面板的行）：河流立刻变黑，与 C++ 移植一样，没有横扫屏幕的条带。
-5. `src/game.asm`，`vbi`：声音驱动（`src/sound.asm`：POKEY 的寄存器）、帧计数器、下一帧的颜色（桥被击中时水面闪红）、POKEY 计数器前进一帧（一个矩阵，`src/random.inc`）。然后 `pokey_frame`（`src/sound.asm`）为 DMA 生成这一帧 POKEY 输出的采样。
+5. `src/game.asm`，`vbi`：声音驱动（`src/sound.asm`：POKEY 的寄存器）、帧计数器、下一帧的颜色（桥被击中时水面闪红）、POKEY 计数器前进一帧（一个矩阵，`src/random.inc`）。然后 `pokey_frame`（`src/sound_frame.asm`）为 DMA 生成这一帧 POKEY 输出的采样。
 6. 在滚动字幕下方（光栅行 208）新画面生效：Layer 2 的卷动和颜色、精灵属性、面板和滚动字幕、Copper 的列表。
 
 面板和滚动字幕使用 tilemap（40 x 32，8x8 图块，每像素 4 位）：Atari 的每个字符（8x8，每像素一个色钟）是两个图块，在启动时由游戏开机时构建的字符集生成（OS 字体的字母和数字、卡带自己的符号）；只写入发生变化的字符。Copper 把 tilemap 移到每一行字符；滚动字幕是它那一行地图中的一个环，用 X 卷动横向移动，两侧边缘都能看到的那半个字符在右侧被 tilemap 的裁剪窗口切掉，并由一个精灵在那里显示。面板的灰色来自 Layer 2（Copper 在面板的行上把它的颜色变成灰色），所以燃料指针（一个精灵）在它上面、在字符下面，与 Atari 上一样。标志由五个精灵组成。

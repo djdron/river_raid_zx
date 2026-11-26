@@ -80,7 +80,7 @@ B で最も重いフレーム（約 193 000）：音が最大約 60 000（DAC �
 | スロット | アドレス | 通常 | 切り替える者 |
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31：元のアドレスに置いた Atari の RAM | `pokey_frame`：サンプル生成中は 14–15、POKEY の 17 ビットカウンタ（`poly17.bin`） |
-| 2 | $4000–$5FFF | 不定：固定ページなし | `render_line`：18–27（Layer 2、32 列ごとに 1 ページ）；`display`、`span_line`、`spans_clear`：28（`SPAN_PAGE`、各行のラン）；`panel_frame`：11（tilemap のマップ）；`panel_init`：10、11 |
+| 2 | $4000–$5FFF | 不定：固定ページなし | `render_line`：18–27（Layer 2、32 列ごとに 1 ページ）；`display`、`span_line`、`spans_clear`：28（`SPAN_PAGE`、各行のラン）；`panel_frame`：11（tilemap のマップ）；`panel_init`：10、11。`pokey_frame` とその呼び出し先：13（`SOUND_PAGE`、音のコード。`ay_quiet` のため `sound_init` も） |
 | 3 | $6000–$7FFF | 12：バッファ（`copper_list`、`ds_objs`、`sprite_list`、`ov_exp2`/`ov_exp4`（1 バイトの点を広げたもの、`dh_obj` 用）、岸の隙間 `eg_*`（`ds_edge_test` 用）、$7C00 の DAC リング）。`dh_pf` は $7A00（`P12_CODE`、起動時にページ 7 からコピー：ページ 6 に空きがない） | 起動時のみ：7（`panel_init`、`sound_init7`、`load_rom`）。**音が鳴っている間は絶対に切り替えない**：DMA がこのスロットを通してリングを読む |
 | 4 | $8000–$9FFF | 4：コード | — |
 | 5 | $A000–$BFFF | 5：River_Raid.rom から読んだカートリッジ | — |
@@ -335,7 +335,7 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 | `pk_on`、`pk_off`、`pk_part*` | 各ループ | 音程やその他のパルスでの反転：そのサンプルには反転前の部分を引いた変化量、次のサンプルにはその部分（サンプル単位の反転によるうなりを避ける。ノイズとミサイルはサンプルの始まりで反転）。 | |
 | `pk_done` | 各ループ | フレームの残り tick を `CH_D`、`CH_F` へ、出力を保存。 | |
 
-## sound_ay.asm（ページ 7）、sound_ay_run.asm（ページ 6）：AY での純音
+## sound_ay.asm（ページ 7）、sound_ay_run.asm（ページ 13）：AY での純音
 
 | ルーチン | 呼び出し | 何をどうする | A / B |
 |---|---|---|---|
@@ -345,7 +345,7 @@ C++ 版の `displayGeometry`（`dli_removed` ブランチ）と同じく DLI は
 | `ay_out` | `ay_frame`、`ay_init`、`ay_quiet` | HL から 3 つの AY のレジスタ 0–10（最後に 1 つ目を選択、B = $FF）。 | 3 400 / 3 400 |
 | `ay_quiet` | `pokey_frame`（音オフ）、`ay_init` | すべて無音（音量 0、ミキサー $3F）。 | |
 
-`sound_ay_run.asm` がページ 7 ではなく 6 にあるのは、`pokey_frame` がページ 7 をリングの上にマップしないためです
+`sound_ay_run.asm` がページ 7 ではなく 13（$4000）にあるのは、`pokey_frame` がページ 7 をリングの上にマップしないためです
 （NOTES のクリック音を参照）。
 
 ## panel_init.asm（ページ 7、起動時）

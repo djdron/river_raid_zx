@@ -168,7 +168,7 @@ Each frame (`src/river_raid.asm`):
    black at once, as in the C++ port, with no wipe across it.
 5. `src/game.asm`, `vbi`: the sound driver (`src/sound.asm`: POKEY's registers), the frame counter, the colours
    of the next frame (the water flashes red when a bridge is hit), POKEY's counter one frame
-   on (a matrix, `src/random.inc`). Then `pokey_frame` (`src/sound.asm`) makes the frame's
+   on (a matrix, `src/random.inc`). Then `pokey_frame` (`src/sound_frame.asm`) makes the frame's
    samples of POKEY's output for the DMA.
 6. Below the scrolling line (raster line 208) the new picture goes live: Layer 2's scroll and
    colours, the sprites' attributes,

@@ -46,7 +46,7 @@ Port na TS-Conf (ZX Evolution / Pentevo), osobny projekt z własnym budowaniem w
 | `src/river_raid.asm` | program: mapa pamięci, start i restart (PAL/NTSC), pętla klatki, tablice, strony danych; buduje .nex albo strony testowe |
 | `src/river_gen.asm` | generator rzeki (`river_gen.cpp` linia po linii) |
 | `src/game.asm` | start trybu attract, `prepare`, ruch obiektów, VBI (kolory, przewijany napis, licznik POKEY) |
-| `src/sound.asm`, `src/sound_pulses.asm`, `src/sound_ay.asm`, `src/sound_ay_run.asm` | sterownik dźwięku (rejestry POKEY), czyste tony na AY, POKEY emulowany do pierścienia DMA, ustawienie DMA i DAC (impulsy kanałów i kod AY na każdą klatkę w stronie 6: DMA czyta pierścień pod $7C00 przez MMU, więc gdy gra dźwięk, nic nie może wstawić innej strony pod $6000-$7FFF) |
+| `src/sound.asm`, `src/sound_frame.asm`, `src/sound_pulses.asm`, `src/sound_ay.asm`, `src/sound_ay_run.asm` | sterownik dźwięku (rejestry POKEY), czyste tony na AY, POKEY emulowany do pierścienia DMA, ustawienie DMA i DAC (impulsy kanałów i kod AY na każdą klatkę w stronie 6: DMA czyta pierścień pod $7C00 przez MMU, więc gdy gra dźwięk, nic nie może wstawić innej strony pod $6000-$7FFF) |
 | `src/play.asm` | główna pętla: sterowanie, pauza, samolot, wybuchy, katastrofy, resety, nowe gry |
 | `src/panel.asm` | znaki panelu (strona 6): `panel_put` pisze znak tylko, gdy się zmienił, i zapisuje go na listę dla `panel_frame`; `print_bcd`, `show_lives` nie drukują tego, co już jest (`pb_cache`, `sl_last`) |
 | `src/display_simple.asm` | wyświetlanie: każdy obiekt na y swojego slotu (IY na jego polach tam, gdzie trzyma je gra; jego wiersze do `ds_objs`), kolizje obiektu (`dh_obj`), jego krawędź (`ds_edge_test`) |

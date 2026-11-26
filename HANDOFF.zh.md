@@ -46,7 +46,7 @@ DLI 已经完全没有了，它的时钟周期和它的循环都没有了：每�
 | `src/river_raid.asm` | 程序：内存映射、启动和重新启动（PAL/NTSC）、帧循环、表、数据页；构建 .nex 或测试页 |
 | `src/river_gen.asm` | 河流生成器（逐行对应 `river_gen.cpp`） |
 | `src/game.asm` | 演示模式的开始、`prepare`、物体的移动、VBI（颜色、滚动字幕、POKEY 计数器） |
-| `src/sound.asm`、`src/sound_pulses.asm`、`src/sound_ay.asm`、`src/sound_ay_run.asm` | 声音驱动（POKEY 寄存器）、AY 上的纯音、把 POKEY 仿真到 DMA 的环、DMA 和 DAC 的设置（声道的脉冲和 AY 的每帧代码在第 6 页：DMA 通过 MMU 读取 $7C00 处的环，所以声音播放时不能在 $6000-$7FFF 映射别的页） |
+| `src/sound.asm`、`src/sound_frame.asm`、`src/sound_pulses.asm`、`src/sound_ay.asm`、`src/sound_ay_run.asm` | 声音驱动（POKEY 寄存器）、AY 上的纯音、把 POKEY 仿真到 DMA 的环、DMA 和 DAC 的设置（声道的脉冲和 AY 的每帧代码在第 6 页：DMA 通过 MMU 读取 $7C00 处的环，所以声音播放时不能在 $6000-$7FFF 映射别的页） |
 | `src/play.asm` | 主循环：操作、暂停、飞机、爆炸、坠毁、复位、新游戏 |
 | `src/panel.asm` | 面板字符（第 6 页）：`panel_put` 只在字符变化时写入，并把它记入 `panel_frame` 的列表；`print_bcd`、`show_lives` 不打印已有的内容（`pb_cache`、`sl_last`） |
 | `src/display_simple.asm` | display：每个物体在其槽位的 y 上（IY 指向游戏保存它各字段的地方；它的行进入 `ds_objs`），物体的碰撞（`dh_obj`），它的边缘（`ds_edge_test`） |

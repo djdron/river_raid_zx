@@ -83,7 +83,7 @@ Sloty 8K ($0000, $2000, … $E000) i strony w nich:
 | slot | adres | zwykle | kto przemapowuje |
 |---|---|---|---|
 | 0–1 | $0000–$3FFF | 30–31: RAM Atari pod adresami oryginału | `pokey_frame`: 14–15, 17-bitowy licznik POKEY (`poly17.bin`), gdy robi próbki |
-| 2 | $4000–$5FFF | różnie: brak stałej strony | `render_line`: 18–27 (Layer 2, strona na 32 kolumny); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, odcinki linii); `panel_frame`: 11 (mapa tilemapy); `panel_init`: 10, 11 |
+| 2 | $4000–$5FFF | różnie: brak stałej strony | `render_line`: 18–27 (Layer 2, strona na 32 kolumny); `display`, `span_line`, `spans_clear`: 28 (`SPAN_PAGE`, odcinki linii); `panel_frame`: 11 (mapa tilemapy); `panel_init`: 10, 11; `pokey_frame` i to, co wywołuje: 13 (`SOUND_PAGE`, kod dźwięku; także `sound_init`, dla `ay_quiet`) |
 | 3 | $6000–$7FFF | 12: bufory (`copper_list`, `ds_objs`, `sprite_list`, `ov_exp2`/`ov_exp4` (punkty bajtu poszerzone, `dh_obj`), przerwy krawędzi `eg_*` (`ds_edge_test`), pierścień DAC pod $7C00); `dh_pf` pod $7A00 (`P12_CODE`, kopiowany ze strony 7 przy starcie: w stronie 6 brak miejsca) | tylko przy starcie: 7 (`panel_init`, `sound_init7`, `load_rom`). **Nigdy, gdy gra dźwięk**: DMA czyta pierścień przez ten slot |
 | 4 | $8000–$9FFF | 4: kod | — |
 | 5 | $A000–$BFFF | 5: kartridż, wczytany z River_Raid.rom | — |
@@ -350,7 +350,7 @@ zxnDMA w trybie burst z dzielnikiem 55 (15 909 Hz), restartowane na końcu. Pozi
 | `pk_on`, `pk_off`, `pk_part*` | pętle | Przełączenie tonu lub reszty przy impulsie: próbka dostaje zmianę pomniejszoną o część przed przełączeniem, następna próbka tę część (bez buczenia od całych próbek; szum i rakieta przełączają się zamiast tego na początku próbki). | |
 | `pk_done` | pętle | Reszta tyknięć klatki do `CH_D`, `CH_F`, wyjście zachowane. | |
 
-## sound_ay.asm (strona 7), sound_ay_run.asm (strona 6): czyste tony na AY
+## sound_ay.asm (strona 7), sound_ay_run.asm (strona 13): czyste tony na AY
 
 | procedura | wywołanie | co i jak | A / B |
 |---|---|---|---|
@@ -360,7 +360,7 @@ zxnDMA w trybie burst z dzielnikiem 55 (15 909 Hz), restartowane na końcu. Pozi
 | `ay_out` | `ay_frame`, `ay_init`, `ay_quiet` | Rejestry 0–10 trzech AY z HL (pierwszy zostaje wybrany, B = $FF). | 3 400 / 3 400 |
 | `ay_quiet` | `pokey_frame` (dźwięk wyłączony), `ay_init` | Wszystko wyciszone (głośności 0, miksery $3F). | |
 
-`sound_ay_run.asm` jest w stronie 6, nie 7, żeby `pokey_frame` nigdy nie mapował strony 7 na
+`sound_ay_run.asm` jest w stronie 13 ($4000), nie 7, żeby `pokey_frame` nigdy nie mapował strony 7 na
 pierścień (zob. NOTES: trzaski).
 
 ## panel_init.asm (strona 7, przy starcie)

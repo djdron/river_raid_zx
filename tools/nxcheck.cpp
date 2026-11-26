@@ -43,7 +43,7 @@ namespace {
 
 // The program's memory (src/river_raid.asm)
 constexpr int kAtariRamPage = 30;
-constexpr int kCodePages[3] = {4, 6, 7};
+constexpr int kCodePages[4] = {4, 6, 7, 13};
 constexpr int kRomPage = 5;
 constexpr uint16_t kScan = 0x6000; // scan_p3, scan_x, scan_size, scan_col, scan_bank: 256 each, by scanline
 constexpr int kWindowFirst = 20;   // first colour clock shown
@@ -290,10 +290,10 @@ int main(int argc, char **argv) {
 		else if (!std::strcmp(argv[i], "-wavcpp") && i + 1 < argc) wavCppPath = argv[++i];
 		else ppm = argv[i];
 	}
-	std::vector<uint8_t> romData, code[3];
+	std::vector<uint8_t> romData, code[4];
 	rr::Rom rom;
 	if (!rom.load(argv[1]) || !readFile(argv[1], romData)) { std::fprintf(stderr, "cannot read %s\n", argv[1]); return 2; }
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		const std::string path = std::string(argv[2]) + "/test_page" + std::to_string(kCodePages[i]) + ".bin";
 		if (!readFile(path, code[i]) || code[i].size() != 0x2000) { std::fprintf(stderr, "cannot read %s\n", path.c_str()); return 2; }
 	}
@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
 	sram[0] = 0xC3;   // jp $8000
 	sram[1] = 0x00;
 	sram[2] = 0x80;
-	for (int i = 0; i < 3; i++) std::memcpy(sram + sramOffset(kCodePages[i]), code[i].data(), 0x2000);
+	for (int i = 0; i < 4; i++) std::memcpy(sram + sramOffset(kCodePages[i]), code[i].data(), 0x2000);
 	std::memcpy(sram + sramOffset(kRomPage), romData.data(), 0x2000);
 	std::memcpy(sram + sramOffset(14), poly.data(), 0x4000);
 
@@ -422,9 +422,13 @@ int main(int argc, char **argv) {
 				if (comp->cpu->regPC == hook) return;
 			}
 		}
-		for (;;) {
+		for (long n = 0;; n++) {
 			compExec(comp);
 			if (comp->cpu->regPC == hook) return;
+			if (n == 50000000) {   // (a frame is ~200 000 instructions: lost)
+				std::printf("the program never got to $%04X (PC %04X)\n", hook, comp->cpu->regPC);
+				std::exit(2);
+			}
 		}
 	};
 	static uint8_t ram[0x4000], ref[0x4000];

@@ -176,7 +176,7 @@ Cada fotograma (`src/river_raid.asm`):
 5. `src/game.asm`, `vbi`: el controlador de sonido (`src/sound.asm`: los registros del POKEY),
    el contador de fotogramas, los colores del fotograma siguiente (el agua parpadea en rojo
    cuando se alcanza un puente), el contador del POKEY un fotograma adelante (una matriz,
-   `src/random.inc`). Después `pokey_frame` (`src/sound.asm`) genera las muestras de la salida
+   `src/random.inc`). Después `pokey_frame` (`src/sound_frame.asm`) genera las muestras de la salida
    del POKEY para el DMA.
 6. Bajo el texto desplazable (línea de raster 208) la nueva imagen se activa: el
    desplazamiento y los colores del Layer 2, los atributos de los sprites, el panel y el texto

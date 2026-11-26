@@ -46,7 +46,7 @@ TS-Conf（ZX Evolution / Pentevo）への移植。`tsconf/` にある独自の�
 | `src/river_raid.asm` | プログラム：メモリーマップ、起動と再起動（PAL/NTSC）、フレームのループ、テーブル、データページ。.nex またはテストページをビルド |
 | `src/river_gen.asm` | 川のジェネレーター（`river_gen.cpp` を 1 行ずつ） |
 | `src/game.asm` | アトラクトモードの開始、`prepare`、物体の移動、VBI（色、スクロール文字、POKEY のカウンター） |
-| `src/sound.asm`、`src/sound_pulses.asm`、`src/sound_ay.asm`、`src/sound_ay_run.asm` | サウンドドライバー（POKEY のレジスター）、AY の純音、DMA のリングへの POKEY エミュレーション、DMA と DAC の設定（チャンネルのパルスと AY の毎フレームのコードはページ 6：DMA は MMU を通して $7C00 のリングを読むので、サウンドが鳴っている間は $6000-$7FFF に別のページを置いてはいけない） |
+| `src/sound.asm`、`src/sound_frame.asm`、`src/sound_pulses.asm`、`src/sound_ay.asm`、`src/sound_ay_run.asm` | サウンドドライバー（POKEY のレジスター）、AY の純音、DMA のリングへの POKEY エミュレーション、DMA と DAC の設定（チャンネルのパルスと AY の毎フレームのコードはページ 6：DMA は MMU を通して $7C00 のリングを読むので、サウンドが鳴っている間は $6000-$7FFF に別のページを置いてはいけない） |
 | `src/play.asm` | メインループ：操作、ポーズ、飛行機、爆発、墜落、リセット、新しいゲーム |
 | `src/panel.asm` | パネルの文字（ページ 6）：`panel_put` は変わったときだけ書き、`panel_frame` 用に記録する。`print_bcd`、`show_lives` は既にあるものを書かない（`pb_cache`、`sl_last`） |
 | `src/display_simple.asm` | 表示：各物体をそのスロットの y に（IY はゲームがフィールドを持つ場所を指す。行は `ds_objs` へ）、物体の衝突（`dh_obj`）、縁（`ds_edge_test`） |

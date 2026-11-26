@@ -175,7 +175,7 @@ Jedes Bild (`src/river_raid.asm`):
 5. `src/game.asm`, `vbi`: der Soundtreiber (`src/sound.asm`: die Register des POKEY), der
    Bildzähler, die Farben des nächsten Bildes (das Wasser blinkt rot, wenn eine Brücke
    getroffen wird), der POKEY-Zähler ein Bild weiter (eine Matrix, `src/random.inc`). Dann
-   macht `pokey_frame` (`src/sound.asm`) die Samples der POKEY-Ausgabe für den DMA.
+   macht `pokey_frame` (`src/sound_frame.asm`) die Samples der POKEY-Ausgabe für den DMA.
 6. Unter der Laufschrift (Rasterzeile 208) wird das neue Bild aktiv: Scroll und Farben von
    Layer 2, die Attribute der Sprites, die Anzeige und die Laufschrift, die Liste des Coppers.
 

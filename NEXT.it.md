@@ -178,7 +178,7 @@ Ogni fotogramma (`src/river_raid.asm`):
 5. `src/game.asm`, `vbi`: il driver audio (`src/sound.asm`: i registri del POKEY), il contatore
    dei fotogrammi, i colori del fotogramma successivo (l'acqua lampeggia di rosso quando un
    ponte è colpito), il contatore del POKEY avanti di un fotogramma (una matrice,
-   `src/random.inc`). Poi `pokey_frame` (`src/sound.asm`) produce i campioni dell'uscita del
+   `src/random.inc`). Poi `pokey_frame` (`src/sound_frame.asm`) produce i campioni dell'uscita del
    POKEY per il DMA.
 6. Sotto la scritta scorrevole (riga raster 208) la nuova immagine diventa attiva: lo
    scorrimento e i colori del Layer 2, gli attributi degli sprite, il pannello e la scritta

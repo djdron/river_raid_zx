@@ -160,7 +160,7 @@ Każda klatka (`src/river_raid.asm`):
    od razu, jak w porcie C++, bez pasa przesuwającego się po ekranie.
 5. `src/game.asm`, `vbi`: sterownik dźwięku (`src/sound.asm`: rejestry POKEY), licznik
    klatek, kolory następnej klatki (woda miga na czerwono, gdy trafiono most), licznik POKEY o
-   klatkę dalej (macierz, `src/random.inc`). Potem `pokey_frame` (`src/sound.asm`) robi
+   klatkę dalej (macierz, `src/random.inc`). Potem `pokey_frame` (`src/sound_frame.asm`) robi
    próbki wyjścia POKEY z tej klatki dla DMA.
 6. Pod przewijanym napisem (linia rastra 208) włącza się nowy obraz: przewijanie i kolory
    Layer 2, atrybuty sprite'ów, panel i przewijany napis, lista Coppera.
