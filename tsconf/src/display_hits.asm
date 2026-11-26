@@ -257,6 +257,28 @@ dh_bits:
 	and (ix + 1)
 	ret
 
+; (dh_pf) To `fail` unless the box (D to E) is inside one of line L's two gaps (g1: its
+; end, then the next's start, a page on; g2 the same)
+	macro DH_GAP g1, g2, fail
+	ld h,high g1
+	ld a,d
+	cp (hl)
+	jr c,1F
+	inc h
+	ld a,(hl)
+	cp e
+	jr nc,2F
+1:	ld h,high g2
+	ld a,d
+	cp (hl)
+	jp c,fail
+	inc h
+	ld a,(hl)
+	cp e
+	jp c,fail
+2:
+	endm
+
 ; NZ: sprite IX's rows meet the playfield on a river line (DE: pf_edge, pf_bank, pf_under;
 ; A: which gaps a line's box is looked up in first, bit 0 the edge's (eg_*), bit 1 the bank's
 ; (bg_*): inside the gaps, nothing to look at on the line)
@@ -294,7 +316,7 @@ dh_pf:
 	jr nc,.in
 	neg				; (k lines above the river: skipped)
 	cp c
-	jr nc,.no
+	jp nc,.no
 	ld l,a
 	ld a,c
 	sub l
@@ -309,12 +331,51 @@ dh_pf:
 	inc d
 1:	xor a
 .in	cp RIVER_LINES
-	jr nc,.no
+	jp nc,.no
 	sub RIVER_LINES
 	neg
 	cp c
-	jr nc,.l
+	jr nc,.q
 	ld c,a
+.q	ld a,(.mode + 1)		; first the box against the gaps on all its lines at once:
+	or a				; inside on every one, nothing to look at on any (the dots
+	jp z,.l				; need not be looked for); else line by line, as before
+	push bc
+	push de
+	ld a,b
+	sub RIVER_FIRST
+	ld hl,span_top
+	add a,(hl)
+	ld l,a				; L: the first line's gaps
+	ld b,c				; B: the lines
+	ld a,(.mode + 1)
+	ld c,a
+	ld a,(.x0a + 1)			; D, E: the box
+	ld d,a
+	ld a,(.x1a + 1)
+	ld e,a
+	dec c
+	jr z,.qe
+	dec c
+	jr z,.qb
+.qeb	DH_GAP eg_e1, eg_e3, .qf
+	DH_GAP bg_e1, bg_e3, .qf
+	inc l
+	djnz .qeb
+	jr .qn
+.qe	DH_GAP eg_e1, eg_e3, .qf
+	inc l
+	djnz .qe
+	jr .qn
+.qb	DH_GAP bg_e1, bg_e3, .qf
+	inc l
+	djnz .qb
+.qn	pop de
+	pop bc
+	xor a
+	ret
+.qf	pop de
+	pop bc
 .l	ld a,(de)
 .mask	and 0				; (no dots: nothing)
 	jr nz,.dots
