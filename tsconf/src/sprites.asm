@@ -24,6 +24,9 @@ PLANE_PAL	equ 10			; the plane and its bullet
 SPR_SIZE	equ 6			; an SFILE entry
 
 build_sprites:
+	ld a,(busy)			; a reset's frame: last frame's players' entries kept first,
+	or a				; before the objects' go over them (pl_keep)
+	call nz,pl_save
 	xor a
 	ld (sb_count),a
 	ld hl,spr_list
@@ -99,20 +102,26 @@ build_sprites:
 	call pl_sprite
 1:	jp pl_keep
 
-; The players' entries this frame kept (pl_keep), or put again (pl_again: a reset)
+; The players' entries this frame: how many (pl_kept, from pl_first in spr_list, where they
+; stay until the next frame's are made); copied to pl_attrs only when a reset's frame comes
+; (pl_save, build_sprites), put again from there (pl_again)
+pl_save:
+	ld a,(pl_kept)
+	or a
+	ret z
+	push af
+	ld a,(pl_first)
+	call pl_keep.addr
+	pop af
+	call pl_keep.bytes
+	ld de,pl_attrs
+	ldir
+	ret
 pl_keep:
 	ld a,(sb_count)
 	ld hl,pl_first
 	sub (hl)
 	ld (pl_kept),a
-	ret z
-	call .bytes
-	push bc
-	ld a,(pl_first)
-	call .addr
-	pop bc
-	ld de,pl_attrs
-	ldir
 	ret
 .bytes	ld b,a				; BC: A entries' bytes (6 each)
 	add a,a
